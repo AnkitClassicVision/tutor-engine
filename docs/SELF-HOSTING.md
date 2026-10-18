@@ -30,6 +30,8 @@ Before you invite anyone else's family, read [OPERATING.md](OPERATING.md).
 6. **Deploy**, then open `/health`. Create a parent account, verify the email and add a child.
 7. **AI.** There is nothing to register. Each family connects its own provider: OpenRouter uses OAuth with PKCE back to `TUTOR_ORIGIN`, and API keys are checked before saving. You never pay for families' AI use.
 
+   **ChatGPT plans on a hosted site** need a client ID and registered callback issued by OpenAI through the [Sign in with ChatGPT waitlist](https://openai.com/form/sign-in-with-chatgpt-interest/). Until you have one, leave `TUTOR_CHATGPT_*` unset: settings show the option as coming soon. Families running the app on their own computer can use their plan today with `TUTOR_CHATGPT_LOCAL=1` (see the README); that mode is refused in public mode.
+
 ### Recommended hardening
 
 - **Data-only database role.** By default the app connects as Neon's owner role. To run requests and jobs as a role that can read and write rows but not change the schema or create roles:

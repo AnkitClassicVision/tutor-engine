@@ -55,6 +55,15 @@ npm start
 
 Local mode uses SQLite in `data/` and creates its own encryption key in `data/.credential-key` (back that up with the database). Connect an AI under **AI connection** once you have added a child, or skip it and use practice missions.
 
+**Use your ChatGPT plan.** On your own computer, a parent can power the tutor with their ChatGPT Plus or Pro plan instead of an API key:
+
+```bash
+TUTOR_CHATGPT_LOCAL=1 npm start
+# open http://127.0.0.1:8787 (not localhost), then AI connection → Continue with ChatGPT
+```
+
+This uses OpenAI's sign-in for locally run apps: OpenAI registers this copy of the app and returns the sign-in to `127.0.0.1` on the same computer, so start the sign-in in a browser on that computer. It does not work on a hosted site, which needs a client ID issued by OpenAI (see [.env.example](.env.example)). Usage counts against the plan's normal limits.
+
 ## Host it
 
 The supported production setup is **Vercel + Neon Postgres + private Vercel Blob + an email provider (Resend or SMTP)**. A Docker/Compose setup with SQLite also exists for a single dedicated host. Step by step: [docs/SELF-HOSTING.md](docs/SELF-HOSTING.md). Every setting is listed in [.env.example](.env.example).
