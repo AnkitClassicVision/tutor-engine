@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import AxeBuilder from '@axe-core/playwright'
+import { settledAudit } from './settled-audit.ts'
 
 async function sendAnswer(page: Page, value: string) {
   await page.getByLabel('Answer', { exact: true }).fill(value)
@@ -35,7 +35,7 @@ test('adaptive choices, harder probe, teaching recovery and saved summary', asyn
   await page.screenshot({ path: `evidence/screenshots/adaptive-${info.project.name}-home.png`, fullPage: true })
   await page.getByRole('link', { name: 'Another topic', exact: false }).click()
   await expect(page.getByRole('button', { name: 'Try a harder one' }).first()).toBeVisible()
-  const audit = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze()
+  const audit = await (await settledAudit(page)).withTags(['wcag2a', 'wcag2aa']).analyze()
   expect(audit.violations.map(v => v.id)).toEqual([])
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   await page.screenshot({ path: `evidence/screenshots/adaptive-${info.project.name}-map.png`, fullPage: true })

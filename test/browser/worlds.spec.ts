@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import AxeBuilder from '@axe-core/playwright'
+import { settledAudit } from './settled-audit.ts'
 
 const WORLDS = ['cartoon', '8bit', 'toybox', 'sticker', 'princess', 'booklet']
 
@@ -36,7 +36,7 @@ test('every world can be picked, styles the whole app and passes the accessibili
     expect(mascot).toContain(`/worlds/${world}/bloop-wave.webp`)
     const art = await page.request.get(`/worlds/${world}/bloop-wave.webp`)
     expect(art.status()).toBe(200)
-    expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze()).violations.map(v => `${world}: ${v.id}`)).toEqual([])
+    expect((await (await settledAudit(page)).withTags(['wcag2a', 'wcag2aa']).analyze()).violations.map(v => `${world}: ${v.id}`)).toEqual([])
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   }
 })

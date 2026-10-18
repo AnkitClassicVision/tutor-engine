@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import AxeBuilder from '@axe-core/playwright'
+import { settledAudit } from './settled-audit.ts'
 
 const birthday = (years: number) => new Date(Date.now() - years * 365.25 * 86400000).toISOString().slice(0, 10)
 
@@ -37,7 +37,7 @@ test('ages 5–7 hear the question on arrival, answer first checks with tiles, a
   const question = (await page.locator('.question-text').innerText()).replace(/[\u2022\u25A0-\u25FF\u2600-\u27BF]/g, ' ').replace(/\s+/g, ' ').trim()
   await expect.poll(() => page.evaluate(() => (window as any).__spoken.length)).toBeGreaterThan(0)
   expect(await page.evaluate(() => (window as any).__spoken[0])).toBe(question)
-  expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze()).violations.map((v) => v.id)).toEqual([])
+  expect((await (await settledAudit(page)).withTags(['wcag2a', 'wcag2aa']).analyze()).violations.map((v) => v.id)).toEqual([])
   // Reading off is remembered on this device: the next load stays quiet.
   await page.getByLabel('Read questions to me', { exact: true }).uncheck()
   await page.reload()

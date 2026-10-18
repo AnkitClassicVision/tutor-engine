@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import AxeBuilder from '@axe-core/playwright'
+import { settledAudit } from './settled-audit.ts'
 
 test('a new family is offered one simple AI step after adding a child, and a pasted key just works', async ({ page }) => {
   await page.goto('/')
@@ -14,7 +14,7 @@ test('a new family is offered one simple AI step after adding a child, and a pas
   await page.getByRole('button', { name: 'Add student', exact: true }).click()
   await expect(page).toHaveURL(/\/welcome\/ai\?next=/)
   await expect(page.getByRole('heading', { name: 'Give Bloop a brain', exact: true })).toBeVisible()
-  expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze()).violations.map(v => v.id)).toEqual([])
+  expect((await (await settledAudit(page)).withTags(['wcag2a', 'wcag2aa']).analyze()).violations.map(v => v.id)).toEqual([])
   // A key that matches no provider is explained, not saved.
   await page.getByLabel('Your key', { exact: true }).fill('not-a-real-key')
   await page.getByRole('button', { name: 'Connect', exact: true }).click()

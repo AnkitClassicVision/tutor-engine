@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import AxeBuilder from '@axe-core/playwright'
+import { settledAudit } from './settled-audit.ts'
 import { manipulative } from '../../src/manipulatives.ts'
 
 test('the hands-on models work by touch, mouse and keyboard and always state their value', async ({ page }) => {
@@ -35,6 +35,6 @@ test('the hands-on models work by touch, mouse and keyboard and always state the
   for (let i = 0; i < 3; i++) await line.getByRole('button', { name: 'Forward 10' }).click()
   await expect(line.locator('[data-value]')).toHaveText('At 60', { timeout: 2000 })
   for (const box of await page.locator('.manip-part, .manip-controls button').all()) expect((await box.boundingBox())!.height).toBeGreaterThanOrEqual(44)
-  const audit = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze()
+  const audit = await (await settledAudit(page)).withTags(['wcag2a', 'wcag2aa']).analyze()
   expect(audit.violations.map((v) => v.id)).toEqual([])
 })

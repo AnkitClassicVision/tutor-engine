@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import AxeBuilder from '@axe-core/playwright'
+import { settledAudit } from './settled-audit.ts'
 
 async function onboard(page: Page) {
   await page.goto('/')
@@ -24,7 +24,7 @@ async function onboard(page: Page) {
 }
 async function audit(page: Page) {
   await page.evaluate(() => Promise.all(document.getAnimations().filter(a => a.effect?.getComputedTiming().endTime !== Infinity && ((a.effect as KeyframeEffect | null)?.target?.getClientRects().length ?? 0) > 0).map(a => a.finished.catch(() => undefined))))
-  expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations).toEqual([])
+  expect((await (await settledAudit(page)).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations).toEqual([])
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
 }
 

@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import AxeBuilder from '@axe-core/playwright'
+import { settledAudit } from './settled-audit.ts'
 
 async function onboard(page: Page) {
   await page.goto('/')
@@ -35,14 +35,14 @@ test('the parent overview fits one phone screen and every section has its own pa
   const action = (await page.locator('.week-action .button').boundingBox())!, fab = (await page.locator('.planner-fab').boundingBox())!
   expect(action.y + action.height <= fab.y || fab.y + fab.height <= action.y || action.x + action.width <= fab.x || fab.x + fab.width <= action.x, 'the Planner button does not cover the primary action').toBe(true)
   expect(await page.locator('main form:not(.lock-form)').count()).toBe(0)
-  const audit = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze()
+  const audit = await (await settledAudit(page)).withTags(['wcag2a', 'wcag2aa']).analyze()
   expect(audit.violations.map(v => v.id)).toEqual([])
   await page.screenshot({ path: `evidence/screenshots/parent-overview-${info.project.name}.png` })
   const actions = page.getByRole('navigation', { name: 'Parent actions' })
   for (const [name, heading] of [['Classes and practice', 'Classes and practice'], ['Record school score', 'School results'], ['Leave a note', 'A note for Synthetic learner'], ['Controls', 'Controls']]) {
     await actions.getByRole('link', { name, exact: true }).click()
     await expect(page.getByRole('heading', { level: 1, name: heading, exact: true })).toBeVisible()
-    expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze()).violations.map(v => v.id)).toEqual([])
+    expect((await (await settledAudit(page)).withTags(['wcag2a', 'wcag2aa']).analyze()).violations.map(v => v.id)).toEqual([])
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
     await page.getByRole('link', { name: /overview/ }).click()
   }
@@ -58,7 +58,7 @@ test('the parent overview fits one phone screen and every section has its own pa
   await page.goto(`/students/${student}/scoreboard`)
   await expect(page.getByRole('heading', { name: 'How learning is going', exact: true })).toBeVisible()
   await expect(page.getByText('Not enough yet', { exact: false }).first()).toBeVisible()
-  expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze()).violations.map(v => v.id)).toEqual([])
+  expect((await (await settledAudit(page)).withTags(['wcag2a', 'wcag2aa']).analyze()).violations.map(v => v.id)).toEqual([])
   await page.goto(`/students/${student}/parent`)
   // The planner drawer remembers it was open on this tab; close it before using the page.
   if (await page.locator('#planner-drawer').isVisible()) await page.keyboard.press('Escape')

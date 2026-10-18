@@ -1,5 +1,5 @@
 import {test,expect} from '@playwright/test'
-import AxeBuilder from '@axe-core/playwright'
+import { settledAudit } from './settled-audit.ts'
 import {readFileSync,mkdirSync} from 'node:fs'
 import {resolve} from 'node:path'
 import {pathToFileURL} from 'node:url'
@@ -26,7 +26,7 @@ test('connected strengths show independent evidence, preserve milestones and nav
  await expect(page.getByRole('button',{name:'Revisit this idea'})).toBeVisible()
  await page.getByRole('link',{name:'Show all foundations',exact:true}).click();await expect(page.getByRole('link',{name:'Show nearby foundations'})).toBeVisible()
  await page.getByText('Explore the map as a list',{exact:true}).click();await expect(page.locator('.strength-list ul')).toBeVisible()
- const result=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();expect(result.violations.map(v=>({id:v.id,nodes:v.nodes.map(n=>n.target)}))).toEqual([])
+ const result=await (await settledAudit(page)).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();expect(result.violations.map(v=>({id:v.id,nodes:v.nodes.map(n=>n.target)}))).toEqual([])
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
  // Selected node stays keyboard reachable; page focus is not stolen by map centering.
  await page.locator('[data-strength-node="math.5.nf.a.1"]').focus();await page.keyboard.press('Enter');await expect(page.locator('#strength-detail-title')).toHaveText('Add and subtract fractions with unlike denominators')
@@ -57,7 +57,7 @@ test('offline reviewer starts unapproved, exports a human decision and resets ap
  await page.getByRole('button',{name:'Needs revision',exact:true}).click();await expect(page.locator('#counts')).toContainText('1 need revision')
  await page.locator('#import').setInputFiles({name:'saved.jsonl',mimeType:'application/x-ndjson',buffer:Buffer.from(records.map(c=>JSON.stringify(c)).join('\n'))});await expect(page.locator('#counts')).toContainText('1 of 100 approved')
  await page.locator('#kind').selectOption('extraction');await expect(page.locator('#case img')).toBeVisible();expect(await page.locator('#case img').evaluate((img:any)=>img.naturalWidth)).toBeGreaterThan(0)
- const result=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();expect(result.violations.map(v=>v.id)).toEqual([])
+ const result=await (await settledAudit(page)).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();expect(result.violations.map(v=>v.id)).toEqual([])
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
  await page.screenshot({path:`evidence/screenshots/${info.project.name}-review-studio.png`,fullPage:true})
 })

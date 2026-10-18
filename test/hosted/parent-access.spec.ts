@@ -4,7 +4,7 @@ import { withPostgres, closePostgres } from '../../src/postgres.ts'
 import { registerUser } from '../../src/auth.ts'
 import { deleteFamily } from '../../src/accounts.ts'
 import { trackFixture } from './cleanup.ts'
-import AxeBuilder from '@axe-core/playwright'
+import { settledAudit } from '../browser/settled-audit.ts'
 
 let owner: string | null = null
 
@@ -44,7 +44,7 @@ test('parent overview, student PIN access and family isolation', async ({ page, 
   await expect(page.getByRole('heading',{name:'This week'})).toBeVisible()
   await expect(page.getByRole('heading',{name:'Keep these strengths growing'})).toBeVisible()
   await expect(page.getByRole('navigation',{name:'Parent actions'})).toBeVisible()
-  const audit=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa']).analyze()
+  const audit=await (await settledAudit(page)).withTags(['wcag2a','wcag2aa']).analyze()
   expect(audit.violations.map(v=>({id:v.id,targets:v.nodes.map(n=>n.target)}))).toEqual([])
   expect(await page.evaluate(()=>document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   await page.getByRole('navigation',{name:'Parent actions'}).getByRole('link',{name:'Controls',exact:true}).click()

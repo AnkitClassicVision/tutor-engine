@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import AxeBuilder from '@axe-core/playwright'
+import { settledAudit } from './settled-audit.ts'
 
 async function onboard(page: Page) {
   await page.goto('/')
@@ -26,7 +26,7 @@ async function fixtureAi(page: Page) {
 async function audit(page: Page) {
   // Measure settled colours: arriving bubbles fade in, and axe would otherwise sample them half-transparent.
   await page.evaluate(() => Promise.all(document.getAnimations().filter(a => a.effect?.getComputedTiming().endTime !== Infinity && ((a.effect as KeyframeEffect | null)?.target?.getClientRects().length ?? 0) > 0).map(a => a.finished.catch(() => undefined))))
-  expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations).toEqual([])
+  expect((await (await settledAudit(page)).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations).toEqual([])
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
 }
 
@@ -140,7 +140,8 @@ test('the history page undoes a recent change and the weekly digests page explai
   await audit(page)
   await page.goto('/family/digests')
   await expect(page.getByRole('heading', { name: 'Weekly digests', exact: true })).toBeVisible()
-  await expect(page.getByText('The first digest arrives on Sunday', { exact: false })).toBeVisible()
+  // On a Sunday the week's digest may already be written, so either the explanation or a digest shows.
+  await expect(page.getByText('The first digest arrives on Sunday', { exact: false }).or(page.locator('article.digest')).first()).toBeVisible()
   await audit(page)
 })
 

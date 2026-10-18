@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import AxeBuilder from '@axe-core/playwright'
+import { settledAudit } from './settled-audit.ts'
 import { devices } from '../device-fixture.ts'
 
 async function livePage(page: Page) {
@@ -60,7 +60,7 @@ test('live device check sends no AI request, supports mute/camera controls and r
   expect(await page.evaluate(() => (window as any).__deviceStream.getVideoTracks().length)).toBe(0)
   await page.getByRole('button', { name: 'Turn camera on' }).click()
   await expect(page.getByRole('button', { name: 'Turn camera off' })).toBeVisible()
-  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
+  expect((await (await settledAudit(page)).analyze()).violations).toEqual([])
   await page.getByRole('button', { name: 'Stop device check' }).click()
   expect(await page.evaluate(() => (window as any).__camera.stops)).toBe(3)
   expect(calls).toBe(0)

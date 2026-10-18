@@ -1,6 +1,6 @@
 import { devices } from '../device-fixture.ts'
 import { test, expect, type Page } from '@playwright/test'
-import AxeBuilder from '@axe-core/playwright'
+import { settledAudit } from './settled-audit.ts'
 
 async function onboard(page: Page) {
   await page.goto('/')
@@ -40,7 +40,7 @@ test('simulated camera captures and retakes a school result, switches and releas
   await expect(form.getByRole('button', { name: 'Capture photo' })).toBeEnabled()
   await form.getByRole('button', { name: 'Capture photo' }).click()
   await expect(form.locator('.page-preview')).toHaveCount(1)
-  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
+  expect((await (await settledAudit(page)).analyze()).violations).toEqual([])
   await form.getByRole('button', { name: 'Save teacher result' }).click()
   await expect(page.getByText('8 / 10', { exact: true })).toBeVisible()
   await page.getByRole('link', { name: 'View marked pages' }).click()
