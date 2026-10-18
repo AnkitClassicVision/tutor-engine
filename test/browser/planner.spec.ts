@@ -21,6 +21,7 @@ async function fixtureAi(page: Page) {
   await page.getByLabel('Which AI').selectOption('openai')
   await page.getByRole('textbox', { name: 'API key', exact: true }).fill('fixture-key')
   await page.getByRole('button', { name: 'Save AI', exact: true }).click()
+  await page.waitForURL(u => u.searchParams.has('notice'))
   await expect(page).toHaveURL(/settings\?notice=/)
 }
 async function audit(page: Page) {

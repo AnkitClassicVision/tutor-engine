@@ -29,6 +29,7 @@ test('adaptive choices, harder probe, teaching recovery and saved summary', asyn
   await page.getByLabel('Which AI').selectOption('openai')
   await page.getByRole('textbox', { name: 'API key', exact: true }).fill('synthetic-fixture-key')
   await page.getByRole('button', { name: 'Save AI' }).click()
+  await page.waitForURL(u => u.searchParams.has('notice'))
   await page.goto(home)
   await expect(page.getByRole('heading', { name: 'More to do' })).toBeVisible()
   await expect(page.getByText('Your first keepsake is waiting', { exact: false })).toBeVisible()
