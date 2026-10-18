@@ -1,0 +1,42 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "buildCommand": "npm run build:assets",
+  "outputDirectory": "dist",
+  "functions": {
+    "api/proxy.ts": {
+      "maxDuration": 300
+    },
+    "api/tutor.ts": {
+      "maxDuration": 300,
+      "includeFiles": "{src/data/**,src/migrations/**,skills/**,public/**}"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/",
+      "destination": "/api/tutor"
+    },
+    {
+      "source": "/:path*",
+      "destination": "/api/tutor?__path=:path*"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/:path*",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        }
+      ]
+    }
+  ],
+  "crons": [
+    {
+      "path": "/cron/weekly-digest",
+      "schedule": "0 12 * * 0"
+    }
+  ]
+}

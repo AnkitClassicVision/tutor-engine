@@ -1,0 +1,30 @@
+services:
+  web:
+    build: .
+    restart: unless-stopped
+    env_file: .env.production
+    volumes: ["tutor-data:/data"]
+    expose: ["8787"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8787/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+  worker:
+    build: .
+    restart: unless-stopped
+    command: ["node", "--experimental-strip-types", "src/worker.ts"]
+    env_file: .env.production
+    volumes: ["tutor-data:/data"]
+  https:
+    image: caddy:2
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    environment:
+      TUTOR_DOMAIN: ${TUTOR_DOMAIN:?Set the staging hostname}
+    volumes: ["./Caddyfile:/etc/caddy/Caddyfile:ro", "caddy-data:/data", "caddy-config:/config"]
+    depends_on: [web]
+volumes:
+  tutor-data:
+  caddy-data:
+  caddy-config:

@@ -1,0 +1,22 @@
+Bubble · Tutor Engine
+Copyright (C) 2026 Ankit Patel and contributors.
+Licensed under the GNU Affero General Public License v3.0 (see LICENSE).
+
+Third-party material
+--------------------
+
+Curriculum
+  src/data/math-backbone.json is an original concept graph organised after the Common Core State Standards
+  for Mathematics. It uses short original phrasing, not the standards' text. The standards themselves:
+  © Copyright 2010. National Governors Association Center for Best Practices and Council of Chief State
+  School Officers. All rights reserved.
+
+Fonts (public/fonts/)
+  Archivo Black, Bangers, Cherry Bomb One, Fredoka, Lexend, Nunito, Patrick Hand and Pixelify Sans, each under
+  the SIL Open Font License 1.1. Copyright notices and the license text are in public/fonts/LICENSE.txt.
+
+Artwork (public/worlds/)
+  Bloop and the world art were made for this project and are released under the same license as the code.
+
+Dependencies
+  npm dependencies keep their own licenses; see package-lock.json and each package's LICENSE file.

@@ -1,0 +1,49 @@
+{
+  "name": "tutor-engine",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node --experimental-strip-types src/start.ts",
+    "test": "TUTOR_SCRYPT_N=16384 node --experimental-strip-types --test test/*.test.ts",
+    "worker": "node --experimental-strip-types src/worker.ts",
+    "typecheck": "tsc --noEmit",
+    "test:browser": "playwright test",
+    "test:performance": "node --experimental-strip-types scripts/performance.ts",
+    "backup": "node --experimental-strip-types scripts/backup.ts",
+    "evaluate:model": "node --experimental-strip-types scripts/evaluate-model.ts",
+    "check:storage": "node scripts/check-private-storage.mjs",
+    "build:assets": "node scripts/build-assets.mjs",
+    "check:function-build": "node scripts/check-function-imports.mjs",
+    "test:cloud": "TUTOR_TEST_CLOUD=1 node --env-file=.env.vercel-production.local --experimental-strip-types --test test/cloud.test.ts",
+    "start:codex": "TUTOR_CODEX_LOCAL=1 TUTOR_PORT=8788 TUTOR_DB=data/codex-test.sqlite TUTOR_UPLOADS=data/codex-test-uploads npm start",
+    "start:codex:phone": "node --experimental-strip-types scripts/start-codex-phone.ts",
+    "start:chatgpt": "TUTOR_CHATGPT_LOCAL=1 TUTOR_PORT=8789 TUTOR_ORIGIN=http://127.0.0.1:8789 TUTOR_DB=data/chatgpt-test.sqlite TUTOR_UPLOADS=data/chatgpt-test-uploads npm start",
+    "start:chatgpt:phone": "node --experimental-strip-types scripts/start-chatgpt-phone.ts"
+  },
+  "dependencies": {
+    "@vercel/blob": "^2.8.0",
+    "@vercel/functions": "^3.9.11",
+    "jose": "^5.10.0",
+    "nodemailer": "^10.0.15",
+    "pdfkit": "^0.20.2",
+    "pg": "^8.23.1",
+    "qrcode": "^1.5.4",
+    "resend": "^6.32.1"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@fontsource/nunito": "^5.3.0",
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^26.6.4",
+    "@types/nodemailer": "^8.0.2",
+    "@types/pdfkit": "^0.17.6",
+    "@types/pg": "^8.23.1",
+    "@types/qrcode": "^1.5.6",
+    "esbuild": "^0.28.2",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": "24.x"
+  },
+  "license": "AGPL-3.0-only"
+}

@@ -1,0 +1,22 @@
+node_modules/
+/data/
+*.sqlite
+*.sqlite-journal
+.DS_Store
+.env*
+!.env.production.example
+!.env.example
+*.sqlite-wal
+*.sqlite-shm
+test-results/
+playwright-report/
+dist/
+.vercel
+
+/public/blob-client.js
+/.agents/
+/skills-lock.json
+.impeccable/
+
+# Test and evaluation output
+/evidence/

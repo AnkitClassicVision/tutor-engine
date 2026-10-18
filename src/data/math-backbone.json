@@ -1,0 +1,371 @@
+{
+  "source": "ccss-math-v1",
+  "note": "Short original phrases for a family tutor. Not a copy of standards text. Swap this file to load another pack.",
+  "concepts": [
+    {
+      "conceptId": "math.primary.1.count",
+      "subject": "math",
+      "grade": 1,
+      "title": "Count a small collection",
+      "prereqs": [],
+      "recall": "Count each object once",
+      "example": "Three dots have three objects",
+      "nonExample": "Counting the same dot twice"
+    },
+    {
+      "conceptId": "math.primary.1.add",
+      "subject": "math",
+      "grade": 1,
+      "title": "Join two small groups",
+      "prereqs": [],
+      "recall": "Put the groups together and count",
+      "example": "2 + 3 = 5",
+      "nonExample": "2 + 3 = 6"
+    },
+    {
+      "conceptId": "math.primary.1.subtract",
+      "subject": "math",
+      "grade": 1,
+      "title": "Take away from a group",
+      "prereqs": [],
+      "recall": "Remove the smaller group and count what remains",
+      "example": "5 - 2 = 3",
+      "nonExample": "5 - 2 = 7"
+    },
+    {
+      "conceptId": "math.primary.2.place",
+      "subject": "math",
+      "grade": 2,
+      "title": "Tens and ones",
+      "prereqs": [],
+      "recall": "Ten ones make one ten",
+      "example": "34 is 3 tens and 4 ones",
+      "nonExample": "34 is 4 tens and 3 ones"
+    },
+    {
+      "conceptId": "math.primary.2.add",
+      "subject": "math",
+      "grade": 2,
+      "title": "Add two-digit numbers",
+      "prereqs": [],
+      "recall": "Add ones and tens, making a new ten when needed",
+      "example": "24 + 13 = 37",
+      "nonExample": "24 + 13 = 47"
+    },
+    {
+      "conceptId": "math.primary.2.subtract",
+      "subject": "math",
+      "grade": 2,
+      "title": "Subtract two-digit numbers",
+      "prereqs": [],
+      "recall": "Subtract ones and tens, trading one ten for ten ones when needed",
+      "example": "34 - 12 = 22",
+      "nonExample": "34 - 12 = 46"
+    },
+    {
+      "conceptId": "math.primary.3.multiply",
+      "subject": "math",
+      "grade": 3,
+      "title": "Equal groups",
+      "prereqs": [],
+      "recall": "Multiply the number of groups by the number in each group",
+      "example": "3 groups of 4 make 12",
+      "nonExample": "3 groups of 4 make 7"
+    },
+    {
+      "conceptId": "math.primary.3.divide",
+      "subject": "math",
+      "grade": 3,
+      "title": "Share equally",
+      "prereqs": [],
+      "recall": "Divide into equal groups and count each group",
+      "example": "12 shared among 3 gives 4 each",
+      "nonExample": "12 shared among 3 gives 5 each"
+    },
+    {
+      "conceptId": "math.primary.3.fraction",
+      "subject": "math",
+      "grade": 3,
+      "title": "Name equal parts",
+      "prereqs": [],
+      "recall": "The bottom number counts equal parts and the top counts selected parts",
+      "example": "1 of 4 equal parts is 1/4",
+      "nonExample": "1 of 4 equal parts is 4/1"
+    },
+    {
+      "conceptId": "math.4.nbt.b.4",
+      "subject": "math",
+      "grade": 4,
+      "title": "Add and subtract multi-digit whole numbers",
+      "prereqs": [],
+      "recall": "Line up place values, then add or subtract",
+      "example": "1,248 + 376 = 1,624",
+      "nonExample": "1,248 + 376 = 1,514 by skipping the hundreds"
+    },
+    {
+      "conceptId": "math.4.nbt.b.5",
+      "subject": "math",
+      "grade": 4,
+      "title": "Multiply multi-digit whole numbers",
+      "prereqs": [
+        "math.4.nbt.b.4"
+      ],
+      "recall": "Break one factor by place value, then add the partial products",
+      "example": "23 \u00d7 4 = 92",
+      "nonExample": "23 \u00d7 4 = 83 by adding instead of multiplying"
+    },
+    {
+      "conceptId": "math.4.nbt.b.6",
+      "subject": "math",
+      "grade": 4,
+      "title": "Divide multi-digit whole numbers",
+      "prereqs": [
+        "math.4.nbt.b.5"
+      ],
+      "recall": "Division undoes multiplication",
+      "example": "84 \u00f7 4 = 21",
+      "nonExample": "84 \u00f7 4 = 24 by guessing a nearby product"
+    },
+    {
+      "conceptId": "math.4.nf.a.1",
+      "subject": "math",
+      "grade": 4,
+      "title": "Explain equivalent fractions",
+      "prereqs": [],
+      "recall": "Multiply or divide the top and bottom by the same number",
+      "example": "1/2 = 2/4",
+      "nonExample": "1/2 = 2/3"
+    },
+    {
+      "conceptId": "math.4.nf.a.2",
+      "subject": "math",
+      "grade": 4,
+      "title": "Compare fractions with different denominators",
+      "prereqs": [
+        "math.4.nf.a.1"
+      ],
+      "recall": "Compare only after the pieces are the same size",
+      "example": "3/4 is greater than 2/3",
+      "nonExample": "2/3 is greater than 3/4 because 3 is greater than 4"
+    },
+    {
+      "conceptId": "math.4.nf.b.3",
+      "subject": "math",
+      "grade": 4,
+      "title": "Add and subtract fractions with like denominators",
+      "prereqs": [
+        "math.4.nf.a.1"
+      ],
+      "recall": "Add the numerators and keep the denominator",
+      "example": "1/5 + 2/5 = 3/5",
+      "nonExample": "1/5 + 2/5 = 3/10"
+    },
+    {
+      "conceptId": "math.5.nf.a.1",
+      "subject": "math",
+      "grade": 5,
+      "title": "Add and subtract fractions with unlike denominators",
+      "prereqs": [
+        "math.4.nf.a.1",
+        "math.4.nf.b.3"
+      ],
+      "recall": "Rewrite both fractions with a common denominator, then add",
+      "example": "1/2 + 1/3 = 5/6",
+      "nonExample": "1/2 + 1/3 = 2/5"
+    },
+    {
+      "conceptId": "math.5.nf.b.4",
+      "subject": "math",
+      "grade": 5,
+      "title": "Multiply fractions",
+      "prereqs": [
+        "math.5.nf.a.1"
+      ],
+      "recall": "Multiply the numerators and multiply the denominators",
+      "example": "1/2 \u00d7 3/4 = 3/8",
+      "nonExample": "1/2 \u00d7 3/4 = 4/6"
+    },
+    {
+      "conceptId": "math.5.nf.b.7",
+      "subject": "math",
+      "grade": 5,
+      "title": "Divide a unit fraction by a whole number",
+      "prereqs": [
+        "math.5.nf.b.4"
+      ],
+      "recall": "Splitting a unit fraction into n equal parts multiplies the denominator by n",
+      "example": "1/4 \u00f7 3 = 1/12",
+      "nonExample": "1/4 \u00f7 3 = 3/4"
+    },
+    {
+      "conceptId": "math.6.rp.a.1",
+      "subject": "math",
+      "grade": 6,
+      "title": "Describe a ratio",
+      "prereqs": [
+        "math.5.nf.a.1"
+      ],
+      "recall": "A ratio compares two quantities by multiplication, not by difference",
+      "example": "3 cups of water for every 1 cup of rice is 3 to 1",
+      "nonExample": "3 cups and 1 cup means a difference of 2, so the ratio is 2"
+    },
+    {
+      "conceptId": "math.6.rp.a.3",
+      "subject": "math",
+      "grade": 6,
+      "title": "Solve ratio and rate problems",
+      "prereqs": [
+        "math.6.rp.a.1"
+      ],
+      "recall": "Scale both parts of a ratio by the same factor",
+      "example": "If 2 tickets cost $6, then 5 tickets cost $15",
+      "nonExample": "If 2 tickets cost $6, then 5 tickets cost $9"
+    },
+    {
+      "conceptId": "math.6.ns.b.3",
+      "subject": "math",
+      "grade": 6,
+      "title": "Operate on decimals",
+      "prereqs": [
+        "math.5.nf.a.1"
+      ],
+      "recall": "Line up the decimal points for addition and subtraction",
+      "example": "1.5 + 0.25 = 1.75",
+      "nonExample": "1.5 + 0.25 = 1.30"
+    },
+    {
+      "conceptId": "math.6.ee.a.2",
+      "subject": "math",
+      "grade": 6,
+      "title": "Read expressions with variables",
+      "prereqs": [
+        "math.5.nf.a.1"
+      ],
+      "recall": "A variable stands for a number you do not know yet",
+      "example": "x + 4 means four more than x",
+      "nonExample": "x + 4 means 4x"
+    },
+    {
+      "conceptId": "math.6.ee.b.7",
+      "subject": "math",
+      "grade": 6,
+      "title": "Solve a one-step equation",
+      "prereqs": [
+        "math.6.ee.a.2"
+      ],
+      "recall": "Undo the operation that was done to the variable",
+      "example": "x + 4 = 9 means x = 5",
+      "nonExample": "x + 4 = 9 means x = 13"
+    },
+    {
+      "conceptId": "math.7.ee.b.4",
+      "subject": "math",
+      "grade": 7,
+      "title": "Solve a two-step linear equation",
+      "prereqs": [
+        "math.6.ee.b.7"
+      ],
+      "recall": "Undo addition or subtraction, then undo multiplication",
+      "example": "2x + 3 = 11 means x = 4",
+      "nonExample": "2x + 3 = 11 means x = 7"
+    },
+    {
+      "conceptId": "math.7.rp.a.3",
+      "subject": "math",
+      "grade": 7,
+      "title": "Solve percent problems",
+      "prereqs": [
+        "math.6.rp.a.3"
+      ],
+      "recall": "Percent means out of 100",
+      "example": "20% of 50 is 10",
+      "nonExample": "20% of 50 is 30"
+    },
+    {
+      "conceptId": "math.7.ns.a.1",
+      "subject": "math",
+      "grade": 7,
+      "title": "Add and subtract rational numbers",
+      "prereqs": [
+        "math.5.nf.a.1",
+        "math.6.ns.b.3"
+      ],
+      "recall": "Direction matters: adding a negative moves left",
+      "example": "3 + (-5) = -2",
+      "nonExample": "3 + (-5) = 8"
+    },
+    {
+      "conceptId": "math.8.ee.a.1",
+      "subject": "math",
+      "grade": 8,
+      "title": "Apply integer exponent rules",
+      "prereqs": [
+        "math.6.ee.a.2"
+      ],
+      "recall": "Multiplying powers with the same base adds the exponents",
+      "example": "2^3 \u00d7 2^2 = 2^5",
+      "nonExample": "2^3 \u00d7 2^2 = 2^6"
+    },
+    {
+      "conceptId": "math.8.ee.c.7",
+      "subject": "math",
+      "grade": 8,
+      "title": "Solve linear equations that need expansion",
+      "prereqs": [
+        "math.7.ee.b.4"
+      ],
+      "recall": "Expand parentheses before collecting like terms",
+      "example": "2(x + 3) = 10 means x = 2",
+      "nonExample": "2(x + 3) = 10 means x = 5"
+    },
+    {
+      "conceptId": "math.8.f.b.4",
+      "subject": "math",
+      "grade": 8,
+      "title": "Model a linear function",
+      "prereqs": [
+        "math.8.ee.c.7"
+      ],
+      "recall": "A linear function changes by the same amount each step",
+      "example": "Start at 2 and add 3 each step: 2, 5, 8, 11",
+      "nonExample": "2, 4, 8, 16 is linear"
+    },
+    {
+      "conceptId": "math.hsa.apr.a.1",
+      "subject": "math",
+      "grade": 9,
+      "title": "Add and subtract polynomials",
+      "prereqs": [
+        "math.6.ee.a.2",
+        "math.7.ee.b.4"
+      ],
+      "recall": "Combine only the terms that have the same power of x",
+      "example": "(3x + 2) + (4x + 5) = 7x + 7",
+      "nonExample": "(3x + 2) + (4x + 5) = 7x + 10"
+    },
+    {
+      "conceptId": "math.hsa.apr.b.3",
+      "subject": "math",
+      "grade": 9,
+      "title": "Factor a polynomial and name a zero",
+      "prereqs": [
+        "math.hsa.apr.a.1"
+      ],
+      "recall": "A factor gives a value of x that makes the polynomial zero",
+      "example": "x^2 - 5x + 6 = (x - 2)(x - 3), so 2 is a zero",
+      "nonExample": "x^2 - 5x + 6 is zero at x = 6"
+    },
+    {
+      "conceptId": "math.hsa.rei.b.4",
+      "subject": "math",
+      "grade": 9,
+      "title": "Solve a quadratic equation",
+      "prereqs": [
+        "math.hsa.apr.b.3"
+      ],
+      "recall": "A quadratic can have two solutions",
+      "example": "x^2 = 9 means x = 3 or x = -3",
+      "nonExample": "x^2 = 9 means only x = 3"
+    }
+  ]
+}

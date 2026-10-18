@@ -1,0 +1,6 @@
+export function cameraControls() {
+  return `<section data-device-camera aria-label="Camera capture"><button type="button" class="ghost" data-open-camera>Take a picture</button><div data-live-camera hidden><video data-camera-video autoplay muted playsinline aria-label="Camera preview"></video><div class="links"><button type="button" class="ghost" data-capture-photo disabled>Capture photo</button><button type="button" class="ghost" data-switch-camera disabled>Switch camera</button><button type="button" class="ghost" data-close-camera>Close camera</button></div></div><p data-camera-status role="status" aria-live="polite"></p></section>`
+}
+export function microphoneControls() {
+  return `<span class="voice-row"><button type="button" class="ghost" data-talk>Use microphone</button><span class="voice-wave" data-voice-wave hidden aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span></span><p data-voice-status role="status" aria-live="polite"></p><details class="voice-note"><summary>About voice typing</summary><p class="fine">Voice typing uses your browser’s speech service, which may process audio online. Check the words before sending. You can always type instead.</p></details>`
+}

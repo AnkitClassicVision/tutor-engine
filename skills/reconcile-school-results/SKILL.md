@@ -1,0 +1,2 @@
+# Reconcile school results
+Keep teacher results and tutor judgments separate, with date, provenance, original source, and scale. A total school score cannot establish concept-level mastery. Never combine percentages from unmatched tests. Recommend up to three concepts for follow-up using question-level evidence, retaining retrieval of strong topics. Never rewrite completed evidence. The engine commits durable results and schedules.

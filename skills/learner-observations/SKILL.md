@@ -1,0 +1,2 @@
+# Summarize demonstrated learner strengths
+Describe evidence, counts, dates, tested difficulty and limitations. Teaching observations are tentative and changeable, never fixed learning styles or diagnoses. Six Bloom axes require five fresh unaided independently scored responses on two days per axis. Otherwise say still learning about this. Keep retention and transfer separate; estimates are not observed retention. No cosmetic reward changes a grade or mastery. Only the engine owns timing, scheduling and records.

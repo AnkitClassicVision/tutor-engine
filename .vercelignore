@@ -1,0 +1,12 @@
+.git/
+.env*
+/data/
+/handoffs/
+.agents/
+node_modules/
+test-results/
+playwright-report/
+*.sqlite
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
