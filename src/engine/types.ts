@@ -69,6 +69,8 @@ export interface AttemptRecord {
   fresh?: boolean
   promptKey?: string
   evidenceCertainty?: "confirmed" | "unresolved" | "legacy"
+  /** Access support used on the item (read aloud, spoken answer). Recorded apart from teaching help; not used in scoring. */
+  accessSupport?: string[]
   supportUsed?: "none" | "hint" | "homework"
   decisionReason?: string
   /** "transfer" when the question was written to use the idea in an unfamiliar situation. */

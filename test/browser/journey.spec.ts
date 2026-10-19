@@ -130,6 +130,11 @@ test('private camera previews, homework reviews, guided help and school results 
   await page.getByRole('link', { name: 'See your next step' }).click()
   await expect(page.getByText(/Tutor review: needs work/)).toBeVisible()
   await page.getByRole('link', { name: 'Let’s think it through' }).click()
+  // WF-05: the child checks the reading before any help.
+  await expect(page.getByRole('heading', { name: 'Is this the question?' })).toBeVisible()
+  await expect(page.getByText('What is 2 + 2?', { exact: false }).first()).toBeVisible()
+  await audit(page)
+  await page.getByRole('button', { name: 'Yes, help me', exact: true }).click()
   await expect(page.getByText(/Tell me why you chose your last step/)).toBeVisible()
   await page.getByLabel('What are you thinking?').fill('I counted one extra')
   await page.getByRole('button', { name: 'Try my idea' }).click()

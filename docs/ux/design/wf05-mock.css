@@ -1,0 +1,18 @@
+/* Mockup-only helpers. Production styles go in public/app.css (see the spec). */
+#main { max-width: 760px; margin: 0 auto; padding: 16px; }
+.mock-label { background: #fff4c2; color: #3d3300; padding: 10px 14px; border-radius: 10px; font-weight: 700; }
+.mock { border: 2px dashed #9aa4b2; border-radius: 16px; padding: 18px; margin: 28px 0; background: var(--page, #fff); }
+.mock-state { font-size: 0.85rem; font-weight: 700; color: #4a5568; margin-top: 0; }
+.mock-photo { margin: 0 0 14px; }
+.mock-photo-art { display: grid; place-items: center; min-height: 140px; border-radius: 12px; background: repeating-linear-gradient(45deg, #eef2f7, #eef2f7 12px, #e2e8f0 12px, #e2e8f0 24px); color: #4a5568; font-weight: 600; }
+.mock-photo-art.is-blurry { filter: blur(1.5px); }
+/* Proposed production styles (also listed in the spec): */
+.unsure-reading { border-left: 4px solid var(--yellow, #f2b705); padding: 8px 12px; background: color-mix(in srgb, var(--yellow, #f2b705) 14%, transparent); border-radius: 8px; font-weight: 600; }
+.unsure-reading::before { content: "⚠ "; }
+.confirm-actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-top: 16px; }
+.confirm-actions > button, .confirm-actions > .button { flex: 1 1 12rem; }
+[data-band="5-7"] .confirm-actions { flex-direction: column; align-items: stretch; }
+[data-band="5-7"] .confirm-actions > button, [data-band="5-7"] .confirm-actions > .button { flex: none; }
+.confirm-tag { margin: 6px 0; }
+.confirm-tag[data-confirm="fixed"]::before { content: "✎ "; }
+.confirm-tag[data-confirm="yes"]::before { content: "✓ "; }

@@ -2,12 +2,12 @@ import type { DatabaseSync } from 'node:sqlite'
 
 export function migrateJourney(db: DatabaseSync) {
   const columns: Record<string, Record<string, string>> = {
-    session_items: { shown_at: 'TEXT', skipped: 'INTEGER NOT NULL DEFAULT 0', skip_reason: "TEXT NOT NULL DEFAULT ''", draft_answer: 'TEXT', format: "TEXT NOT NULL DEFAULT 'text'", choices_json: 'TEXT', explanation: "TEXT NOT NULL DEFAULT ''", evidence_kind: "TEXT NOT NULL DEFAULT 'practice'", confidence: 'TEXT', disputed: 'INTEGER NOT NULL DEFAULT 0', grading_doubt: 'TEXT', rubric_json: 'TEXT' },
+    session_items: { shown_at: 'TEXT', skipped: 'INTEGER NOT NULL DEFAULT 0', skip_reason: "TEXT NOT NULL DEFAULT ''", draft_answer: 'TEXT', format: "TEXT NOT NULL DEFAULT 'text'", choices_json: 'TEXT', explanation: "TEXT NOT NULL DEFAULT ''", evidence_kind: "TEXT NOT NULL DEFAULT 'practice'", confidence: 'TEXT', disputed: 'INTEGER NOT NULL DEFAULT 0', grading_doubt: 'TEXT', rubric_json: 'TEXT', concern: 'TEXT', access_support: 'TEXT', visible_at: 'TEXT', feedback_visible_at: 'TEXT' },
     sheets: { score_results: 'TEXT' },
     students: { access_code: "TEXT NOT NULL DEFAULT ''", access_code_hash: "TEXT NOT NULL DEFAULT ''", access_pin_hash: "TEXT NOT NULL DEFAULT ''", presentation: "TEXT NOT NULL DEFAULT 'auto'", world: "TEXT NOT NULL DEFAULT 'cartoon'", last_duration: 'INTEGER NOT NULL DEFAULT 10', pack_child_requests: "TEXT NOT NULL DEFAULT 'classes'", pack_child_mode: "TEXT NOT NULL DEFAULT 'now'", pack_daily_limit: 'INTEGER NOT NULL DEFAULT 3', experiments: "TEXT NOT NULL DEFAULT '{}'" },
     auth_sessions: { student_only: 'INTEGER NOT NULL DEFAULT 0', selected_student: 'TEXT', parent_unlocked_until: 'TEXT' },
     users: { photo_model: "TEXT NOT NULL DEFAULT ''", data_key: "TEXT NOT NULL DEFAULT ''", email_verified_at: 'TEXT', ai_refresh_lease: 'TEXT', chatgpt_welcomed_at: 'TEXT' },
-    tutor_sessions: { lesson_done: 'INTEGER NOT NULL DEFAULT 1', carried_from: 'TEXT', feedback_cursor: 'INTEGER NOT NULL DEFAULT 0', goal: "TEXT NOT NULL DEFAULT 'practice'", material_id: 'TEXT', question_id: 'TEXT', paused_at: 'TEXT' },
+    tutor_sessions: { lesson_done: 'INTEGER NOT NULL DEFAULT 1', carried_from: 'TEXT', feedback_cursor: 'INTEGER NOT NULL DEFAULT 0', goal: "TEXT NOT NULL DEFAULT 'practice'", material_id: 'TEXT', question_id: 'TEXT', paused_at: 'TEXT', requested_at: 'TEXT', paused_ms: 'INTEGER NOT NULL DEFAULT 0' },
     custom_concepts: { prereqs: "TEXT NOT NULL DEFAULT '[]'", map_key: "TEXT NOT NULL DEFAULT ''" },
     practice_items: { rubric_json: 'TEXT', evidence_kind: "TEXT NOT NULL DEFAULT 'practice'", pack_id: 'TEXT', format: "TEXT NOT NULL DEFAULT 'text'", choices_json: 'TEXT', hints_json: 'TEXT', explanation: "TEXT NOT NULL DEFAULT ''" },
   }
@@ -59,7 +59,8 @@ CREATE INDEX IF NOT EXISTS jobs_student_paid ON jobs(student_id, created_at);
       id TEXT PRIMARY KEY, material_id TEXT NOT NULL REFERENCES materials(id), page_id TEXT,
       revision INTEGER NOT NULL, number TEXT NOT NULL, prompt TEXT NOT NULL, figure TEXT NOT NULL DEFAULT '',
       visible_work TEXT NOT NULL DEFAULT '', answer_key TEXT NOT NULL DEFAULT '', teacher_mark TEXT NOT NULL DEFAULT '',
-      concept_id TEXT, readable INTEGER NOT NULL, confidence REAL NOT NULL
+      concept_id TEXT, readable INTEGER NOT NULL, confidence REAL NOT NULL,
+      confirmed_revision INTEGER, child_prompt TEXT, confirmed_by TEXT
     );
     CREATE TABLE IF NOT EXISTS homework_reviews (
       id TEXT PRIMARY KEY, question_id TEXT NOT NULL REFERENCES material_questions(id), revision INTEGER NOT NULL,
@@ -164,6 +165,12 @@ CREATE INDEX IF NOT EXISTS jobs_student_paid ON jobs(student_id, created_at);
   for (const column of ['request_key', 'input_hash']) if (!db.prepare('PRAGMA table_info(school_results)').all().some(c => c.name === column)) db.exec(`ALTER TABLE school_results ADD COLUMN ${column} TEXT`)
   db.exec('CREATE UNIQUE INDEX IF NOT EXISTS school_results_requests ON school_results(student_id, request_key)')
   if (!db.prepare('PRAGMA table_info(material_pages)').all().some(c => c.name === 'original_upload_id')) db.exec('ALTER TABLE material_pages ADD COLUMN original_upload_id TEXT')
+  // WF-05: the child's check of a homework question, kept beside the original reading.
+  if (!db.prepare('PRAGMA table_info(material_questions)').all().some(c => c.name === 'confirmed_revision')) {
+    for (const [column, type] of Object.entries({ confirmed_revision: 'INTEGER', child_prompt: 'TEXT', confirmed_by: 'TEXT' })) db.exec(`ALTER TABLE material_questions ADD COLUMN ${column} ${type}`)
+    // Help already under way before this check existed keeps going without asking again.
+    db.exec('UPDATE material_questions SET confirmed_revision = revision WHERE id IN (SELECT DISTINCT question_id FROM guided_attempts)')
+  }
   const oauthColumns: Record<string, string> = { provider: "TEXT NOT NULL DEFAULT 'openrouter'", nonce: "TEXT NOT NULL DEFAULT ''", client_id: "TEXT NOT NULL DEFAULT ''", redirect_uri: "TEXT NOT NULL DEFAULT ''" }
   for (const [column, type] of Object.entries(oauthColumns)) if (!db.prepare('PRAGMA table_info(oauth_states)').all().some(c => c.name === column)) db.exec(`ALTER TABLE oauth_states ADD COLUMN ${column} ${type}`)
 }

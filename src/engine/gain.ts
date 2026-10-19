@@ -1,6 +1,7 @@
 // Before and after on fair checks: fresh questions the child had not seen, answered without help and
-// graded with confidence. This is the child compared with their own start. It is not Bloom's 2-sigma,
-// which compares tutored students with classroom students; the parent view says so.
+// graded with confidence. This describes the child against their own start; it does not show cause. Cohen's h
+// is a scale for a change between two proportions. Bloom's 2-sigma compares tutored and classroom students on
+// standardized scores, so the two numbers are not comparable; the parent view says so.
 
 import { independent } from "./mastery.ts"
 import type { AttemptRecord } from "./types.ts"
@@ -15,7 +16,7 @@ export interface Gain {
   /** Cohen's h on accuracy: the standard effect size for a change between two proportions. */
   effect: number | null
   size: "too small to call" | "small" | "medium" | "large" | null
-  /** Average Bloom level of the checks in each window: harder work at the same accuracy is progress too. */
+  /** Change in average Bloom level between the windows: the kind of thinking asked for, which is not the same as difficulty. */
   demandChange: number | null
   note: string
 }

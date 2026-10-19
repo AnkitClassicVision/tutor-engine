@@ -19,6 +19,7 @@ const keys = new Map<string, Buffer>()
 export const FAMILY_FIELDS: Record<string, { owner: "id" | "student" | "session" | "material" | "question" | "user"; columns: string[] }> = {
   students: { owner: "id", columns: ["display_name", "birth_date"] },
   parent_notes: { owner: "student", columns: ["body"] },
+  material_questions: { owner: "material", columns: ["child_prompt"] },
   subject_maps: { owner: "student", columns: ["map_json"] },
   changed_minds: { owner: "student", columns: ["before_prompt", "before_answer", "after_prompt", "after_answer"] },
   planner_messages: { owner: "student", columns: ["body"] },

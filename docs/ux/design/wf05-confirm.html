@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WF-05 confirm before help: mockups</title>
+<link rel="stylesheet" href="../../../public/app.css">
+<link rel="stylesheet" href="wf05-mock.css">
+</head>
+<body>
+<main id="main">
+<p class="mock-label">MOCKUP, synthetic content. Not a live page. Workflow WF-05, states from docs/ux/flows/WF-05.md.</p>
+
+<section class="mock" aria-labelledby="s1" data-band="8-10">
+  <p class="mock-state" id="s1">State <code>to_confirm</code>, ages 8–10, low-confidence reading</p>
+  <p><a href="#">Back to your page</a></p>
+  <h1>Is this the question?</h1>
+  <figure class="mock-photo"><div class="mock-photo-art" role="img" aria-label="Your photo of question 3">Photo of question 3</div><figcaption class="fine">Your photo, question 3</figcaption></figure>
+  <div class="prompt"><p class="question-text">Sam ate 1/2 of a pizza. How much is left?</p><button type="button" class="ghost">Read aloud</button></div>
+  <p class="unsure-reading" role="note">I might have read this wrong. Check the numbers.</p>
+  <div class="confirm-actions">
+    <button type="submit">Yes, help me</button>
+    <button type="button" class="ghost">Fix it</button>
+    <a class="linklike" href="#">Take another photo</a>
+  </div>
+</section>
+
+<section class="mock" aria-labelledby="s2" data-band="8-10">
+  <p class="mock-state" id="s2">State <code>fixing</code>, ages 8–10</p>
+  <h1>Fix the question</h1>
+  <form class="panel">
+    <label>Change anything I got wrong<textarea name="prompt" rows="3">Sam ate 1/3 of a pizza. How much is left?</textarea></label>
+    <p class="fine">Your version is kept beside what I read. Your photo stays as it is.</p>
+    <div class="confirm-actions"><button type="submit">Use this question</button><button type="button" class="ghost">Cancel</button></div>
+  </form>
+</section>
+
+<section class="mock" aria-labelledby="s3" data-band="11-14">
+  <p class="mock-state" id="s3">State <code>unreadable</code>, ages 11–14</p>
+  <h1>I couldn’t read this one</h1>
+  <figure class="mock-photo"><div class="mock-photo-art is-blurry" role="img" aria-label="A blurry photo of question 5">Blurry photo of question 5</div></figure>
+  <p>That’s the photo, not you. You can type the question, or take a clearer photo.</p>
+  <div class="confirm-actions"><button type="button">Type it</button><a class="button ghost" href="#">Take another photo</a></div>
+</section>
+
+<section class="mock" aria-labelledby="s4" data-band="5-7">
+  <p class="mock-state" id="s4">State <code>to_confirm</code>, ages 5–7: one decision, can be heard</p>
+  <h1>Is this it?</h1>
+  <figure class="mock-photo"><div class="mock-photo-art" role="img" aria-label="Your photo">Your photo</div></figure>
+  <div class="say-this"><p class="question-text">3 + 4 = ?</p><button type="button" class="ghost">Hear this</button></div>
+  <div class="confirm-actions">
+    <button type="submit">Yes, help me</button>
+    <button type="button" class="ghost">No, fix it</button>
+  </div>
+</section>
+
+<section class="mock parent" aria-labelledby="s5" data-band="11-14">
+  <p class="mock-state" id="s5">Parent view of the material page after the child fixed question 3</p>
+  <article class="question-review">
+    <h2><span class="step-tag">Question 3</span> Sam ate 1/3 of a pizza. How much is left?</h2>
+    <p class="confirm-tag" data-confirm="fixed"><strong>Fixed by Synthetic learner</strong> before help.</p>
+    <details><summary>What the photo reading said</summary><p>Sam ate 1/2 of a pizza. How much is left?</p></details>
+  </article>
+  <article class="question-review">
+    <h2><span class="step-tag">Question 4</span> Write 0.25 as a fraction.</h2>
+    <p class="confirm-tag" data-confirm="yes"><strong>Checked by Synthetic learner</strong> before help.</p>
+  </article>
+</section>
+</main>
+</body>
+</html>

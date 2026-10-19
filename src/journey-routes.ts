@@ -13,9 +13,10 @@ import { setWorld, nextLearningAction, studentConcepts, assertStudent, getOwnedS
 import { networkSource } from './auth-throttle.ts'
 import { hashToken, loginUser } from './auth.ts'
 import { encryptSecret, decryptSecret } from './secrets.ts'
-import { createJob, ownedJob, jobStatus, changeJob } from './jobs.ts'
-import { createMaterial, ownedMaterial, ownedQuestion, correctMaterial, startGuidance, saveSchoolResult, configureMaterialLearning } from './schoolwork.ts'
-import { familyProgressPage, digestsPage, nav, cameraPage, worldPage, materialPage, materialsPage, mapPage, insightsPage, guidancePage, jobPage, parentUnlock, testPreparationPage } from './journey-view.ts'
+import { createJob, jobForKey, sendKey, ownedJob, jobStatus, changeJob } from './jobs.ts'
+export const ACCESS_SUPPORT = ['read_aloud', 'voice_entry']
+import { createMaterial, ownedMaterial, ownedQuestion, correctMaterial, startGuidance, confirmQuestion, needsConfirm, saveSchoolResult, configureMaterialLearning } from './schoolwork.ts'
+import { familyProgressPage, digestsPage, nav, cameraPage, worldPage, materialPage, materialsPage, mapPage, insightsPage, guidancePage, confirmPage, jobPage, parentUnlock, testPreparationPage } from './journey-view.ts'
 import { exportFamily, deleteFamily, consumeAccountToken, requestRecovery } from './accounts.ts'
 import { esc } from './view.ts'
 import { liveAvailability, liveTutorPage, connectLiveTutor } from './live-tutor.ts'
@@ -77,7 +78,7 @@ export async function authorizeStudentPath(db: DatabaseSync, auth: Auth, path: s
   } catch { return false }
   if (studentId !== selected) return false
   const read: Record<string, string[]> = { session: [''], sheet: [''], uploads: [''], jobs: ['', '/status', '/events', '/file'], materials: [''], questions: ['/help'], packs: ['', '/lesson'] }
-  const write: Record<string, string[]> = { session: ['/draft', '/answer', '/hint', '/feedback', '/continue', '/recap', '/ask', '/pause', '/resume', '/lesson'], sheet: ['/score', '/upload', '/pdf'], uploads: [], jobs: ['/retry', '/cancel', '/review'], materials: ['/extract', '/review'], questions: ['/help'], packs: ['/make', '/start', '/discard'] }
+  const write: Record<string, string[]> = { session: ['/draft', '/answer', '/hint', '/feedback', '/continue', '/recap', '/ask', '/pause', '/resume', '/lesson', '/concern', '/access', '/seen'], sheet: ['/score', '/upload', '/pdf'], uploads: [], jobs: ['/retry', '/cancel', '/review'], materials: ['/extract', '/review'], questions: ['/help', '/confirm'], packs: ['/make', '/start', '/discard'] }
   const allowed = (method === 'GET' ? read : write)[kind] ?? []
   return allowed.includes(suffix)
 }
@@ -416,6 +417,30 @@ export async function journeyRoute(req: IncomingMessage, res: ServerResponse, ur
     await db.prepare('UPDATE session_items SET draft_answer = ? WHERE id = ? AND answered = 0').run(await sealFor(db, auth.userId, String(data.answer ?? '')), item.id as string)
     json(200, { saved: true, studentId: session.student_id }); return true
   }
+  // Access support (the question read aloud, an answer spoken instead of typed) is recorded beside the
+  // attempt, apart from teaching help. It does not change scoring; whether it changes what a task measures
+  // depends on the skill being checked, which is a separate, explicit decision.
+  match = path.match(/^\/session\/([0-9a-f-]{36})\/access$/i)
+  if (match && method === 'POST') {
+    await getOwnedSession(db, auth.userId, match[1])
+    const kind = String(data.kind ?? '')
+    if (!ACCESS_SUPPORT.includes(kind)) throw new UserError('Unknown support.')
+    const item = (await db.prepare('SELECT id, access_support FROM session_items WHERE id = ? AND session_id = ? AND answered = 0').get(String(data.itemId ?? ''), match[1])) as { id: string; access_support: string | null } | undefined
+    if (!item) throw new UserError('This is not the current question.')
+    const kinds = new Set(String(item.access_support ?? '').split(',').filter(Boolean)); kinds.add(kind)
+    await db.prepare('UPDATE session_items SET access_support = ? WHERE id = ? AND answered = 0').run([...kinds].sort().join(','), item.id)
+    json(200, { saved: true }); return true
+  }
+  // The moment a question or its feedback was actually on screen in the browser, first time only. Server render
+  // time (shown_at) stays as it was; this adds what the learner saw.
+  match = path.match(/^\/session\/([0-9a-f-]{36})\/seen$/i)
+  if (match && method === 'POST') {
+    await getOwnedSession(db, auth.userId, match[1])
+    const column = data.what === 'feedback' ? 'feedback_visible_at' : data.what === 'question' ? 'visible_at' : ''
+    if (!column) throw new UserError('Unknown view.')
+    await db.prepare(`UPDATE session_items SET ${column} = ? WHERE id = ? AND session_id = ? AND ${column} IS NULL${column === 'visible_at' ? ' AND answered = 0' : ' AND answered = 1'}`).run(new Date().toISOString(), String(data.itemId ?? ''), match[1])
+    json(200, { saved: true }); return true
+  }
   match = path.match(/^\/session\/([0-9a-f-]{36})\/(pause|resume|lesson)$/i)
   if (match && method === 'POST') {
     const session = (await getOwnedSession(db, auth.userId, match[1]))
@@ -455,20 +480,28 @@ export async function journeyRoute(req: IncomingMessage, res: ServerResponse, ur
     } else return false
     return true
   }
-  match = path.match(/^\/questions\/([0-9a-f-]{36})\/(help|override)$/i)
+  match = path.match(/^\/questions\/([0-9a-f-]{36})\/(help|override|confirm)$/i)
   if (match) {
     const { q, m } = (await ownedQuestion(db, auth.userId, match[1]))
-    if (match[2] === 'override' && method === 'POST') {
+    if (match[2] === 'confirm' && method === 'POST') {
+      await confirmQuestion(db, auth.userId, match[1], String(data.choice ?? ''), data.prompt, auth.parentUnlocked && !auth.studentOnly)
+      redirect(res, `/questions/${match[1]}/help`)
+    } else if (match[2] === 'confirm') return false
+    else if (match[2] === 'override' && method === 'POST') {
       if (!['correct', 'needs_work', 'unresolved'].includes(data.verdict) || !String(data.explanation ?? '').trim()) throw new UserError('Choose a verdict and explain the review.')
       await db.prepare(`INSERT INTO homework_reviews (id, question_id, revision, verdict, explanation, provider, model, created_at) VALUES (?, ?, ?, ?, ?, 'parent', '', ?) ON CONFLICT(question_id, revision) DO UPDATE SET verdict = excluded.verdict, explanation = excluded.explanation, provider = 'parent', model = '', created_at = excluded.created_at`).run(crypto.randomUUID(), q.id, q.revision, data.verdict, String(data.explanation).slice(0, 10000), new Date().toISOString())
       redirect(res, `/materials/${m.id}`)
-    } else if (method === 'GET') { await startGuidance(db, auth.userId, match[1]); html(res, 'Thinking together', (await guidancePage(db, auth.userId, match[1])), csrf) }
+    } else if (method === 'GET' && needsConfirm(q)) html(res, 'Is this the question?', (await confirmPage(db, auth.userId, match[1], url.searchParams.get('fix') === '1')), csrf)
+    else if (method === 'GET') { await startGuidance(db, auth.userId, match[1]); html(res, 'Thinking together', (await guidancePage(db, auth.userId, match[1])), csrf) }
     else if (method === 'POST') {
       await startGuidance(db, auth.userId, match[1])
       if (!String(data.message ?? '').trim()) throw new UserError('Share your thinking first.')
+      const sendId = sendKey(data.sendId)
+      const sent = sendId ? await jobForKey(db, auth.userId, `guide:${q.id}:${sendId}`) : undefined
+      if (sent) { redirect(res, `/jobs/${sent}`); return true }
       const attempt = crypto.randomUUID()
       await db.prepare('INSERT INTO guided_attempts (id, question_id, role, body, created_at) VALUES (?, ?, ?, ?, ?)').run(attempt, q.id, 'student', await sealFor(db, auth.userId, String(data.message).slice(0, 4000)), new Date().toISOString())
-      const job = (await createJob(db, auth.userId, String(m.student_id), 'guide', { questionId: q.id, attemptId: attempt }, `guide:${attempt}`))
+      const job = (await createJob(db, auth.userId, String(m.student_id), 'guide', { questionId: q.id, attemptId: attempt }, sendId ? `guide:${q.id}:${sendId}` : `guide:${attempt}`))
       redirect(res, `/jobs/${job}`)
     } else return false
     return true

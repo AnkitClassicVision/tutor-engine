@@ -96,6 +96,8 @@ Where things are:
 
 Design system: [DESIGN.md](DESIGN.md). Product principles: [PRODUCT.md](PRODUCT.md). Shipped defaults and the reasons for them: [docs/DECISIONS.md](docs/DECISIONS.md).
 
+UI/UX improvement framework: [docs/ux/](docs/ux/README.md) contains a river mind map, current-source audit, child and parent workflow contracts, a 12-step process series, quality gates and reusable agent prompts. It is a proposed design and validation framework, not a claim of completed child research or a shipped redesign.
+
 ## What is solid and what is early
 
 **Solid:** accounts, child sign-in, data protection, durable jobs, photo handling, backups and restore, and the engine's rules, all with unit, integration and cross-browser tests.

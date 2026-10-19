@@ -2,7 +2,7 @@
 // The provider is recognised from the key, a free models call checks it before saving, and sensible
 // default models are chosen so nothing else has to be set before the first mission.
 import type { Database as DatabaseSync } from "./database.ts"
-import { saveAiSettings } from "./services.ts"
+import { saveAiSettings, WITHOUT_AI } from "./services.ts"
 import { UserError } from "./errors.ts"
 import { esc, csrfField } from "./view.ts"
 import { ARROW } from "./icons.ts"
@@ -61,7 +61,7 @@ export function welcomeAiPage(input: { next: string; chatgpt: boolean; error?: s
   return `<section class="welcome-ai" aria-labelledby="welcome-ai-title">
   <span class="companion" data-pose="think" aria-hidden="true"></span>
   <h1 id="welcome-ai-title">Give Bloop a brain</h1>
-  <p class="lede">Bloop uses an AI you already have to read homework photos, check written answers and plan classes. Connect it once. Practice missions work without it.</p>
+  <p class="lede">Bloop uses an AI you already have to read homework photos, check written answers, talk things through and plan classes. Connect it once. ${esc(WITHOUT_AI.welcome)}</p>
   ${input.error ? `<p class="banner" role="alert">${esc(input.error)}</p>` : ""}
   <div class="connect-options">
     ${input.chatgpt

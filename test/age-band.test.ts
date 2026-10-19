@@ -68,3 +68,17 @@ test('the youngest band answers first checks with tiles; scoring, evidence and r
     await assert.rejects(setPresentation(db, u.userId, older, { presentation: 'toddler' }), /Choose a presentation/)
   } finally { db.close() }
 })
+
+test('ages 5–7 get one short line they can hear on a miss and a hint; older bands keep the full text', async () => {
+  const { feedbackState } = await import('../src/session-feedback.ts')
+  const miss = { id: 'i1', answered: 1, correct: 0, prompt: '3 + 4', answer: '7', given_answer: '8', concept_id: 'math.primary.1.add', bloom_level: 3, grading_reason: '', hints_used: 0, beat: 'frontier' }
+  const next = { id: 'i2', answered: 0, prompt: '2 + 5', concept_id: 'math.primary.1.add', beat: 'frontier', hints_used: 1, hint_text: 'Start at 5 and count on 2.' }
+  const page = (band: string) => sessionPage({ sessionId: '00000000-0000-0000-0000-000000000000', continuity: '', item: next, position: 2, total: 6, feedback: null, onBreak: false, ended: false, capMinutes: 10, band, feedbackReview: feedbackState('session', [miss, next] as any, 0) })
+  const young = page('5-7'), older = page('11-14')
+  assert.match(young, /class="is-miss"[\s\S]*class="say-this"><p>Not quite\. Let’s look at it again\.<\/p><button type="button" class="ghost" data-hear>Hear this<\/button>/)
+  assert.doesNotMatch(older, /Hear this/)
+  // A hint on the question itself can be heard too.
+  const hinted = (band: string) => sessionPage({ sessionId: '00000000-0000-0000-0000-000000000000', continuity: '', item: next, position: 2, total: 6, feedback: null, onBreak: false, ended: false, capMinutes: 10, band })
+  assert.match(hinted('5-7'), /<div class="say-this"><p>Start at 5 and count on 2\.<\/p><button type="button" class="ghost" data-hear>Hear this<\/button>/)
+  assert.doesNotMatch(hinted('8-10'), /Hear this/)
+})

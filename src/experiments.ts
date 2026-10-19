@@ -1,7 +1,8 @@
 // On/off comparisons for the features meant to make learning fun. A parent can opt a child in; the
 // feature is then on in odd ISO weeks and off in even ones, so the same child is compared with
 // themselves. A feature earns its place only if return holds or rises and learning on fair checks
-// holds. The thresholds below are fixed in advance, before anyone looks at results.
+// holds. The thresholds below are fixed in advance, before anyone looks at results. One feature is compared
+// at a time. The result is exploratory: order, school, topic and time of year also change week to week.
 
 import type { Database as DatabaseSync } from "./database.ts"
 import { UserError } from "./errors.ts"
@@ -39,6 +40,8 @@ export async function setExperiment(db: DatabaseSync, studentId: string, key: st
   if (!(key in EXPERIMENTS)) throw new UserError("Unknown comparison.")
   const row = (await db.prepare("SELECT experiments FROM students WHERE id = ?").get(studentId)) as { experiments: string } | undefined
   const current = enrolled(row?.experiments)
+  // Every comparison alternates on the same weeks, so two at once could not tell which feature made a difference.
+  if (on && Object.keys(current).some(other => other !== key)) throw new UserError("Stop the other comparison first, so each result belongs to one feature.")
   if (on) current[key as ExperimentKey] = current[key as ExperimentKey] ?? now.toISOString().slice(0, 10)
   else delete current[key as ExperimentKey]
   await db.prepare("UPDATE students SET experiments = ? WHERE id = ?").run(JSON.stringify(current), studentId)

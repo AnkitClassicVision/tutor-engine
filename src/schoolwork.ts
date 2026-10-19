@@ -254,19 +254,51 @@ export async function scheduleFollowups(db: DatabaseSync, student: string, conce
     await recordDecision(db, student, 'school_followup', 'Parallel missions were recommended over the coming week; original work and existing strengths remain intact.', { conceptId: concept, evidenceId: evidence, days: [1, 3, 7] })
   }
 }
+/** WF-05: help starts only after the child has said this is the question, for this reading of the page. */
+export const needsConfirm = (q: Record<string, unknown>) => Number(q.confirmed_revision ?? -1) !== Number(q.revision)
+/** The question the tutor helps with: the child's own fix when there is one, otherwise the reading of the photo. */
+export const questionText = (q: Record<string, unknown>) => String(q.child_prompt || q.prompt || '')
+export async function confirmQuestion(db: DatabaseSync, owner: string, question: string, choice: string, prompt?: string, byParent = false) {
+  return withWrite(db, async () => {
+    const { q, m } = (await ownedQuestion(db, owner, question))
+    if (!['yes', 'fix'].includes(choice)) throw new UserError('Choose whether this is the question.')
+    // Once confirmed for this reading, the question stays as it was when help began.
+    if (!needsConfirm(q)) return
+    const actor = byParent ? 'parent' : String(m.student_id)
+    if (choice === 'yes') {
+      if (!q.readable && !q.child_prompt) throw new UserError('Type the question first.')
+      await db.prepare('UPDATE material_questions SET confirmed_revision = ?, confirmed_by = ? WHERE id = ?').run(q.revision, actor, q.id)
+    } else if (choice === 'fix') {
+      const text = String(prompt ?? '').trim()
+      if (!text || text.length > 1000) throw new UserError('Type the question, up to 1,000 characters.')
+      // Accepting an uncertain reading unchanged is a check, not a fix. The checked text is kept for help;
+      // the reading's own "readable" flag is left alone, so learning-plan coverage is unchanged.
+      if (text === String(q.prompt ?? '').trim()) {
+        await db.prepare('UPDATE material_questions SET child_prompt = ?, confirmed_revision = ?, confirmed_by = ? WHERE id = ?').run(await sealFor(db, owner, text), q.revision, actor, q.id)
+        await recordDecision(db, String(m.student_id), 'homework_question_confirmed', `${byParent ? 'A parent' : 'The child'} confirmed an uncertain reading of the photo before asking for help.`, { questionId: q.id, materialId: m.id, revision: q.revision, by: byParent ? 'parent' : 'child' })
+        return
+      }
+      await db.prepare('UPDATE material_questions SET child_prompt = ?, confirmed_revision = ?, confirmed_by = ? WHERE id = ?').run(await sealFor(db, owner, text), q.revision, actor, q.id)
+    }
+    const who = byParent ? 'A parent' : 'The child'
+    await recordDecision(db, String(m.student_id), choice === 'fix' ? 'homework_question_fixed' : 'homework_question_confirmed', choice === 'fix' ? `${who} corrected how the photo was read before asking for help. The original reading is kept.` : `${who} confirmed the photo was read correctly before asking for help.`, { questionId: q.id, materialId: m.id, revision: q.revision, by: byParent ? 'parent' : 'child' })
+  })
+}
 export async function startGuidance(db: DatabaseSync, owner: string, question: string) {
   const { q } = (await ownedQuestion(db, owner, question))
-  if (!q.readable) throw new UserError('Transcribe or correct this question first.')
+  if (needsConfirm(q)) throw new UserError('Check the question first.')
+  if (!q.readable && !q.child_prompt) throw new UserError('Transcribe or correct this question first.')
   if (!(await db.prepare('SELECT id FROM guided_attempts WHERE question_id = ?').get(question))) await db.prepare('INSERT INTO guided_attempts (id, question_id, role, body, created_at) VALUES (?, ?, ?, ?, ?)').run(crypto.randomUUID(), question, 'tutor', await sealFor(db, owner, q.visible_work ? 'Tell me why you chose your last step. What were you trying to find?' : 'What is this question asking you to find? What do you already know?'), new Date().toISOString())
 }
 export async function guideQuestion(db: DatabaseSync, ctx: JobContext, payload: { questionId: string; attemptId: string }) {
   const { q, m } = (await ownedQuestion(db, ctx.job.owner_user_id, payload.questionId))
+  if (needsConfirm(q)) throw new UserError('Check the question first.')
   await ctx.stage('Choosing your next thinking step')
   const transcript = (await db.prepare('SELECT role, body FROM guided_attempts WHERE question_id = ? ORDER BY rowid').all(q.id)).slice(-12)
   const latest = String(transcript.filter(t=>t.role==='student').at(-1)?.body ?? '')
   const stage = coachingStage(transcript.slice(0,-1).map(t=>({role:String(t.role),body:String(t.body)})),latest)
   const blocked = safetyReply(latest)
-  const raw = blocked ? {reply:blocked} : await schoolRun(db, ctx.job.owner_user_id, String(m.student_id), GUIDE_HOMEWORK, { question: q, transcript, coaching: stage, coachingPolicy: 'Ask one concrete Socratic question first; give a hint next; after two learner turns or a request to explain, show a worked explanation and offer a fresh try or break. Never endlessly repeat a question. Grade and correct only explicitly requested work; do not demand unstated steps.' })
+  const raw = blocked ? {reply:blocked} : await schoolRun(db, ctx.job.owner_user_id, String(m.student_id), GUIDE_HOMEWORK, { question: { number: q.number, prompt: questionText(q), figure: q.figure, visible_work: q.visible_work, answer_key: q.answer_key, teacher_mark: q.teacher_mark, concept_id: q.concept_id }, transcript, coaching: stage, coachingPolicy: 'Ask one concrete Socratic question first; give a hint next; after two learner turns or a request to explain, show a worked explanation and offer a fresh try or break. Never endlessly repeat a question. Grade and correct only explicitly requested work; do not demand unstated steps.' })
   if (typeof raw.reply !== 'string' || !raw.reply.trim()) throw new Error('Invalid guidance.')
   await ctx.commit(async () => {
     await ownedQuestion(db, ctx.job.owner_user_id, payload.questionId)

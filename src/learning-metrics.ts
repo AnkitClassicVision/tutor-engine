@@ -18,9 +18,9 @@ const planned = (beat: unknown) => beat === 'guided' || beat === 'faded'
 
 export async function learningMeasures(db: DatabaseSync, studentId: string, now = new Date()): Promise<Measure[]> {
   const since = new Date(now.getTime() - 30 * 86400000).toISOString()
-  const sessions = (await db.prepare(`SELECT id, started_at, ended_at, end_reason, paused_at FROM tutor_sessions
+  const sessions = (await db.prepare(`SELECT id, started_at, requested_at, ended_at, end_reason, paused_at FROM tutor_sessions
     WHERE student_id = ? AND started_at >= ? AND coalesce(goal, '') NOT LIKE 'waiting_review:%' ORDER BY started_at`).all(studentId, since)) as Array<Record<string, any>>
-  const items = (await db.prepare(`SELECT i.session_id, i.position, i.concept_id, i.answered, i.skipped, i.correct, i.hints_used, i.beat, i.shown_at
+  const items = (await db.prepare(`SELECT i.session_id, i.position, i.concept_id, i.answered, i.skipped, i.correct, i.hints_used, i.beat, i.shown_at, i.visible_at
     FROM session_items i JOIN tutor_sessions s ON s.id = i.session_id
     WHERE s.student_id = ? AND s.started_at >= ? AND coalesce(s.goal, '') NOT LIKE 'waiting_review:%' ORDER BY i.session_id, i.position`).all(studentId, since)) as Array<Record<string, any>>
   const bySession = new Map<string, Array<Record<string, any>>>()
@@ -29,14 +29,16 @@ export async function learningMeasures(db: DatabaseSync, studentId: string, now 
 
   // 1. Time to first question.
   const waits = sessions.flatMap((s) => {
-    const first = (bySession.get(String(s.id)) ?? []).find((i) => !i.skipped && i.shown_at)
-    const wait = first ? (Date.parse(String(first.shown_at)) - Date.parse(String(s.started_at))) / 1000 : NaN
+    // The question on screen in the browser where recorded; the server's page time for older missions.
+    const first = (bySession.get(String(s.id)) ?? []).find((i) => !i.skipped && (i.visible_at || i.shown_at))
+    // Measured from the original start where it is kept: a pause after the first question cannot shrink the wait.
+    const wait = first ? (Date.parse(String(first.visible_at || first.shown_at)) - Date.parse(String(s.requested_at || s.started_at))) / 1000 : NaN
     return Number.isFinite(wait) && wait >= 0 ? [wait] : []
   })
   measures.push({ key: 'time_to_first', label: 'Time to the first question', enough: waits.length >= MIN,
     value: waits.length >= MIN ? duration(median(waits)) : notYet(waits.length, MIN, 'missions'),
     detail: waits.length >= MIN ? `Middle value over ${waits.length} missions in the last 30 days.` : '',
-    definition: 'From pressing start to the first question appearing, including any lesson card.' })
+    definition: 'From pressing start to the first question on screen, including any lesson card. A mission paused before its first question counts the time away.' })
 
   // 2. Self-correction after a miss.
   let chances = 0, corrected = 0

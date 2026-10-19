@@ -1,0 +1,10 @@
+ALTER TABLE session_items ADD COLUMN IF NOT EXISTS concern TEXT;
+ALTER TABLE session_items ADD COLUMN IF NOT EXISTS access_support TEXT;
+ALTER TABLE session_items ADD COLUMN IF NOT EXISTS visible_at TEXT;
+ALTER TABLE session_items ADD COLUMN IF NOT EXISTS feedback_visible_at TEXT;
+ALTER TABLE tutor_sessions ADD COLUMN IF NOT EXISTS requested_at TEXT;
+ALTER TABLE tutor_sessions ADD COLUMN IF NOT EXISTS paused_ms INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE material_questions ADD COLUMN IF NOT EXISTS confirmed_revision INTEGER;
+ALTER TABLE material_questions ADD COLUMN IF NOT EXISTS child_prompt TEXT;
+ALTER TABLE material_questions ADD COLUMN IF NOT EXISTS confirmed_by TEXT;
+UPDATE material_questions SET confirmed_revision = revision WHERE confirmed_revision IS NULL AND id IN (SELECT DISTINCT question_id FROM guided_attempts);

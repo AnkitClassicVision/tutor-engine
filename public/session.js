@@ -93,6 +93,7 @@ root.querySelectorAll('[data-talk]').forEach(button => {
         current.final = finals.join(' '); current.interim = partial.join(' '); current.heardAnything = true
         render()
         const voice = form.querySelector('[name="voice"]'); if (voice) voice.value = '1'
+        if (form.classList.contains('answer') && !current.noted) { current.noted = true; noteAccess('voice_entry') }
         status.textContent = partial.length ? 'Listening… keep going. Tap Stop microphone when you finish.' : 'Got it. Keep talking, or tap Stop microphone and check your words.'
       }
       heard.onerror = event => {
@@ -146,9 +147,14 @@ root.querySelectorAll('[data-hear]').forEach(button => {
     if (readingButton) { readingButton.textContent = readingButton.dataset.readLabel; readingButton.setAttribute('aria-pressed', 'false') }
     window.speechSynthesis.cancel(); readingButton = null; readingUtterance = null
     if (wasReading) return
-    const text = button.parentElement?.querySelector('.question-text') || button.parentElement?.querySelector('p')
+    // A button can name the field it reads (data-hear-for), so it reads what is in the box right now.
+    const field = button.dataset.hearFor ? document.getElementById(button.dataset.hearFor) : null
+    const text = field || button.parentElement?.querySelector('.question-text') || button.parentElement?.querySelector('p')
     if (!text) return
-    utterance = new SpeechSynthesisUtterance(speakable(text.textContent)); readingUtterance = utterance
+    // An empty box reads its label instead, so the child hears what to do.
+    const words = field ? (field.value.trim() || document.querySelector(`label[for="${field.id}"]`)?.textContent || '') : text.textContent
+    if (!String(words).trim()) return
+    utterance = new SpeechSynthesisUtterance(speakable(words)); readingUtterance = utterance
     button.dataset.readLabel = label; button.textContent = 'Stop reading'; button.setAttribute('aria-pressed', 'true'); readingButton = button
     const current = utterance; utterance.onend = () => { if (readingUtterance === current) reset() }; utterance.onerror = utterance.onend
     window.speechSynthesis.speak(utterance)
@@ -159,26 +165,44 @@ bindMedia(document)
 document.addEventListener('tutor:content', event => bindMedia(event.detail instanceof Element ? event.detail : document))
 addEventListener('pagehide', () => { stopVoice(); window.speechSynthesis?.cancel() })
 document.addEventListener('visibilitychange', () => { if (document.hidden) { stopVoice(); window.speechSynthesis?.cancel() } })
-// Ages 5–7: read each question on arrival where the browser allows it, unless turned off on this device.
+// Note when a question or its feedback is actually on screen, once the tab is visible.
+function noteSeen() {
+  const form = document.querySelector('form.answer'), base = (form?.action || document.querySelector('form[action*="/session/"]')?.action || '').match(/\/session\/[0-9a-f-]{36}/i)?.[0]
+  if (!base) return
+  const csrf = document.querySelector('#csrf-store')?.value || document.querySelector('[name=csrf]')?.value || ''
+  const send = (itemId, what) => itemId && fetch(`${base}/seen`, { method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ csrf, itemId, what }) }).catch(() => {})
+  send(form?.querySelector('[name=itemId]')?.value, 'question')
+  document.querySelectorAll('.feedback-review article[data-item]').forEach(card => send(card.dataset.item, 'feedback'))
+}
+if (document.visibilityState === 'visible') requestAnimationFrame(noteSeen)
+else document.addEventListener('visibilitychange', function seenOnce() { if (document.visibilityState !== 'visible') return; document.removeEventListener('visibilitychange', seenOnce); requestAnimationFrame(noteSeen) })
+// Access support is noted on the current question, apart from hints and help; it does not change scoring.
+function noteAccess(kind) {
+  const form = document.querySelector('form.answer'), itemId = form?.querySelector('[name=itemId]')?.value
+  if (!form || !itemId) return
+  const csrf = document.querySelector('#csrf-store')?.value || document.querySelector('[name=csrf]')?.value || ''
+  fetch(form.action.replace(/\/answer$/, '/access'), { method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ csrf, itemId, kind }) }).catch(() => {})
+}
+document.querySelectorAll('.prompt [data-hear]').forEach(button => button.addEventListener('click', () => { if (button.getAttribute('aria-pressed') === 'true') noteAccess('read_aloud') }))
+// Ages 5–7: read each question on arrival where the browser allows it, unless this child turned it off.
+// The choice belongs to the learner on this device, so a sibling on the same device keeps their own. Reading
+// is separate from motion: a child who needs less animation can still need questions read aloud.
 const autoread = document.querySelector('[data-autoread]'), autoreadToggle = document.querySelector('[data-autoread-toggle]')
-const autoreadOn = () => { try { return localStorage.getItem('tutor-autoread') !== 'off' } catch { return true } }
+const autoreadKey = `tutor-autoread:${document.querySelector('[data-learner]')?.dataset.learner || 'device'}`
+const autoreadOn = () => { try { return localStorage.getItem(autoreadKey) !== 'off' } catch { return true } }
 if (autoreadToggle) {
   autoreadToggle.checked = autoreadOn()
   autoreadToggle.addEventListener('change', () => {
-    try { localStorage.setItem('tutor-autoread', autoreadToggle.checked ? 'on' : 'off') } catch {}
+    try { localStorage.setItem(autoreadKey, autoreadToggle.checked ? 'on' : 'off') } catch {}
     if (!autoreadToggle.checked) window.speechSynthesis?.cancel()
   })
 }
-const calmer = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-if (autoread && autoreadOn() && calmer) {
-  // People who ask for less motion also get no automatic speech; the button stays one tap away.
-  const hear = autoread.querySelector('[data-hear]')
-  if (hear) { hear.classList.add('tap-to-hear'); hear.textContent = 'Tap to hear it' }
-} else if (autoread && autoreadOn() && window.speechSynthesis && window.SpeechSynthesisUtterance) {
+if (autoread && autoreadOn() && window.speechSynthesis && window.SpeechSynthesisUtterance) {
   const question = autoread.querySelector('.question-text'), hear = autoread.querySelector('[data-hear]')
   const say = new SpeechSynthesisUtterance(speakable(question?.textContent))
   // Browsers that block speech before a tap get a clear button instead.
   say.onerror = event => { if (event.error === 'not-allowed' && hear) { hear.classList.add('tap-to-hear'); hear.textContent = 'Tap to hear it' } }
+  say.onstart = () => noteAccess('read_aloud')
   window.speechSynthesis.speak(say)
 }
 const spoken = document.querySelector("[data-say]")

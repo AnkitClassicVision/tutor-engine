@@ -93,6 +93,71 @@ test('student mode blocks parent APIs and sibling sessions after refresh and per
     assert.equal(unlock.status, 303); assert.equal((await f.request('/settings')).status, 200)
   } finally { f.server.close(); f.db.close() }
 })
+test('read-aloud and spoken answers are recorded as access support, apart from help, without changing scoring', async () => {
+  const f = await fixture()
+  try {
+    const { loadAttempts, submitAnswer } = await import('../src/services.ts')
+    const session = (await startTutorSession(f.db, f.owner, f.student, new Date(), { focusConceptId: 'math.primary.3.multiply' }))
+    // Answer the written questions first, so a short-answer question is the current one.
+    const items = await f.db.prepare('SELECT id, answer FROM session_items WHERE session_id = ? AND answered = 0 ORDER BY position').all(session) as Array<{ id: string; answer: string }>
+    const short = items.findIndex(i => !/^rubric:/i.test(String(i.answer)))
+    assert.ok(short >= 0, 'the mission has a short-answer question')
+    for (const before of items.slice(0, short)) await submitAnswer(f.db, f.owner, session, { itemId: before.id, answer: 'my words' })
+    const item = items[short]
+    for (const kind of ['read_aloud', 'read_aloud', 'voice_entry']) assert.equal((await f.request(`/session/${session}/access`, { itemId: item.id, kind })).status, 200)
+    assert.equal((await f.db.prepare('SELECT access_support FROM session_items WHERE id = ?').get(item.id))!.access_support, 'read_aloud,voice_entry')
+    assert.equal((await f.request(`/session/${session}/access`, { itemId: item.id, kind: 'hint' })).status, 400)
+    // The child can record it from student mode.
+    assert.equal((await f.request('/parent/lock', { studentId: f.student })).status, 303)
+    assert.equal((await f.request(`/session/${session}/access`, { itemId: item.id, kind: 'read_aloud' })).status, 200)
+    await submitAnswer(f.db, f.owner, session, { itemId: String(item.id), answer: String(item.answer) })
+    const attempt = (await loadAttempts(f.db, f.student)).find(a => a.attemptId === item.id)
+    assert.ok(attempt); assert.deepEqual(attempt!.accessSupport, ['read_aloud', 'voice_entry'])
+    assert.equal(attempt!.supportUsed, 'none', 'access support is not teaching help')
+    assert.equal((await f.request(`/session/${session}/access`, { itemId: item.id, kind: 'read_aloud' })).status, 400, 'an answered question takes no more support')
+  } finally { f.server.close(); f.db.close() }
+})
+test('what the learner saw is timed in the browser, and paused time is kept apart from the start', async () => {
+  const f = await fixture()
+  try {
+    const { pauseSession, resumeSession } = await import('../src/services.ts')
+    const session = (await startTutorSession(f.db, f.owner, f.student, new Date(), { focusConceptId: 'math.primary.3.multiply' }))
+    const row = () => f.db.prepare('SELECT started_at, requested_at, paused_ms FROM tutor_sessions WHERE id = ?').get(session)!
+    const start = row()
+    assert.equal(start.requested_at, start.started_at); assert.equal(Number(start.paused_ms), 0)
+    const item = (await f.db.prepare('SELECT id FROM session_items WHERE session_id = ? AND answered = 0 ORDER BY position LIMIT 1').get(session))!
+    assert.equal((await f.request(`/session/${session}/seen`, { itemId: item.id, what: 'question' })).status, 200)
+    const seen = f.db.prepare('SELECT visible_at FROM session_items WHERE id = ?').get(item.id)!.visible_at
+    assert.ok(seen)
+    await f.request(`/session/${session}/seen`, { itemId: item.id, what: 'question' })
+    assert.equal(f.db.prepare('SELECT visible_at FROM session_items WHERE id = ?').get(item.id)!.visible_at, seen, 'only the first time counts')
+    await f.request(`/session/${session}/seen`, { itemId: item.id, what: 'feedback' })
+    assert.equal(f.db.prepare('SELECT feedback_visible_at FROM session_items WHERE id = ?').get(item.id)!.feedback_visible_at, null, 'no feedback before an answer')
+    assert.equal((await f.request(`/session/${session}/seen`, { itemId: item.id, what: 'other' })).status, 400)
+    // A pause moves the cap's clock but not the original request time; the pause is recorded on its own.
+    await pauseSession(f.db, f.owner, session)
+    f.db.prepare('UPDATE tutor_sessions SET paused_at = ? WHERE id = ?').run(new Date(Date.now() - 60_000).toISOString(), session)
+    await resumeSession(f.db, f.owner, session)
+    const after = row()
+    assert.equal(after.requested_at, start.requested_at)
+    assert.ok(Number(after.paused_ms) >= 59_000, String(after.paused_ms))
+    assert.ok(Date.parse(String(after.started_at)) > Date.parse(String(start.started_at)))
+  } finally { f.server.close(); f.db.close() }
+})
+test('a repeated send of the same question to the tutor creates one message and one job', async () => {
+  const f = await fixture()
+  try {
+    const session = (await startTutorSession(f.db, f.owner, f.student, new Date(), { focusConceptId: 'math.primary.3.multiply' }))
+    const sendId = crypto.randomUUID()
+    const first = await f.request(`/session/${session}/ask`, { message: 'Why does this work?', sendId })
+    const again = await f.request(`/session/${session}/ask`, { message: 'Why does this work?', sendId })
+    assert.equal(first.status, again.status); assert.equal(first.headers.get('location'), again.headers.get('location'))
+    assert.equal(f.db.prepare("SELECT count(*) AS n FROM lesson_messages WHERE session_id = ? AND role = 'student'").get(session)!.n, 1)
+    // A new question gets its own send.
+    await f.request(`/session/${session}/ask`, { message: 'And this one?', sendId: crypto.randomUUID() })
+    assert.equal(f.db.prepare("SELECT count(*) AS n FROM lesson_messages WHERE session_id = ? AND role = 'student'").get(session)!.n, 2)
+  } finally { f.server.close(); f.db.close() }
+})
 test('answer submissions return 202 before model work and durable drafts survive a reload', async () => {
   const f = await fixture()
   try {
@@ -336,4 +401,82 @@ test('privacy notice, terms and the source link are public and name the operator
     const page = await home.text()
     assert.match(page, /href="\/privacy"/); assert.match(page, /Source code/)
   } finally { if (previous === undefined) delete process.env.TUTOR_OPERATOR_NAME; else process.env.TUTOR_OPERATOR_NAME = previous; f.server.close(); f.db.close() }
+})
+
+test('WF-05: help starts only after the child checks or fixes the question; the original reading is kept', async () => {
+  const f = await fixture()
+  try {
+    const material = crypto.randomUUID()
+    f.db.prepare(`INSERT INTO materials (id, student_id, kind, title, subject, work_state, revision, created_at) VALUES (?, ?, 'homework', 'Synthetic homework', 'Math', 'partial', 1, ?)`).run(material, f.student, new Date().toISOString())
+    const question = (prompt: string, readable = 1, confidence = 0.95) => { const id = crypto.randomUUID(); f.db.prepare(`INSERT INTO material_questions (id, material_id, revision, number, prompt, readable, confidence) VALUES (?, ?, 1, ?, ?, ?, ?)`).run(id, material, String(Math.random()).slice(2, 4), prompt, readable, confidence); return id }
+    // Realistic values: the reader marks a question readable only at 0.8 or above.
+    const clear = question('What is 2 + 2?'), fraction = question('Sam ate 1/2 of a pizza. How much is left?', 0, 0.6), unreadable = question('', 0, 0.1), close = question('Write 0.25 as a fraction.', 1, 0.85)
+    const tutorLines = (id: string) => Number(f.db.prepare("SELECT count(*) AS n FROM guided_attempts WHERE question_id = ?").get(id)!.n)
+    // 1. Clear question: the reading is shown; no tutor message exists before Yes.
+    const page = await (await f.request(`/questions/${clear}/help`)).text()
+    assert.match(page, /Is this the question\?/); assert.match(page, /What is 2 \+ 2\?/); assert.doesNotMatch(page, /might have read this wrong/)
+    assert.equal(tutorLines(clear), 0)
+    assert.equal((await f.request(`/questions/${clear}/help`, { message: 'skip ahead' })).status, 400, 'help cannot start before Yes')
+    // 5. Repeated Yes: one confirmation, one opening message.
+    for (let i = 0; i < 2; i++) assert.equal((await f.request(`/questions/${clear}/confirm`, { choice: 'yes' })).status, 303)
+    assert.match(await (await f.request(`/questions/${clear}/help`)).text(), /One thinking step at a time/)
+    await f.request(`/questions/${clear}/help`)
+    assert.equal(tutorLines(clear), 1)
+    assert.equal(f.db.prepare("SELECT count(*) AS n FROM decision_records WHERE student_id = ? AND kind = 'homework_question_confirmed'").get(f.student)!.n, 1)
+    // 2. Ambiguous fraction (too uncertain to use alone): shown pre-filled with a warning; the child's fix is used and the original kept.
+    const unsurePage = await (await f.request(`/questions/${fraction}/help`)).text()
+    assert.match(unsurePage, /might have read this wrong/); assert.match(unsurePage, /<textarea[^>]*>Sam ate 1\/2 of a pizza/)
+    assert.match(await (await f.request(`/questions/${close}/help`)).text(), /might have read this wrong\. Check the numbers/, 'a usable but close reading also warns')
+    assert.match(await (await f.request(`/questions/${close}/help?fix=1`)).text(), /Change anything I got wrong/)
+    await f.request(`/questions/${fraction}/confirm`, { choice: 'fix', prompt: 'Sam ate 1/3 of a pizza. How much is left?' })
+    const fixed = f.db.prepare('SELECT prompt, child_prompt FROM material_questions WHERE id = ?').get(fraction)!
+    assert.equal(fixed.prompt, 'Sam ate 1/2 of a pizza. How much is left?')
+    assert.match(String(fixed.child_prompt), /1\/3/)
+    assert.match(await (await f.request(`/questions/${fraction}/help`)).text(), /Sam ate 1\/3 of a pizza/)
+    // Accepting an uncertain reading unchanged is a check, not a fix.
+    const accepted = question('Write 3/4 as a decimal.', 0, 0.7)
+    await f.request(`/questions/${accepted}/confirm`, { choice: 'fix', prompt: 'Write 3/4 as a decimal.' })
+    assert.match(await (await f.request(`/questions/${accepted}/help`)).text(), /Write 3\/4 as a decimal/)
+    // Help that began before this check existed is not credited to anyone.
+    const legacy = question('What is 10 - 3?')
+    f.db.prepare('UPDATE material_questions SET confirmed_revision = revision WHERE id = ?').run(legacy)
+    // Once help has begun, the question cannot be changed underneath it.
+    await f.request(`/questions/${fraction}/confirm`, { choice: 'fix', prompt: 'Something else entirely' })
+    assert.match(await (await f.request(`/questions/${fraction}/help`)).text(), /Sam ate 1\/3 of a pizza/)
+    // 3. Several questions: confirming one does not confirm another.
+    assert.match(await (await f.request(`/questions/${unreadable}/help`)).text(), /I couldn’t read this one/)
+    // 4. Unreadable: the child types it, and help starts; nothing is graded.
+    await f.request(`/questions/${unreadable}/confirm`, { choice: 'fix', prompt: 'What is 7 x 8?' })
+    assert.match(await (await f.request(`/questions/${unreadable}/help`)).text(), /What is 7 x 8\?/)
+    assert.equal(f.db.prepare('SELECT count(*) AS n FROM homework_reviews WHERE question_id = ?').get(unreadable)!.n, 0)
+    // The material page shows the child's version, and the parent sees the original reading.
+    const materialPage = await (await f.request(`/materials/${material}`)).text()
+    // These checks were made in parent mode, so they are labelled as the parent's, never the child's.
+    assert.match(materialPage, /Fixed by a parent/); assert.match(materialPage, /Checked by a parent/);
+    assert.equal((materialPage.match(/data-confirm="fixed"/g) ?? []).length, 2, 'two real fixes; the unchanged uncertain reading is a check')
+    assert.equal((materialPage.match(/data-confirm="yes"/g) ?? []).length, 2, 'two checks; the legacy question has no tag'); assert.doesNotMatch(materialPage, /by Synthetic learner/); assert.match(materialPage, /What the photo reading said/)
+    assert.equal(f.db.prepare("SELECT count(*) AS n FROM decision_records WHERE student_id = ? AND reason LIKE 'A parent%' AND kind LIKE 'homework_question_%'").get(f.student)!.n, 4)
+    // 6. A new reading of the page asks again.
+    f.db.prepare('UPDATE materials SET revision = 2 WHERE id = ?').run(material); f.db.prepare('UPDATE material_questions SET revision = 2 WHERE material_id = ?').run(material)
+    assert.match(await (await f.request(`/questions/${clear}/help`)).text(), /Is this the question\?/)
+    // 10. Ages 5–7: one short question with Hear this, and no extra photo link on the screen.
+    f.db.prepare("UPDATE students SET presentation = '5-7' WHERE id = ?").run(f.student)
+    const young = await (await f.request(`/questions/${clear}/help`)).text()
+    assert.match(young, /Is this it\?/); assert.match(young, /Hear this/); assert.match(young, /No, fix it/); assert.doesNotMatch(young, /Take another photo/)
+    // 7. Another family cannot confirm it, and a child in student mode can.
+    const other = await registerUser(f.db, 'other-wf05@example.com', 'long-http-password'); if (!other.ok) throw new Error()
+    const { confirmQuestion } = await import('../src/schoolwork.ts')
+    await assert.rejects(confirmQuestion(f.db, other.userId, clear, 'yes'), /not found/i)
+    const sibling = await createStudent(f.db, f.owner, { displayName: 'Sibling fixture', grade: 4, sessionCapMinutes: 5 })
+    const theirs = crypto.randomUUID(), theirQuestion = crypto.randomUUID()
+    f.db.prepare(`INSERT INTO materials (id, student_id, kind, title, subject, work_state, revision, created_at) VALUES (?, ?, 'homework', 'Sibling homework', 'Math', 'partial', 1, ?)`).run(theirs, sibling, new Date().toISOString())
+    f.db.prepare(`INSERT INTO material_questions (id, material_id, revision, number, prompt, readable, confidence) VALUES (?, ?, 1, '1', 'What is 9 - 4?', 1, 0.95)`).run(theirQuestion, theirs)
+    assert.equal((await f.request('/parent/lock', { studentId: f.student })).status, 303)
+    assert.equal((await f.request(`/questions/${theirQuestion}/confirm`, { choice: 'yes' })).status, 403, 'a sibling question is out of reach in student mode')
+    assert.equal((await f.request(`/questions/${clear}/confirm`, { choice: 'yes' })).status, 303)
+    assert.equal((await f.request(`/questions/${clear}/confirm`, { choice: 'maybe' })).status, 400)
+    // In student mode the check is the child's own.
+    await f.request(`/questions/${close}/confirm`, { choice: 'yes' })
+    assert.equal(f.db.prepare('SELECT confirmed_by FROM material_questions WHERE id = ?').get(close)!.confirmed_by, f.student)
+  } finally { f.server.close(); f.db.close() }
 })

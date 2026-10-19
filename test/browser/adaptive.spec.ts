@@ -60,6 +60,12 @@ test('adaptive choices, harder probe, teaching recovery and saved summary', asyn
   }
   await expect(page.getByRole('heading', { name: 'Look what you did', exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Next mission:', exact: false })).toBeVisible()
+  // A planned finish leads with Done for today; other paths wait behind one tap.
+  const done = page.getByRole('link', { name: 'Done for today', exact: true })
+  await expect(done).toBeVisible(); await expect(done).not.toHaveClass(/ghost/)
+  await expect(page.getByRole('button', { name: 'Next mission:', exact: false })).toHaveClass(/ghost/)
+  await done.click()
+  await expect(page.getByRole('status').filter({ hasText: 'All done for today. Your work is saved.' })).toBeVisible()
   await page.goto(home)
   await expect(page.getByText('Your first keepsake is waiting', { exact: false })).toBeVisible()
 })

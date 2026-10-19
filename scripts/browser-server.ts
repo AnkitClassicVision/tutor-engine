@@ -5,6 +5,7 @@ import { openDb } from '../src/db.ts'
 import { judgeAnswer } from '../src/grade-response.ts'
 import { startServer } from '../src/server.ts'
 import { registerUser } from '../src/auth.ts'
+import { createStudent } from '../src/services.ts'
 import { seedStrengths } from '../test/fixtures/strengths.ts'
 const dir = mkdtempSync(join(tmpdir(), 'tutor-browser-'))
 const db = openDb(join(dir, 'browser.sqlite'))
@@ -13,6 +14,14 @@ const strengthsUser = await registerUser(db, 'strengths-browser@example.invalid'
 if (!strengthsUser.ok) throw new Error('Synthetic strengths registration failed')
 await db.prepare("UPDATE users SET email_verified_at = ?, ai_provider = 'openai', ai_model = '', ai_key = '' WHERE id = ?").run(new Date().toISOString(), strengthsUser.userId)
 await seedStrengths(db, strengthsUser.userId)
+// A family with no AI connected, to check that what the screens promise without one really works.
+// One per browser project, so parallel browsers never share a mission.
+for (const project of ['chromium', 'firefox', 'webkit', 'mobile-chromium']) {
+  const noAiUser = await registerUser(db, `no-ai-${project}@example.invalid`, 'synthetic-browser-password')
+  if (!noAiUser.ok) throw new Error('Synthetic no-AI registration failed')
+  await db.prepare("UPDATE users SET email_verified_at = ?, ai_provider = 'openai', ai_model = '', ai_key = '' WHERE id = ?").run(new Date().toISOString(), noAiUser.userId)
+  await createStudent(db, noAiUser.userId, { displayName: 'Synthetic offline', birthDate: '2016-05-04', sessionCapMinutes: 10 })
+}
 // A researched subject map for any new class, from the research golden case.
 const researchMap = JSON.parse(readFileSync(new URL('../eval/golden/research-subject.json', import.meta.url), 'utf8'))[0].replies.write
 // Open questions carry the rubric written with them.
@@ -49,7 +58,9 @@ globalThis.fetch = async (_input: any, init: any) => {
   else if (system.includes('Instructions for planning a class.')) result = { reply: 'Here is your science class plan.', subject: 'Science', about: 'A small science class', mathCourse: '', ready: true, topics: [{ title: 'Cells', recall: 'Name parts of a cell.' }] }
   else if (system.includes('Fresh practice for one existing concept')) result = {questions:[1,2,3,4].map(n=>({prompt:`Fresh situation ${n}: explain why a cell needs a boundary.`,answer:'Rubric: distinguish the inside from the surroundings.',bloomLevel:2,rubric:fixtureRubric}))}
   else if (typeof content === 'string' && content.startsWith('Make a curriculum for')) result = { reason: 'Use the parent-selected sample test to practise addition.', topics: [{ title: 'Add and subtract multi-digit numbers', recall: 'Add with regrouping.', example: '12 plus 8 is 20.', nonExample: 'Ignoring place value.', questions: [{ prompt: 'What is 13 + 8?', answer: '21', bloomLevel: 3 }, { prompt: 'Create an addition question with a sum of 30 and solve it.', answer: 'Rubric: Give an addition problem whose terms add to 30 and show its solution.', bloomLevel: 6, rubric: fixtureRubric }] }] }
-  else if (system.includes('# Read school material')) result = { questions: [{ number: '12b', prompt: 'What is 2 + 2?', figure: '', visibleWork: '5', answerKey: '4', teacherMark: '', conceptId: 'math.4.nbt.b.4', readable: true, confidence: .98 }] }
+  else if (system.includes('# Read school material')) result = { questions: [{ number: '12b', prompt: 'What is 2 + 2?', figure: '', visibleWork: '5', answerKey: '4', teacherMark: '', conceptId: 'math.4.nbt.b.4', readable: true, confidence: .98 },
+    // A smudged page also has an uncertain reading and one that could not be read (WF-05).
+    ...(JSON.stringify(content).includes('smudged') ? [{ number: '3', prompt: 'Sam ate 1/2 of a pizza. How much is left?', figure: '', visibleWork: '', answerKey: '', teacherMark: '', conceptId: 'math.4.nbt.b.4', readable: true, confidence: .6 }, { number: '5', prompt: '', figure: '', visibleWork: '', answerKey: '', teacherMark: '', conceptId: null, readable: false, confidence: .1 }] : [])] }
   else if (system.includes('# Review school homework')) result = system.includes('For guidance') && typeof content === 'string' && content.includes('transcript') ? { reply: 'You counted one extra. What happens if you group two and two?' } : { verdict: 'needs_work', explanation: 'Two and two make four. Check the extra count.', confidence: .99 }
   else { const g = graded(content); result = { ...g, reason: g.correct ? 'You did what the question asked.' : 'Look again at what the question asks.', confidence: .99, errorType: g.correct ? null : 'misconception' } }
   // Runbook writers answer their self-check; the fixture always reports its checks as done.

@@ -84,5 +84,12 @@ test("the numbers page shows the ladder and the fair-check comparison to parents
   assert.match(html, /1 meet the full goal/)
   assert.match(html, /Used somewhere new/)
   assert.match(html, /Needs 12 fair checks; 0 so far/)
-  assert.match(html, /compares your child with their own start/)
+  assert.match(html, /describes your child against their own start; it does not show what caused the change/)
+  // Cohen's h is never put on Bloom's 2-sigma scale.
+  assert.match(html, /not on the same scale as Bloom/); assert.doesNotMatch(html, /would match/)
+  // A rise in thinking level is described as a different kind of question, never as harder questions.
+  const window = (accuracy: number, demand: number, from: string, to: string) => ({ checks: 6, correct: Math.round(accuracy * 6), accuracy, low: accuracy - .2, high: Math.min(1, accuracy + .2), demand, from, to })
+  const gained = scoreboardPage("Synthetic", "00000000-0000-0000-0000-000000000000", { conceptsMasteredThisWeek: [], frontier: [], stuck: [], errorTrend: [], justRightRatio: null, retention7: { checked: 0, held: 0 }, retention30: { checked: 0, held: 0 } } as any, { c: "Fractions" }, [], { ladders: rows, gain: { enough: true, checks: 12, before: window(.5, 2, "2026-09-01", "2026-09-03"), after: window(.83, 3.5, "2026-09-20", "2026-09-22"), effect: .72, size: "medium", demandChange: 1.5, note: "" } })
+  assert.match(gained, /asked for more kinds of thinking \(up 1\.5 of a level\)\. That is a different kind of question, not proof of a harder one/)
+  assert.doesNotMatch(gained, /got harder/)
 })

@@ -109,6 +109,8 @@ test("comparisons alternate by week, follow the rule fixed in advance, and hide 
     assert.equal(await experimentReport(f.db, f.student, "confidence-check"), null)
     await setExperiment(f.db, f.student, "confidence-check", true, new Date("2026-09-07T12:00:00Z"))
     await assert.rejects(setExperiment(f.db, f.student, "unknown", true), /Unknown/)
+    // Comparisons share the same weeks, so a second one at the same time is refused.
+    await assert.rejects(setExperiment(f.db, f.student, "challenge-missions", true), /Stop the other comparison first/)
     const early = await experimentReport(f.db, f.student, "confidence-check", new Date("2026-09-10T12:00:00Z"))
     assert.equal(early!.verdict, "not enough yet")
     // Four weeks, a mission and five fair checks a day, all correct: learning and return hold.
@@ -172,5 +174,36 @@ test("a question with a problem is retired quietly, and a rubric follows its que
     const after = (await sessionItems(f.db, session)).find(i => i.id === item.id)!
     assert.equal(Number(after.disputed), 1); assert.equal(after.grader, "retired"); assert.equal(after.correct, null)
     assert.equal((await escalatedItems(f.db, f.student)).length, 0, "a question problem never lands on the parent")
+  } finally { f.db.close() }
+})
+
+test("a child can question a grade once; it counts as it stands until a parent decides", async () => {
+  const { raiseConcern, concernItems, resolveConcern, auditPage } = await import("../src/grading-audit.ts")
+  const f = await family()
+  try {
+    const kept = gradedItem(f.db, f.student, "local"), wrong = gradedItem(f.db, f.student, "model:openai"), win = gradedItem(f.db, f.student, "local")
+    const sessionOf = (id: string) => String(f.db.prepare("SELECT session_id FROM session_items WHERE id = ?").get(id)!.session_id)
+    // Only a miss can be questioned.
+    for (const id of [kept, wrong]) { f.db.prepare("UPDATE session_items SET correct = 0 WHERE id = ?").run(id); f.db.prepare("UPDATE attempts SET correct = 0 WHERE id = ?").run(id) }
+    await assert.rejects(raiseConcern(f.db, f.student, sessionOf(win), win), /not waiting for a check/, "a concern cannot remove a win")
+    await assert.rejects(raiseConcern(f.db, f.student, sessionOf(kept), wrong), /not waiting for a check/, "an item from another session is refused")
+    // Repeated taps make one concern.
+    for (let i = 0; i < 3; i++) await raiseConcern(f.db, f.student, sessionOf(kept), kept)
+    await raiseConcern(f.db, f.student, sessionOf(wrong), wrong)
+    assert.equal((await concernItems(f.db, f.student)).length, 2)
+    assert.equal(f.db.prepare("SELECT count(*) AS n FROM decision_records WHERE student_id = ? AND kind = 'child_concern'").get(f.student)!.n, 2)
+    // The child cannot change evidence: both grades still count.
+    assert.equal((await loadAttempts(f.db, f.student)).filter(a => a.evidenceCertainty !== "unresolved").length, 3)
+    assert.match(auditPage(f.student, "Synthetic learner", [], { checked: 0, agreed: 0 }, {}, [], await concernItems(f.db, f.student)), /Synthetic learner thinks 2 grades are wrong/)
+    await resolveConcern(f.db, f.student, kept, false)
+    await resolveConcern(f.db, f.student, wrong, true)
+    assert.equal((await concernItems(f.db, f.student)).length, 0)
+    const attempts = await loadAttempts(f.db, f.student)
+    assert.equal(attempts.find(a => a.attemptId === kept)!.evidenceCertainty === "unresolved", false, "a kept grade still counts")
+    assert.equal(attempts.find(a => a.attemptId === wrong)!.evidenceCertainty, "unresolved", "an upheld concern counts neither way")
+    // Once decided, it cannot be raised again.
+    await raiseConcern(f.db, f.student, sessionOf(kept), kept)
+    assert.equal((await concernItems(f.db, f.student)).length, 0)
+    await assert.rejects(resolveConcern(f.db, f.student, kept, true), /no longer waiting/)
   } finally { f.db.close() }
 })

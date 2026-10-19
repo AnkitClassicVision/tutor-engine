@@ -340,6 +340,7 @@ export async function startTutorSession(
       ) VALUES (?, ?, ?, 'paper', 0, ?, ?, ?, ?)`,
     ).run(sessionId, studentId, now.toISOString(), duration, continuity, mode, subject)
     await db.prepare("UPDATE students SET last_duration = ? WHERE id = ?").run(requested, studentId)
+    await db.prepare("UPDATE tutor_sessions SET requested_at = ? WHERE id = ?").run(now.toISOString(), sessionId)
     await db.prepare("UPDATE tutor_sessions SET goal = ?, material_id = ?, question_id = ?, lesson_done = ? WHERE id = ?").run(options.goal ?? (probeMission ? "probe" : options.intent ?? mode), options.materialId ?? null, options.questionId ?? null, arcMission ? 0 : 1, sessionId)
     for (const [index, slot] of (queue).entries()) {
       const concept = known.nodes.get(slot.conceptId)!
@@ -544,7 +545,8 @@ export async function submitAnswer(
     if (session.paused_at) {
       // Answering after a pause picks the clock up where it stopped; time away never counts.
       const away = Math.max(0, now.getTime() - Date.parse(String(session.paused_at)))
-      await db.prepare("UPDATE tutor_sessions SET started_at = ?, paused_at = NULL WHERE id = ?").run(new Date(Date.parse(String(session.started_at)) + away).toISOString(), sessionId)
+      // The shifted start keeps the time cap honest; the original request time and the total pause are kept apart.
+      await db.prepare("UPDATE tutor_sessions SET started_at = ?, paused_at = NULL, paused_ms = coalesce(paused_ms, 0) + ? WHERE id = ?").run(new Date(Date.parse(String(session.started_at)) + away).toISOString(), Math.round(away), sessionId)
       session = (await getOwnedSession(db, ownerUserId, sessionId))
     }
     const started = new Date(String(session.started_at)).getTime()
@@ -1287,6 +1289,7 @@ export async function loadAttempts(db: DatabaseSync, studentId: string): Promise
     // A grade a parent disputed counts neither way.
     evidenceCertainty: item ? (Number(item.disputed) === 1 || !String(item.given_answer ?? "").trim() || /^(?:\?|unreadable|unclear|illegible)$/i.test(String(item.given_answer).trim()) ? "unresolved" as const : "confirmed" as const) : "legacy" as const,
     supportUsed: item?.mode === "homework" ? "homework" as const : Number(row.hints_used) > 0 ? "hint" as const : "none" as const,
+    accessSupport: item?.access_support ? String(item.access_support).split(",").filter(Boolean) : undefined,
     kind: item?.evidence_kind === "transfer" ? "transfer" as const : "practice" as const,
     confidence: ["sure", "think", "guess"].includes(String(item?.confidence)) ? String(item!.confidence) as "sure" | "think" | "guess" : undefined,
     decisionReason: item ? "Stored key or reviewed rubric; support and prompt provenance retained." : "Historical evidence lacks linked prompt provenance; retained without a verified claim.",
@@ -1511,6 +1514,15 @@ export function aiConnectionProblem(settings: { provider: string; hasKey: boolea
     if (!settings.model) return "Choose a ChatGPT model in AI settings before starting."
   }
   return ""
+}
+
+/** What works while the AI is missing, said the same way on every screen. Practice on built-in topics checks short
+ * answers and gives its stored hints on this site, and keeps written answers for a parent to check. */
+export const WITHOUT_AI = {
+  child: "You can still practise: I can check short answers and give hints, and I save written answers for a grown-up to check. Talking it through waits until a grown-up connects an AI.",
+  parent: "Practice on the built-in topics still runs: short answers are checked and hints work, and written answers are saved for you to check. Talking it through with the tutor, reading homework photos, building new classes and making practice packs wait until it is connected.",
+  attention: "Needs you: connect an AI so the tutor can talk things through, check written answers and read homework photos.",
+  welcome: "Practice on the built-in topics works without it: short answers are checked, and written answers wait for you.",
 }
 
 export function isAiConnectionError(error: unknown) {
@@ -2264,7 +2276,7 @@ export async function resumeSession(db: DatabaseSync, owner: string, sessionId: 
     if (old.paused_at && !old.ended_at) {
       // Move the start forward by the pause, so the clock picks up where it stopped.
       const paused = Math.max(0, Date.now() - Date.parse(String(old.paused_at)))
-      await db.prepare("UPDATE tutor_sessions SET started_at = ?, paused_at = NULL WHERE id = ?").run(new Date(Date.parse(String(old.started_at)) + paused).toISOString(), sessionId)
+      await db.prepare("UPDATE tutor_sessions SET started_at = ?, paused_at = NULL, paused_ms = coalesce(paused_ms, 0) + ? WHERE id = ?").run(new Date(Date.parse(String(old.started_at)) + paused).toISOString(), Math.round(paused), sessionId)
     }
     await enforceSessionTime(db, owner, sessionId)
     if (!(await getOwnedSession(db, owner, sessionId)).ended_at) {

@@ -47,3 +47,58 @@ test('skip for now goes straight to the child, and AI settings offers the same s
   await page.getByRole('link', { name: 'Skip for now', exact: true }).click()
   await expect(page).toHaveURL(/\/settings$/)
 })
+
+test('with no AI connected, every screen says the same thing, and what it promises works', async ({ page }, testInfo) => {
+  await page.goto('/')
+  const login = page.locator('form[action="/login"]')
+  await login.getByLabel('Email').fill(`no-ai-${testInfo.project.name}@example.invalid`)
+  await login.getByLabel('Password', { exact: true }).fill('synthetic-browser-password')
+  await login.getByRole('button', { name: 'Enter', exact: true }).click()
+  if (!/\/students\/[0-9a-f-]{36}$/.test(page.url())) await page.getByRole('link', { name: /Synthetic offline/ }).first().click()
+  await expect(page.getByRole('heading', { name: /Hey, Synthetic offline/ })).toBeVisible()
+  const home = page.url(), student = home.split('/').at(-1)!
+  await expect(page.locator('[data-ai-missing]')).toContainText('You can still practise: I can check short answers and give hints, and I save written answers for a grown-up to check.')
+  await page.goto(`/students/${student}/parent`)
+  await expect(page.locator('[data-ai-missing]')).toContainText('Practice on the built-in topics still runs: short answers are checked and hints work, and written answers are saved for you to check.')
+  await expect(page.locator('.week-lines')).toContainText('Needs you: connect an AI so the tutor can talk things through')
+  await page.goto(`/students/${student}/controls`)
+  await expect(page.locator('.connection-status')).toContainText('Practice on the built-in topics still runs: short answers are checked and hints work, and written answers are saved for you to check.')
+  await page.getByRole('button', { name: 'Lock and return to student mode' }).click()
+  await page.waitForURL(u => !u.pathname.endsWith('/controls'))
+  // The promise holds: a mission starts, a hint comes from the stored ladder, and a short answer is checked.
+  await page.goto(home)
+  await page.getByRole('button', { name: 'Let’s go', exact: false }).click()
+  await expect(page.locator('form.answer')).toBeVisible()
+  // Answer every question: short answers are checked here, written ones are saved for a grown-up. Nothing fails.
+  const nextStep = page.getByRole('link', { name: 'See your next step', exact: false }), ready = page.getByRole('button', { name: 'Ready for a fresh question', exact: true })
+  let waiting = 0
+  for (let i = 0; i < 12 && await page.locator('form.answer').count(); i++) {
+    const choices = page.locator('fieldset.choices .choice')
+    if (await choices.count()) await choices.first().click()
+    else await page.getByLabel('Answer', { exact: true }).fill('definitely wrong')
+    await page.getByRole('button', { name: 'Check', exact: true }).click()
+    await page.waitForLoadState('load')
+    await expect(page.getByText('Could not finish', { exact: false })).toHaveCount(0)
+    // Talking it through needs the AI, so it is not offered.
+    await expect(page.locator('form.talk')).toHaveCount(0)
+    if (await page.locator('[data-saved-waiting]').count()) waiting++
+    if (await nextStep.count()) await nextStep.click()
+    if (await ready.count()) await ready.click()
+  }
+  await expect(page.getByText(/No AI is connected/).and(page.locator('[role=alert]'))).toHaveCount(0)
+  // A written answer that was saved shows up for the parent to check.
+  if (waiting) {
+    await page.goto(`/students/${student}/parent`)
+    await page.getByLabel('Parent password', { exact: true }).fill('synthetic-browser-password')
+    await page.getByLabel('Parent password', { exact: true }).press('Enter')
+    await expect(page.locator('[data-grading-unsure]')).toContainText('waiting for you to check')
+    // The promise has a place to keep it: the parent decides a waiting answer on the grading page.
+    await page.locator('[data-grading-unsure]').getByRole('link').click()
+    const section = page.locator('section.waiting')
+    const before = await section.locator('article').count()
+    expect(before).toBeGreaterThan(0)
+    await section.locator('article').first().getByRole('button', { name: 'It meets it', exact: true }).click()
+    await expect(page.locator('section.waiting article')).toHaveCount(before - 1)
+  }
+  expect(waiting, 'at least one written answer was saved for a grown-up').toBeGreaterThan(0)
+})

@@ -24,6 +24,11 @@ export async function createJob(db: DatabaseSync, owner: string, student: string
     return saved.id
   })
 }
+/** A job already created for this request identifier, so a repeated send reuses it instead of adding a second message. */
+export async function jobForKey(db: DatabaseSync, owner: string, key: string) {
+  return ((await db.prepare('SELECT id FROM jobs WHERE owner_user_id = ? AND idempotency_key = ?').get(owner, key)) as { id: string } | undefined)?.id
+}
+export const sendKey = (value: unknown) => /^[A-Za-z0-9-]{8,64}$/.test(String(value ?? '')) ? String(value) : null
 export async function ownedJob(db: DatabaseSync, owner: string, id: string): Promise<Job> {
   const job = (await db.prepare('SELECT * FROM jobs WHERE id = ? AND owner_user_id = ?').get(id, owner)) as unknown as Job | undefined
   if (!job) throw new UserError('Job not found.')

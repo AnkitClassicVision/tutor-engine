@@ -13,24 +13,37 @@ for (const radio of document.querySelectorAll('form.answer input[type=radio][nam
   const form = radio.form
   fetch(form.action.replace(/\/answer$/, '/draft'), { method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ csrf: csrfValue(), itemId: form.querySelector('[name=itemId]').value, answer: radio.value }) }).catch(() => {})
 })
-const drafts = document.querySelectorAll('form.answer input[name=answer]:not([type=radio]), form[action$="/help"] textarea[name=message]')
+const drafts = document.querySelectorAll('form.answer input[name=answer]:not([type=radio]), form[action$="/help"] textarea[name=message], form.talk textarea[name=message]')
+// The path names one session or one homework question, so a draft never appears on a sibling's page.
+const sentLast = form => [...(form.closest('main, body')?.querySelectorAll('.thread li.mine p') ?? [])].at(-1)?.textContent?.trim()
 for (const field of drafts) {
   const key = `draft:${location.pathname}:${field.form?.querySelector('[name=itemId]')?.value || ''}`
   const saved = sessionStorage.getItem(key)
-  // A server-rendered matching answer confirms autosave. Submission alone
-  // does not: a failed navigation must leave the browser's draft intact.
-  if (saved !== null && saved === field.value) sessionStorage.removeItem(key)
+  const message = !field.form?.classList.contains('answer')
+  // A server-rendered matching answer, or a question now shown as sent, confirms the save.
+  // Submission alone does not: a failed send must leave the child's words in place.
+  if (saved !== null && (saved === field.value || (message && saved.trim() && saved.trim() === sentLast(field.form)))) { sessionStorage.removeItem(key); sessionStorage.removeItem(`${key}:send`) }
   else if (saved !== null) field.value = saved
+  if (message && field.form) {
+    // One identifier per question typed: sending it again after a lost reply reuses the first send.
+    const sendId = document.createElement('input')
+    sendId.type = 'hidden'; sendId.name = 'sendId'
+    field.form.append(sendId)
+    field.form.addEventListener('submit', () => {
+      sessionStorage.setItem(key, field.value)
+      sendId.value = sessionStorage.getItem(`${key}:send`) || crypto.randomUUID()
+      sessionStorage.setItem(`${key}:send`, sendId.value)
+    })
+  }
   let saving
   async function saveDraft() {
     if (!field.form?.classList.contains('answer')) return
     const url = field.form.action.replace(/\/answer$/, '/draft')
     try { await fetch(url, { method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ csrf: csrfValue(), itemId: field.form.querySelector('[name=itemId]').value, answer: field.value }) }) } catch { /* The browser draft remains available until reconnection. */ }
   }
-  field.addEventListener('input', () => { sessionStorage.setItem(key, field.value); clearTimeout(saving); saving = setTimeout(saveDraft, 350) })
+  field.addEventListener('input', () => { sessionStorage.setItem(key, field.value); if (message) sessionStorage.removeItem(`${key}:send`); clearTimeout(saving); saving = setTimeout(saveDraft, 350) })
   field.addEventListener('blur', saveDraft)
   addEventListener('pagehide', saveDraft)
-  if (!field.form?.classList.contains('answer')) field.form?.addEventListener('submit', () => sessionStorage.removeItem(key))
 }
 // Acknowledge in the same event frame, while preserving the clicked button's value.
 document.querySelectorAll('form:not([data-fetch])').forEach(form => form.addEventListener('submit', () => {

@@ -18,11 +18,13 @@ A topic meets the full goal when it is solved on their own at the judging-and-cr
 
 For each child, the first six fair checks are compared with the latest six, at least a week apart, once there are twelve. The change is reported as accuracy before and after, the change in average Bloom level of the questions, Cohen's h with its size (under 0.2 too small to call, 0.2 small, 0.5 medium, 0.8 large), and 80% Wilson ranges. When the ranges overlap, the page says more checks are needed.
 
-This compares a child with their own start. Bloom's 2-sigma result compared tutored students with a classroom group; one family cannot measure that, and the app never claims it. A change of 2 on this scale would match that benchmark's size.
+This describes a child against their own start. It does not show cause, and the topics in each window can differ. Cohen's h measures a change between two proportions; Bloom's 2-sigma result compared tutored students with a classroom group on standardized scores. The two scales are different, so an h value is never compared with 2 sigma, and the app never claims the benchmark.
+
+The average Bloom level of each window describes the kind of thinking the questions asked for. It is not a measure of difficulty, and a rise in it is not reported as harder work.
 
 ## Is a fun feature helping?
 
-A parent can switch on a week-on, week-off comparison for a feature (now: the confidence choice and challenge missions). The rule is fixed in advance:
+A parent can switch on a week-on, week-off comparison for one feature at a time (now: the confidence choice or challenge missions). Every comparison alternates on the same weeks, so running two together could not separate them. The result is exploratory: order, carry-over, school, topics and time of year can all explain a difference. The rule is fixed in advance:
 
 - **Enough data:** at least 2 whole weeks and 10 fair checks with the feature on, and the same with it off.
 - **Keep:** missions per week no more than 10% lower with the feature on, and fair-check accuracy no more than 5 points lower.

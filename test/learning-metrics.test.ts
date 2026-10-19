@@ -52,6 +52,10 @@ test('each measure follows its stated definition', async () => {
     await mission(f.db, f.student, 130, 1, [{ correct: 1 }], 'waiting_review', 'waiting_review:job')
     const byKey = Object.fromEntries((await learningMeasures(f.db, f.student)).map((m) => [m.key, m]))
     assert.equal(byKey.time_to_first.value, '20 seconds', 'middle of 10, 20, 30, 40, 300 and two 5-second waits')
+    // Where the browser recorded the question on screen, that time is used instead of the server's page time.
+    for (const row of await f.db.prepare("SELECT i.id, s.started_at FROM session_items i JOIN tutor_sessions s ON s.id = i.session_id WHERE s.student_id = ? AND i.position = 1").all(f.student) as any[])
+      await f.db.prepare('UPDATE session_items SET visible_at = ? WHERE id = ?').run(new Date(Date.parse(row.started_at) + 45_000).toISOString(), row.id)
+    assert.equal(Object.fromEntries((await learningMeasures(f.db, f.student)).map((m) => [m.key, m])).time_to_first.value, '45 seconds')
     assert.equal(byKey.self_correction.value, '60%'); assert.match(byKey.self_correction.detail, /3 of 5 misses/)
     // Own answers exclude the planned guided hint: 17 answered, 2 asked for a hint.
     assert.equal(byKey.hint_before_answer.value, '12%'); assert.match(byKey.hint_before_answer.detail, /2 of 17 answers/)

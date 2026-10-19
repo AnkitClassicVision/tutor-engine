@@ -87,7 +87,7 @@ Each concept shows where the child is on two axes:
 
 The goal for a concept is **independent at Judge & produce, retained at 28 days, and transferred once**. Mastery stays per concept and per level, and still requires fresh items, two days and mixing, as today.
 
-**Progress toward 2 sigma.** For each subject, compare fair checks at the start with checks after teaching, using fresh, unseen, independent items at the same Bloom demand. Report the gain with its uncertainty and the number of checks behind it. The parent view says "progress toward" and never claims 2 sigma without a comparison group. Decision thresholds are written down before results are looked at.
+**Progress toward 2 sigma.** For each subject, compare fair checks at the start with checks after teaching, using fresh, unseen, independent items at the same Bloom demand. Report the gain with its uncertainty and the number of checks behind it. The parent view describes the change and never claims 2 sigma; the effect size it shows (Cohen's h) is on a different scale from Bloom's benchmark and is never compared with it. Decision thresholds are written down before results are looked at.
 
 ### 5. Fun that is the thinking
 

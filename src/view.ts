@@ -350,13 +350,15 @@ function strengthLevel(word: string) {
 function nextStepChooser(summary: { studentId: string; subject?: string; next: { conceptId: string; subject: string; title: string; reason?: string } | null; review?: { conceptId: string; subject: string; title: string } | null }) {
   const start = (label: string, subject: string, conceptId: string, goal: string, primary: boolean, note: string) =>
     `<form method="post" action="/students/${esc(summary.studentId)}/session" class="next-step">${csrfField()}<input type="hidden" name="subject" value="${esc(subject)}"><input type="hidden" name="focusConceptId" value="${esc(conceptId)}"><input type="hidden" name="intent" value="practice">${goal ? `<input type="hidden" name="goal" value="${esc(goal)}">` : ""}<button type="submit" ${primary ? "" : 'class="ghost"'}>${label}</button><small>${esc(note)}</small></form>`
-  const choices: string[] = []
-  if (summary.next) choices.push(start(`Next mission: ${esc(summary.next.title)}`, summary.next.subject, summary.next.conceptId, "", true, summary.next.reason || "Recommended from your work so far."))
-  if (summary.review) choices.push(start(`Quick review: ${esc(summary.review.title)}`, summary.review.subject, summary.review.conceptId, "delayed_review", false, "A short recall check that is due today."))
-  if (summary.subject) choices.push(start(`One more round of ${esc(summary.subject)}`, summary.subject, "", "", false, "Fresh questions on this class."))
-  choices.push(`<div class="next-step"><a class="button ghost" href="/students/${esc(summary.studentId)}/map">Explore a different topic</a><small>Pick any bubble on your map.</small></div>`)
-  choices.push(`<div class="next-step"><a class="button ghost" href="/students/${esc(summary.studentId)}">I’m done for today</a><small>Your work is saved.</small></div>`)
-  return `<section class="next-steps" aria-labelledby="next-steps-title"><h2 id="next-steps-title">What’s next?</h2><p>${summary.next ? "Here is what we recommend, plus other paths you can choose." : "Pick a path."}</p><div class="next-step-grid">${choices.join("")}</div></section>`
+  // A planned finish is a good place to stop: Done comes first, with one optional next step; other paths wait behind a tap.
+  const more: string[] = []
+  if (summary.next) more.push(start(`Next mission: ${esc(summary.next.title)}`, summary.next.subject, summary.next.conceptId, "", false, summary.next.reason || "Recommended from your work so far."))
+  if (summary.review) more.push(start(`Quick review: ${esc(summary.review.title)}`, summary.review.subject, summary.review.conceptId, "delayed_review", false, "A short recall check that is due today."))
+  if (summary.subject) more.push(start(`One more round of ${esc(summary.subject)}`, summary.subject, "", "", false, "Fresh questions on this class."))
+  more.push(`<div class="next-step"><a class="button ghost" href="/students/${esc(summary.studentId)}/map">Explore a different topic</a><small>Pick any bubble on your map.</small></div>`)
+  const [optional, ...rest] = more
+  const done = `<div class="next-step done-today"><a class="button" href="/students/${esc(summary.studentId)}?notice=${encodeURIComponent("All done for today. Your work is saved.")}">Done for today</a><small>Your work is saved.</small></div>`
+  return `<section class="next-steps" aria-labelledby="next-steps-title"><h2 id="next-steps-title">Mission complete</h2><div class="next-step-grid">${done}${optional}</div>${rest.length ? `<details class="more-paths"><summary>Other things to do</summary><div class="next-step-grid">${rest.join("")}</div></details>` : ""}</section>`
 }
 
 function classStatus(plan: { build_status?: string } | undefined, topicCount: number) {
@@ -506,6 +508,14 @@ function gradeOptions(selected: number) {
   }).join("")
 }
 
+/** A child who thinks a check got it wrong can say so; a grown-up decides. */
+function concernControl(sessionId: string, item: Record<string, unknown>) {
+  if (item.disputed || item.concern === 'upheld') return `<p class="fine" data-concern="upheld">A grown-up agreed this check was wrong, so it doesn’t count.</p>`
+  if (item.concern === 'open') return `<p class="fine" data-concern="open">Thanks for telling me. A grown-up will look at this one.</p>`
+  if (item.concern === 'kept') return ''
+  return `<form method="post" action="/session/${esc(sessionId)}/concern" class="concern">${csrfField()}<input type="hidden" name="itemId" value="${esc(String(item.id ?? ''))}"><button type="submit" class="linklike">I think there’s a mistake<span class="visually-hidden"> about ${esc(String(item.prompt ?? 'this answer'))}</span></button></form>`
+}
+
 export function sessionPage(input: {
   summary?: { independent: number; supported: number; unresolved: number; studentId: string; subject?: string; next: { conceptId: string; subject: string; title: string; reason?: string } | null; review?: { conceptId: string; subject: string; title: string } | null }
   sessionId: string
@@ -528,20 +538,23 @@ export function sessionPage(input: {
   results?: Array<{ title: string; prompt: string; answer: string; correct: boolean }>
   pendingReviews?: Array<Record<string, unknown>>
   band?: string
+  /** No AI is connected: talking it through cannot work, so it is not offered. */
+  aiMissing?: boolean
   /** Off in the weeks a parent's comparison turns the confidence choice off. */
   askSure?: boolean
   feedbackConceptId?: string
 }): string {
+  const junior=input.band==="5-7"
   const feedbackReview=input.feedbackReview
   // The correction card below explains the item it belongs to, so that item's card does not repeat it.
   const fixFor=(i: Record<string, unknown>)=>Boolean(input.feedback?.corrective?.ask && input.feedback?.prompt && input.feedback.prompt===i.prompt)
   const entries=feedbackReview?.entries ?? []
-  const feedbackCards=entries.length ? `<section class="feedback-review" aria-label="Feedback on your work"><h2${feedbackReview?.checkpoint ? ' class="visually-hidden"' : ''}>${feedbackReview?.timing==='batch' ? 'Let’s look for a pattern' : 'Feedback on your last try'}</h2>${feedbackReview?.timing==='batch' ? `<p>${entries.filter(i=>i.correct===1).length} answers held; ${entries.filter(i=>i.correct===0).length} need another look. A shared miss is a clue to check, not a diagnosis.</p><p>The shared ideas: ${[...new Set(entries.map(i=>conceptTitle(String(i.concept_id),input.titles)))].map(esc).join(", ")}. Compare your approaches: what stayed the same, and what changed?</p>` : ''}${entries.map(i=>`<article class="${i.correct==null ? 'is-pending' : i.correct===1 ? 'is-right' : 'is-miss'}">${i.correct===1 ? companion("cheer") : i.correct===0 ? companion("oops") : ''}<p class="verdict">${i.correct==null ? 'Still checking' : i.correct===1 ? 'Yes! That holds.' : 'Needs another look'}</p><p>${esc(String(i.prompt))} <span class="fine">· ${esc(conceptTitle(String(i.concept_id),input.titles))}</span></p><p><strong>You answered:</strong> ${esc(String(i.given_answer ?? ''))}</p>${i.correct==null ? '<p>We’re still checking this one. It won’t count against you.</p>' : i.correct===1 ? '' : `${childReasonText(String(i.grading_reason ?? '')) ? `<p>${esc(childReasonText(String(i.grading_reason)))}</p>` : ''}${fixFor(i) ? '' : `<details class="show-how"><summary>Show me how</summary>${mathPicture(String(i.prompt))}<p><strong>The answer:</strong> ${esc(childAnswer(String(i.answer)))}</p></details>`}`}</article>`).join('')}</section>` : ''
+  const feedbackCards=entries.length ? `<section class="feedback-review" aria-label="Feedback on your work"><h2${feedbackReview?.checkpoint ? ' class="visually-hidden"' : ''}>${feedbackReview?.timing==='batch' ? 'Let’s look for a pattern' : 'Feedback on your last try'}</h2>${feedbackReview?.timing==='batch' ? `<p>${entries.filter(i=>i.correct===1).length} answers held; ${entries.filter(i=>i.correct===0).length} need another look. A shared miss is a clue to check, not a diagnosis.</p><p>The shared ideas: ${[...new Set(entries.map(i=>conceptTitle(String(i.concept_id),input.titles)))].map(esc).join(", ")}. Compare your approaches: what stayed the same, and what changed?</p>` : ''}${entries.map(i=>`<article class="${i.correct==null ? 'is-pending' : i.correct===1 ? 'is-right' : 'is-miss'}" data-item="${esc(String(i.id ?? ''))}">${i.correct===1 ? companion("cheer") : i.correct===0 ? companion("oops") : ''}<p class="verdict">${i.correct==null ? 'Still checking' : i.correct===1 ? 'Yes! That holds.' : 'Needs another look'}</p>${junior && i.correct===0 ? `<div class="say-this"><p>${esc(childReasonText(String(i.grading_reason ?? '')) || 'Not quite. Let’s look at it again.')}</p><button type="button" class="ghost" data-hear>Hear this</button></div>` : ''}<p>${esc(String(i.prompt))} <span class="fine">· ${esc(conceptTitle(String(i.concept_id),input.titles))}</span></p><p><strong>You answered:</strong> ${esc(String(i.given_answer ?? ''))}</p>${i.correct==null ? '<p>We’re still checking this one. It won’t count against you.</p>' : i.correct===1 ? '' : `${!junior && childReasonText(String(i.grading_reason ?? '')) ? `<p>${esc(childReasonText(String(i.grading_reason)))}</p>` : ''}${fixFor(i) ? '' : `<details class="show-how"><summary>Show me how</summary>${mathPicture(String(i.prompt))}<p><strong>The answer:</strong> ${esc(childAnswer(String(i.answer)))}</p></details>`}${concernControl(input.sessionId, i)}`}</article>`).join('')}</section>` : ''
   const fix=input.feedback?.corrective
   const correction=fix ? (fix.ask
-    ? `<aside class="miss" role="status">${companion("oops")}<strong>${esc(fix.label)}</strong>${fix.why ? `<p>${esc(fix.why)}</p>` : ''}<p class="nudge">${esc(fix.ask)}</p><details class="show-how"><summary>Show me how</summary>${mathPicture(String(input.feedback?.prompt ?? ''))}${input.feedbackConceptId ? manipulative(input.feedbackConceptId, String(input.feedback?.prompt ?? '')) : ''}${fix.explain ? `<p>${esc(fix.explain)}</p>` : ''}<p><strong>The answer:</strong> ${esc(String(fix.answer ?? ''))}</p></details></aside>`
+    ? `<aside class="miss" role="status">${companion("oops")}<strong>${esc(fix.label)}</strong>${fix.why ? `<p>${esc(fix.why)}</p>` : ''}<div class="say-this"><p class="nudge">${esc(fix.ask)}</p>${junior ? '<button type="button" class="ghost" data-hear>Hear this</button>' : ''}</div><details class="show-how"><summary>Show me how</summary>${mathPicture(String(input.feedback?.prompt ?? ''))}${input.feedbackConceptId ? manipulative(input.feedbackConceptId, String(input.feedback?.prompt ?? '')) : ''}${fix.explain ? `<p>${esc(fix.explain)}</p>` : ''}<p><strong>The answer:</strong> ${esc(String(fix.answer ?? ''))}</p></details></aside>`
     : `<aside class="miss" role="status"><strong>${esc(fix.label)}</strong><p>${esc(fix.move)}</p></aside>`) : ''
-  if(feedbackReview?.checkpoint && !input.ended) return `<h1>${feedbackReview.timing==='batch' ? 'Look back at these tries' : 'Let’s try a different approach'}</h1>${feedbackCards}${correction}${input.lesson?.length ? `<ol class="thread">${input.lesson.map(m=>`<li class="bubble ${m.role==='student'?'mine':''}"><p${input.speak && m===input.lesson?.filter(t=>t.role==='tutor').at(-1) ? ' data-say' : ''}>${esc(m.body)}</p>${m.role==='tutor' ? '<button type="button" class="ghost" data-hear>Hear that</button>' : ''}</li>`).join('')}</ol>` : ''}<details class="panel"><summary>Talk through this step</summary><p>We’ll start with one small question, then give a hint or show the steps if you’re stuck. You can ask for an explanation or take a break.</p><form method="post" action="/session/${esc(input.sessionId)}/ask" class="talk">${csrfField()}<input type="hidden" name="voice" value="0"><label>Ask about this step<textarea name="message" required placeholder="Which part should I try first?"></textarea></label><button type="submit" class="ghost">Ask the tutor</button>${microphoneControls()}</form></details><form method="post" action="/session/${esc(input.sessionId)}/feedback">${csrfField()}<button type="submit">Ready for a fresh question</button></form><p>Take a break whenever you need. Your answers stay saved.</p>`
+  if(feedbackReview?.checkpoint && !input.ended) return `<h1>${feedbackReview.timing==='batch' ? 'Look back at these tries' : 'Let’s try a different approach'}</h1>${feedbackCards}${correction}${input.lesson?.length ? `<ol class="thread">${input.lesson.map(m=>`<li class="bubble ${m.role==='student'?'mine':''}"><p${input.speak && m===input.lesson?.filter(t=>t.role==='tutor').at(-1) ? ' data-say' : ''}>${esc(m.body)}</p>${m.role==='tutor' ? '<button type="button" class="ghost" data-hear>Hear that</button>' : ''}</li>`).join('')}</ol>` : ''}${input.aiMissing ? `<p class="fine" data-ai-talk-off>Talking it through needs an AI connection. A grown-up can connect one.</p>` : `<details class="panel"><summary>Talk through this step</summary><p>${junior ? 'Stuck? Ask me. We’ll go one small step at a time.' : 'We’ll start with one small question, then give a hint or show the steps if you’re stuck. You can ask for an explanation or take a break.'}</p><form method="post" action="/session/${esc(input.sessionId)}/ask" class="talk">${csrfField()}<input type="hidden" name="voice" value="0"><label>Ask about this step<textarea name="message" required placeholder="Which part should I try first?"></textarea></label><button type="submit" class="ghost">Ask the tutor</button>${microphoneControls()}</form></details>`}<form method="post" action="/session/${esc(input.sessionId)}/feedback">${csrfField()}<button type="submit">Ready for a fresh question</button></form><p>Take a break whenever you need. Your answers stay saved.</p>`
   const review = (input.pendingReviews ?? []).map((item) => `
     <details class="panel"><summary>Parent review · ${esc(BLOOM_NAME[Number(item.bloom_level)] ?? "Written work")}</summary>
       <p>${esc(String(item.prompt))}</p>
@@ -580,7 +593,7 @@ export function sessionPage(input: {
     ${input.summary ? `<p class="done-line">${missionLine(input.summary)}</p>` : ''}
     ${nextSteps}
     ${feedbackCards}${correction}
-    <h2>Want to talk it through?</h2>
+    ${input.aiMissing ? `<p class="fine" data-ai-talk-off>Talking it through needs an AI connection. A grown-up can connect one.</p>` : `<h2>Want to talk it through?</h2>
     ${results ? `<ul class="breakdown">${results}</ul>` : ""}
     <ol class="thread">${thread}</ol>
     <form method="post" action="/session/${esc(input.sessionId)}/ask" class="talk">
@@ -594,7 +607,7 @@ export function sessionPage(input: {
         ${microphoneControls()}
       </div>
     </form>
-    <p class="fine">Only the words you send go to the AI connection on this account.</p>
+    <p class="fine">Only the words you send go to the AI connection on this account.</p>`}
     <details>
       <summary>Say it back, if you want</summary>
       <form method="post" action="/session/${esc(input.sessionId)}/recap" class="panel">
@@ -610,7 +623,7 @@ export function sessionPage(input: {
   }
   const beat = beatOf(String(input.item.beat ?? ""))
   const helpLabel = input.item.beat === "guided" && Number(input.item.hints_used) === 1 ? "Let’s do this one together" : input.item.beat === "faded" && Number(input.item.hints_used) === 1 ? "A small clue" : `Hint ${esc(String(input.item.hints_used))}`
-  const hint = input.item.hint_text ? `<aside class="hint"><p class="step-tag" data-beat="clue">${helpLabel}</p><p>${esc(String(input.item.hint_text))}</p></aside>` : ""
+  const hint = input.item.hint_text ? `<aside class="hint"><p class="step-tag" data-beat="clue">${helpLabel}</p><div class="say-this"><p>${esc(String(input.item.hint_text))}</p>${input.band === "5-7" ? '<button type="button" class="ghost" data-hear>Hear this</button>' : ''}</div></aside>` : ""
   // A reply that was not a try is asked again kindly; a second one points to the hint, never the answer.
   const reask = input.feedback?.action === "reask" && input.feedback.itemId === String(input.item.id)
   const stuck = reask && Number(input.feedback?.count) >= 2 && !Number(input.item.hints_used)
@@ -751,7 +764,7 @@ function progressSection(progress: { ladders: ConceptLadder[]; gain: Gain; audit
   const before = gain.before, after = gain.after
   const gainBody = gain.enough && before && after
     ? `<p class="metric">${pct(before.accuracy)} → ${pct(after.accuracy)}</p>
-       <p>First ${before.checks} fair checks (${esc(before.from)} to ${esc(before.to)}, average level ${before.demand.toFixed(1)}) against the latest ${after.checks} (${esc(after.from)} to ${esc(after.to)}, average level ${after.demand.toFixed(1)}).${gain.demandChange && gain.demandChange > 0 ? ` The questions also got harder by ${gain.demandChange} of a level.` : ""}</p>
+       <p>First ${before.checks} fair checks (${esc(before.from)} to ${esc(before.to)}, average thinking level ${before.demand.toFixed(1)}) against the latest ${after.checks} (${esc(after.from)} to ${esc(after.to)}, average thinking level ${after.demand.toFixed(1)}).${gain.demandChange && gain.demandChange > 0 ? ` The later questions asked for more kinds of thinking (up ${gain.demandChange} of a level). That is a different kind of question, not proof of a harder one.` : ""}</p>
        <p>Size of the change: <strong>${gain.effect}</strong> (${esc(gain.size ?? "")}). ${esc(gain.note)}</p>`
     : `<p>${esc(gain.note || "Not enough fair checks yet.")}</p>`
   return `<section class="panel progress-ladder" aria-labelledby="ladder-title"><h2 id="ladder-title">How far the thinking has climbed</h2>
@@ -761,7 +774,7 @@ function progressSection(progress: { ladders: ConceptLadder[]; gain: Gain; audit
   <section class="panel gain" aria-labelledby="gain-title"><h2 id="gain-title">Progress on fair checks</h2>
     ${gainBody}
     ${audit ? `<p><a href="/students/${esc(studentId)}/grading">Check the tutor’s grading</a>${audit.unsure ? ` · <strong>${audit.unsure} the tutor isn’t sure about</strong>` : ""}${audit.waiting ? ` · ${audit.waiting} to spot-check` : ""}${audit.checked ? ` · you agreed with ${audit.agreed} of ${audit.checked}` : ""}</p>` : ""}
-    <p class="fine">A fair check is a question your child had not seen, answered without a hint and graded with confidence. This compares your child with their own start. Bloom's “2 sigma” finding compared tutored students with a classroom group, which one family cannot measure; a change of 0.8 or more here is large, and 2 would match that benchmark's size.</p>
+    <p class="fine">A fair check is a question your child had not seen, answered without a hint and graded with confidence. This describes your child against their own start; it does not show what caused the change, and the topics in each group can differ. The size is Cohen's h, a measure for the change between two percentages (0.2 small, 0.5 medium, 0.8 large). It is not on the same scale as Bloom's “2 sigma” finding, which compared tutored students with a classroom group, so the two numbers cannot be compared.</p>
   </section>`
 }
 
@@ -769,10 +782,10 @@ function experimentsSection(studentId: string, rows: Array<{ key: string; label:
   if (!rows.length) return ""
   const side = (arm: { weeks: number; perWeek: number; accuracy: number | null; fairChecks: number }) => `${arm.weeks} week${arm.weeks === 1 ? "" : "s"}, ${arm.perWeek.toFixed(1)} missions a week, ${arm.accuracy == null ? "no fair checks" : `${Math.round(arm.accuracy * 100)}% of ${arm.fairChecks} fair checks`}`
   return `<section class="panel experiments" aria-labelledby="experiments-title"><h2 id="experiments-title">Is it helping?</h2>
-    <p class="fine">Turn on a comparison and the feature switches on and off each week, so your child is compared with themselves. A feature stays only if they come back as often and learn as well. The rule is set in advance: missions a week may fall by no more than 10%, and accuracy on fair checks by no more than 5 points.</p>
+    <p class="fine">Turn on a comparison and the feature switches on and off each week, so your child is compared with themselves. A feature stays only if they come back as often and learn as well. The rule is set in advance: missions a week may fall by no more than 10%, and accuracy on fair checks by no more than 5 points. Compare one feature at a time. This is a rough guide, not proof: school, topics and the time of year also change from week to week.</p>
     ${rows.map(row => `<div class="experiment"><h3>${esc(row.label)}</h3><p class="fine">${esc(row.detail)}</p>
-      ${row.report ? `<p><strong>${esc(row.report.verdict === "not enough yet" ? "Not enough yet" : row.report.verdict === "keep" ? "Keep it" : row.report.verdict === "promising" ? "Looks helpful" : "Needs a rethink")}.</strong> ${esc(row.report.note)}</p><p class="fine">With it: ${esc(side(row.report.on))}. Without it: ${esc(side(row.report.off))}.</p>` : ""}
-      <form method="post" action="/students/${esc(studentId)}/experiments">${csrfField()}<input type="hidden" name="key" value="${esc(row.key)}"><input type="hidden" name="on" value="${row.on ? "0" : "1"}"><button type="submit" class="ghost">${row.on ? "Stop comparing" : "Compare week on, week off"}</button></form></div>`).join("")}
+      ${row.report ? `<p><strong>${esc(row.report.verdict === "not enough yet" ? "Not enough yet" : row.report.verdict === "keep" ? "Keep it" : row.report.verdict === "promising" ? "Looks helpful" : "Needs a rethink")}.</strong> ${esc(row.report.note)}${rows.filter(other => other.on).length > 1 ? " Both features switch together, so this shows their combined effect." : ""}</p><p class="fine">With it: ${esc(side(row.report.on))}. Without it: ${esc(side(row.report.off))}.</p>` : ""}
+      ${!row.on && rows.some(other => other.on) ? `<p class="fine">Another comparison is running. Stop it first, so each result belongs to one feature.</p>` : `<form method="post" action="/students/${esc(studentId)}/experiments">${csrfField()}<input type="hidden" name="key" value="${esc(row.key)}"><input type="hidden" name="on" value="${row.on ? "0" : "1"}"><button type="submit" class="ghost">${row.on ? "Stop comparing" : "Compare week on, week off"}</button></form>`}</div>`).join("")}
   </section>`
 }
 
