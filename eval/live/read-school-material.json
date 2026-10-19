@@ -1,0 +1,65 @@
+[
+ {
+  "name": "worksheet with answers",
+  "input": {
+   "input": {
+    "transcription": "Name: ____\n1) 23 x 4 = 92\n2) 15 x 6 = 80\n3) 31 x 3 = ___",
+    "kind": "homework",
+    "workState": "partial",
+    "concepts": [
+     {
+      "id": "math.4.mult",
+      "title": "Multiply two-digit numbers"
+     }
+    ]
+   },
+   "presentationGrade": 4,
+   "history": "",
+   "concepts": [
+    "math.4.mult"
+   ]
+  }
+ },
+ {
+  "name": "page with an unreadable part",
+  "input": {
+   "input": {
+    "transcription": "4. 42 x 5 = 210\n5. [smudged, cannot read] x 7 = \n6. 18 x 2 = 36",
+    "kind": "homework",
+    "workState": "partial",
+    "concepts": [
+     {
+      "id": "math.4.mult",
+      "title": "Multiply two-digit numbers"
+     }
+    ]
+   },
+   "presentationGrade": 4,
+   "history": "",
+   "concepts": [
+    "math.4.mult"
+   ]
+  }
+ },
+ {
+  "name": "blank test page",
+  "input": {
+   "input": {
+    "transcription": "Quiz\n1. 12 x 12 =\n2. 25 x 4 =\n3. Explain how you checked your answer to question 2.",
+    "kind": "practice_exam",
+    "workState": "blank",
+    "concepts": [
+     {
+      "id": "math.4.mult",
+      "title": "Multiply two-digit numbers"
+     }
+    ]
+   },
+   "presentationGrade": 4,
+   "history": "",
+   "concepts": [
+    "math.4.mult"
+   ]
+  }
+ }
+]

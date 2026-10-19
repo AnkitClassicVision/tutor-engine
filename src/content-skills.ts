@@ -45,6 +45,8 @@ export const CONTENT_SKILLS: ContentSkill[] = [
   { name: "Faded worked example", when: "The student needs support to use a method.", write: "Show one worked example, leave a step for the student, then use a fresh independent problem. Log support separately." },
   { name: "Delayed retrieval", when: "A demonstrated idea is due for review.", write: "Ask for recall without notes on the same idea and demand; early practice does not replace a delayed check." },
   { name: "Transfer to a new context", when: "Independent work has held and it is time to vary the setting.", write: "Keep the underlying concept, change the meaningful context, and ask the learner to choose the relevant rule." },
+  { name: "Fix the mix-up", when: "A known misconception fits this topic and the learner can already use the idea.", write: "A friend of Bloop's confidently gives a plausible wrong explanation, clearly labelled as a mistake. The learner names the mistake, gives the right idea and says why the friend's idea fails. This is Analyze or Evaluate." },
+  { name: "Defend it", when: "The learner has judged or made something.", write: "Change one condition and ask whether their answer or design still works, and why. Keep it on ideas they already have. This is Create or Evaluate, and it is also transfer." },
   { name: "Calibrated challenge", when: "Comparable evidence indicates work is too easy or difficult.", write: "Adjust one step at a time. Retain established skills in review. Bloom demand and content difficulty are separate; creation is optional rather than required for every learner." },
 ]
 

@@ -1,3 +1,5 @@
+import { BAND_LABEL, OWNERSHIP, OWNERSHIP_LABEL, ladderSummary, type Band, type ConceptLadder } from "./engine/ladder.ts"
+import type { Gain } from "./engine/gain.ts"
 import { siteFooter } from "./legal.ts"
 import { manipulative } from "./manipulatives.ts"
 import { mathPicture } from "./visuals.ts"
@@ -513,7 +515,7 @@ export function sessionPage(input: {
   total: number
   beats?: string[]
   feedbackReview?: ReturnType<typeof feedbackState>
-  feedback: { correct?: boolean; prompt?: string; corrective?: { label: string; move: string; why?: string; ask?: string; explain?: string; answer?: string } | null; action?: string; itemId?: string; count?: number } | null
+  feedback: { correct?: boolean; prompt?: string; corrective?: { label: string; move: string; why?: string; ask?: string; explain?: string; answer?: string } | null; action?: string; itemId?: string; count?: number; confidence?: string | null } | null
   onBreak: boolean
   ended: boolean
   capMinutes: number
@@ -526,6 +528,8 @@ export function sessionPage(input: {
   results?: Array<{ title: string; prompt: string; answer: string; correct: boolean }>
   pendingReviews?: Array<Record<string, unknown>>
   band?: string
+  /** Off in the weeks a parent's comparison turns the confidence choice off. */
+  askSure?: boolean
   feedbackConceptId?: string
 }): string {
   const feedbackReview=input.feedbackReview
@@ -618,7 +622,7 @@ export function sessionPage(input: {
         input.feedback.correct
           ? `${companion("cheer")}<span class="yes-spark" aria-hidden="true"></span> Yes! That holds.`
           : `${esc(input.feedback.corrective?.label ?? "Look again")}. ${esc(input.feedback.corrective?.move ?? "")}`
-      }</aside>`
+      }${calibrationLine(input.feedback.correct === true, input.feedback.confidence)}</aside>`
     : ""
   const breakBlock = input.onBreak
     ? `<form method="post" action="/session/${esc(input.sessionId)}/continue" class="panel">${csrfField()}<h2>Take two minutes.</h2><p>Stand up, then come back to the same idea on a new surface.</p><button type="submit">Continue</button></form>`
@@ -639,7 +643,7 @@ export function sessionPage(input: {
     ${csrfField()}
     <input type="hidden" name="itemId" value="${esc(String(input.item.id))}">
     <input type="hidden" name="timeMs" value="0">
-    ${answerField(input.item, Boolean(input.onBreak))}<button type="submit" ${stuck ? 'class="ghost"' : ""} ${input.onBreak ? "disabled" : ""}>Check</button>
+    ${answerField(input.item, Boolean(input.onBreak))}${beat.key === "own" && !input.onBreak && input.askSure !== false ? sureField() : ""}<button type="submit" ${stuck ? 'class="ghost"' : ""} ${input.onBreak ? "disabled" : ""}>Check</button>
   </form>
   ${input.showHint === false ? "" : `<form method="post" action="/session/${esc(input.sessionId)}/hint">
     ${csrfField()}
@@ -677,6 +681,18 @@ function answerField(item: Record<string, unknown>, onBreak: boolean) {
   }
   return `<label>Answer <input name="answer" autocomplete="off" value="${esc(draft)}" required ${onBreak ? "disabled" : ""}></label>
     ${onBreak ? "" : microphoneControls()}`
+}
+
+/** Optional: how sure the child is before checking. Compared later with the result, never graded. */
+function sureField() {
+  return `<fieldset class="sure"><legend>How sure are you? <span class="fine">(you can skip this)</span></legend>${[["sure", "Sure"], ["think", "I think so"], ["guess", "Guessing"]].map(([value, label]) => `<label class="sure-chip"><input type="radio" name="confidence" value="${value}"><span>${label}</span></label>`).join("")}</fieldset>`
+}
+
+/** A sure miss is worth a closer look; a lucky guess is worth trusting next time. Said once, kindly. */
+function calibrationLine(correct: boolean, confidence?: string | null) {
+  if (confidence === "sure" && !correct) return `<span class="calibration"> You felt sure, so this one is worth a closer look.</span>`
+  if (confidence === "guess" && correct) return `<span class="calibration"> You guessed and got it. You know more than you think.</span>`
+  return ""
 }
 
 /** One plain sentence about the mission, without counts of zero or grading vocabulary. */
@@ -722,7 +738,45 @@ function measuresSection(measures: Array<{ label: string; value: string; detail:
   return `<section class="panel learning-measures" aria-labelledby="measures-title"><h2 id="measures-title">How learning is going</h2><p class="fine">Worked out on this site from your child's missions; nothing is sent elsewhere.</p><dl>${measures.map((m) => `<div class="measure${m.enough ? "" : " is-waiting"}"><dt>${esc(m.label)}</dt><dd><strong>${esc(m.value)}</strong>${m.detail ? `<span class="fine">${esc(m.detail)}</span>` : ""}<small>${esc(m.definition)}</small></dd></div>`).join("")}</dl></section>`
 }
 
-export function scoreboardPage(name: string, studentId: string, board: Scoreboard, titles: Record<string, string> = {}, measures: Array<{ label: string; value: string; detail: string; definition: string; enough: boolean }> = []): string {
+const pct = (value: number) => `${Math.round(value * 100)}%`
+
+/** The two-scale ladder and the before/after gain. Parents only. */
+function progressSection(progress: { ladders: ConceptLadder[]; gain: Gain; audit?: { checked: number; agreed: number; waiting: number } } | undefined, titles: Record<string, string>, studentId = "") {
+  if (!progress) return ""
+  const { ladders: rows, gain, audit } = progress
+  const summary = ladderSummary(rows)
+  const order: Band[] = ["judge", "use", "foundations", "none"]
+  const sorted = [...rows].sort((a, b) => order.indexOf(a.band) - order.indexOf(b.band) || b.reached.length - a.reached.length)
+  const ladderTable = rows.length ? `<div class="table-scroll"><table class="ladder"><caption class="fine">One row per topic. Thinking is the highest level solved on their own; the steps show how much of it they own.</caption><thead><tr><th scope="col">Topic</th><th scope="col">Thinking</th><th scope="col">Owns it</th><th scope="col">Next</th></tr></thead><tbody>${sorted.map(row => `<tr${row.goalMet ? ' class="goal-met"' : ""}><th scope="row">${esc(conceptTitle(row.conceptId, titles))}</th><td>${esc(BAND_LABEL[row.band])}${row.highestLevel ? ` <span class="fine">(${esc(BLOOM_NAME[row.highestLevel])})</span>` : ""}</td><td><ol class="steps">${OWNERSHIP.map(step => `<li data-done="${row.reached.includes(step)}">${row.reached.includes(step) ? "" : '<span class="visually-hidden">Not yet: </span>'}${esc(OWNERSHIP_LABEL[step])}</li>`).join("")}</ol></td><td>${esc(row.next)}</td></tr>`).join("")}</tbody></table></div>` : "<p>No topics practised yet.</p>"
+  const before = gain.before, after = gain.after
+  const gainBody = gain.enough && before && after
+    ? `<p class="metric">${pct(before.accuracy)} → ${pct(after.accuracy)}</p>
+       <p>First ${before.checks} fair checks (${esc(before.from)} to ${esc(before.to)}, average level ${before.demand.toFixed(1)}) against the latest ${after.checks} (${esc(after.from)} to ${esc(after.to)}, average level ${after.demand.toFixed(1)}).${gain.demandChange && gain.demandChange > 0 ? ` The questions also got harder by ${gain.demandChange} of a level.` : ""}</p>
+       <p>Size of the change: <strong>${gain.effect}</strong> (${esc(gain.size ?? "")}). ${esc(gain.note)}</p>`
+    : `<p>${esc(gain.note || "Not enough fair checks yet.")}</p>`
+  return `<section class="panel progress-ladder" aria-labelledby="ladder-title"><h2 id="ladder-title">How far the thinking has climbed</h2>
+    <p>${summary.concepts} topic${summary.concepts === 1 ? "" : "s"}: ${summary.bands.judge} judging and creating, ${summary.bands.use} using it, ${summary.bands.foundations} on the basics. ${summary.goalMet} meet the full goal: solved on their own at the top level, remembered after a month and used somewhere new.</p>
+    ${ladderTable}
+  </section>
+  <section class="panel gain" aria-labelledby="gain-title"><h2 id="gain-title">Progress on fair checks</h2>
+    ${gainBody}
+    ${audit ? `<p><a href="/students/${esc(studentId)}/grading">Check the tutor’s grading</a>${audit.waiting ? ` · ${audit.waiting} waiting` : ""}${audit.checked ? ` · you agreed with ${audit.agreed} of ${audit.checked}` : ""}</p>` : ""}
+    <p class="fine">A fair check is a question your child had not seen, answered without a hint and graded with confidence. This compares your child with their own start. Bloom's “2 sigma” finding compared tutored students with a classroom group, which one family cannot measure; a change of 0.8 or more here is large, and 2 would match that benchmark's size.</p>
+  </section>`
+}
+
+function experimentsSection(studentId: string, rows: Array<{ key: string; label: string; detail: string; on: boolean; report: { verdict: string; note: string; on: { weeks: number; perWeek: number; accuracy: number | null; fairChecks: number }; off: { weeks: number; perWeek: number; accuracy: number | null; fairChecks: number } } | null }>) {
+  if (!rows.length) return ""
+  const side = (arm: { weeks: number; perWeek: number; accuracy: number | null; fairChecks: number }) => `${arm.weeks} week${arm.weeks === 1 ? "" : "s"}, ${arm.perWeek.toFixed(1)} missions a week, ${arm.accuracy == null ? "no fair checks" : `${Math.round(arm.accuracy * 100)}% of ${arm.fairChecks} fair checks`}`
+  return `<section class="panel experiments" aria-labelledby="experiments-title"><h2 id="experiments-title">Is it helping?</h2>
+    <p class="fine">Turn on a comparison and the feature switches on and off each week, so your child is compared with themselves. A feature stays only if they come back as often and learn as well. The rule is set in advance: missions a week may fall by no more than 10%, and accuracy on fair checks by no more than 5 points.</p>
+    ${rows.map(row => `<div class="experiment"><h3>${esc(row.label)}</h3><p class="fine">${esc(row.detail)}</p>
+      ${row.report ? `<p><strong>${esc(row.report.verdict === "not enough yet" ? "Not enough yet" : row.report.verdict === "keep" ? "Keep it" : row.report.verdict === "promising" ? "Looks helpful" : "Needs a rethink")}.</strong> ${esc(row.report.note)}</p><p class="fine">With it: ${esc(side(row.report.on))}. Without it: ${esc(side(row.report.off))}.</p>` : ""}
+      <form method="post" action="/students/${esc(studentId)}/experiments">${csrfField()}<input type="hidden" name="key" value="${esc(row.key)}"><input type="hidden" name="on" value="${row.on ? "0" : "1"}"><button type="submit" class="ghost">${row.on ? "Stop comparing" : "Compare week on, week off"}</button></form></div>`).join("")}
+  </section>`
+}
+
+export function scoreboardPage(name: string, studentId: string, board: Scoreboard, titles: Record<string, string> = {}, measures: Array<{ label: string; value: string; detail: string; definition: string; enough: boolean }> = [], progress?: { ladders: ConceptLadder[]; gain: Gain; audit?: { checked: number; agreed: number; waiting: number }; experiments?: Parameters<typeof experimentsSection>[1] }): string {
   const mastered = board.conceptsMasteredThisWeek.length
     ? board.conceptsMasteredThisWeek
         .map((row) => `<li>${esc(conceptTitle(row.conceptId, titles))} · ${esc(BLOOM_NAME[row.bloomLevel])}</li>`)
@@ -751,6 +805,8 @@ export function scoreboardPage(name: string, studentId: string, board: Scoreboar
     <section><h2>Retention, 30 days</h2><p class="metric">${esc(retention(board.retention30))}</p></section>
   </div>
   ${measuresSection(measures)}
+  ${progressSection(progress, titles, studentId)}
+  ${experimentsSection(studentId, progress?.experiments ?? [])}
   <section><h2>Mastered this week</h2><ul>${mastered}</ul></section>
   <section><h2>Frontier</h2><ul>${frontier}</ul></section>
   <section><h2>Stuck, last three sessions under 70%</h2>${stuck}</section>

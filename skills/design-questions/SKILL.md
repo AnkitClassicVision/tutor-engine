@@ -1,6 +1,8 @@
 ---
 name: design-questions
 description: Write homework and assessment questions from the lesson plan. Fresh sentences and evidence-appropriate demand, aimed at the gap.
+version: 1
+role: planner
 ---
 
 # Design the questions

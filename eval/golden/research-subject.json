@@ -1,0 +1,2682 @@
+[
+ {
+  "name": "a sourced five-concept map with judge-level success passes",
+  "input": {
+   "subject": "Volcanoes",
+   "about": "My son loves volcanoes",
+   "why": "He wants to know if Hawaii is safe",
+   "grade": 3,
+   "uploads": "",
+   "existing": [],
+   "searchable": true,
+   "found": {
+    "web": true,
+    "urls": [
+     "https://education.nationalgeographic.org/resource/volcano/",
+     "https://www.usgs.gov/programs/VHP/about-volcanoes"
+    ]
+   }
+  },
+  "replies": {
+   "write": {
+    "subject": "Volcanoes",
+    "purpose": "Explain how volcanoes form and judge how people can live safely near them.",
+    "scope": "Volcano types, eruptions and safety; not detailed rock chemistry.",
+    "groups": [
+     {
+      "title": "What volcanoes are",
+      "concepts": [
+       {
+        "key": "what-is-a-volcano",
+        "title": "What a volcano is",
+        "idea": "What a volcano is is an important idea about volcanoes.",
+        "dimension": "conceptual",
+        "prereqs": [],
+        "crossLinks": [],
+        "success": {
+         "foundations": "Explain what a volcano is in their own words.",
+         "use": "Use what a volcano is to explain a new photo of a volcano.",
+         "judge": "Judge which of two plans would work better and explain why."
+        },
+        "misconceptions": [
+         {
+          "belief": "All mountains are volcanoes.",
+          "probe": "Is every mountain a volcano?",
+          "fix": "Compare a volcano with a folded mountain."
+         }
+        ],
+        "contrast": {
+         "example": "Mount Etna erupts lava.",
+         "nonExample": "A sand dune is not a volcano."
+        },
+        "mission": "Be a volcano detective: decide from three clues which island was made by a volcano.",
+        "transfer": "Explain why hot springs appear in Iceland.",
+        "sources": [
+         0
+        ]
+       },
+       {
+        "key": "magma-and-lava",
+        "title": "Magma and lava",
+        "idea": "Magma and lava is an important idea about volcanoes.",
+        "dimension": "conceptual",
+        "prereqs": [
+         "what-is-a-volcano"
+        ],
+        "crossLinks": [],
+        "success": {
+         "foundations": "Explain magma and lava in their own words.",
+         "use": "Use magma and lava to explain a new photo of a volcano.",
+         "judge": "Judge which of two plans would work better and explain why."
+        },
+        "misconceptions": [
+         {
+          "belief": "All mountains are volcanoes.",
+          "probe": "Is every mountain a volcano?",
+          "fix": "Compare a volcano with a folded mountain."
+         }
+        ],
+        "contrast": {
+         "example": "Mount Etna erupts lava.",
+         "nonExample": "A sand dune is not a volcano."
+        },
+        "mission": "Be a volcano detective: decide from three clues which island was made by a volcano.",
+        "transfer": "Explain why hot springs appear in Iceland.",
+        "sources": [
+         1
+        ]
+       }
+      ]
+     },
+     {
+      "title": "Why volcanoes erupt",
+      "concepts": [
+       {
+        "key": "pressure-builds",
+        "title": "Pressure builds underground",
+        "idea": "Pressure builds underground is an important idea about volcanoes.",
+        "dimension": "conceptual",
+        "prereqs": [
+         "magma-and-lava"
+        ],
+        "crossLinks": [],
+        "success": {
+         "foundations": "Explain pressure builds underground in their own words.",
+         "use": "Use pressure builds underground to explain a new photo of a volcano.",
+         "judge": "Judge which of two plans would work better and explain why."
+        },
+        "misconceptions": [
+         {
+          "belief": "All mountains are volcanoes.",
+          "probe": "Is every mountain a volcano?",
+          "fix": "Compare a volcano with a folded mountain."
+         }
+        ],
+        "contrast": {
+         "example": "Mount Etna erupts lava.",
+         "nonExample": "A sand dune is not a volcano."
+        },
+        "mission": "Be a volcano detective: decide from three clues which island was made by a volcano.",
+        "transfer": "Explain why hot springs appear in Iceland.",
+        "sources": [
+         0
+        ]
+       },
+       {
+        "key": "plate-edges",
+        "title": "Volcanoes at plate edges",
+        "idea": "Volcanoes at plate edges is an important idea about volcanoes.",
+        "dimension": "conceptual",
+        "prereqs": [
+         "what-is-a-volcano"
+        ],
+        "crossLinks": [],
+        "success": {
+         "foundations": "Explain volcanoes at plate edges in their own words.",
+         "use": "Use volcanoes at plate edges to explain a new photo of a volcano.",
+         "judge": "Judge which of two plans would work better and explain why."
+        },
+        "misconceptions": [
+         {
+          "belief": "All mountains are volcanoes.",
+          "probe": "Is every mountain a volcano?",
+          "fix": "Compare a volcano with a folded mountain."
+         }
+        ],
+        "contrast": {
+         "example": "Mount Etna erupts lava.",
+         "nonExample": "A sand dune is not a volcano."
+        },
+        "mission": "Be a volcano detective: decide from three clues which island was made by a volcano.",
+        "transfer": "Explain why hot springs appear in Iceland.",
+        "sources": [
+         0,
+         1
+        ]
+       },
+       {
+        "key": "volcano-safety",
+        "title": "Living near volcanoes",
+        "idea": "Living near volcanoes is an important idea about volcanoes.",
+        "dimension": "conceptual",
+        "prereqs": [
+         "pressure-builds"
+        ],
+        "crossLinks": [],
+        "success": {
+         "foundations": "Explain living near volcanoes in their own words.",
+         "use": "Use living near volcanoes to explain a new photo of a volcano.",
+         "judge": "Judge which of two plans would work better and explain why."
+        },
+        "misconceptions": [
+         {
+          "belief": "All mountains are volcanoes.",
+          "probe": "Is every mountain a volcano?",
+          "fix": "Compare a volcano with a folded mountain."
+         }
+        ],
+        "contrast": {
+         "example": "Mount Etna erupts lava.",
+         "nonExample": "A sand dune is not a volcano."
+        },
+        "mission": "Be a volcano detective: decide from three clues which island was made by a volcano.",
+        "transfer": "Explain why hot springs appear in Iceland.",
+        "sources": [
+         1
+        ]
+       }
+      ]
+     }
+    ],
+    "sources": [
+     {
+      "title": "Volcano",
+      "publisher": "National Geographic Education",
+      "url": "https://education.nationalgeographic.org/resource/volcano/"
+     },
+     {
+      "title": "About volcanoes",
+      "publisher": "USGS",
+      "url": "https://www.usgs.gov/programs/VHP/about-volcanoes"
+     }
+    ],
+    "cautions": "Some photos of eruptions can frighten young children.",
+    "selfCheck": [
+     {
+      "question": "Check 1",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 2",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 3",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 4",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 5",
+      "answer": "Yes, checked.",
+      "ok": true
+     }
+    ]
+   },
+   "critic": {
+    "concepts": [
+     {
+      "index": 0,
+      "accurate": true,
+      "ageFit": 5,
+      "realMisconceptions": true,
+      "issue": ""
+     },
+     {
+      "index": 1,
+      "accurate": true,
+      "ageFit": 5,
+      "realMisconceptions": true,
+      "issue": ""
+     },
+     {
+      "index": 2,
+      "accurate": true,
+      "ageFit": 5,
+      "realMisconceptions": true,
+      "issue": ""
+     },
+     {
+      "index": 3,
+      "accurate": true,
+      "ageFit": 5,
+      "realMisconceptions": true,
+      "issue": ""
+     },
+     {
+      "index": 4,
+      "accurate": true,
+      "ageFit": 5,
+      "realMisconceptions": true,
+      "issue": ""
+     }
+    ]
+   }
+  },
+  "expect": {
+   "outcome": "accepted"
+  },
+  "live": true
+ },
+ {
+  "name": "a map that numbers its sources from 1 is corrected, not refused",
+  "input": {
+   "subject": "Volcanoes",
+   "about": "My son loves volcanoes",
+   "why": "He wants to know if Hawaii is safe",
+   "grade": 3,
+   "uploads": "",
+   "existing": [],
+   "searchable": true,
+   "found": {
+    "web": true,
+    "urls": [
+     "https://education.nationalgeographic.org/resource/volcano/",
+     "https://www.usgs.gov/programs/VHP/about-volcanoes"
+    ]
+   }
+  },
+  "replies": {
+   "write": {
+    "subject": "Volcanoes",
+    "purpose": "Explain how volcanoes form and judge how people can live safely near them.",
+    "scope": "Volcano types, eruptions and safety; not detailed rock chemistry.",
+    "groups": [
+     {
+      "title": "What volcanoes are",
+      "concepts": [
+       {
+        "key": "what-is-a-volcano",
+        "title": "What a volcano is",
+        "idea": "What a volcano is is an important idea about volcanoes.",
+        "dimension": "conceptual",
+        "prereqs": [],
+        "crossLinks": [],
+        "success": {
+         "foundations": "Explain what a volcano is in their own words.",
+         "use": "Use what a volcano is to explain a new photo of a volcano.",
+         "judge": "Judge which of two plans would work better and explain why."
+        },
+        "misconceptions": [
+         {
+          "belief": "All mountains are volcanoes.",
+          "probe": "Is every mountain a volcano?",
+          "fix": "Compare a volcano with a folded mountain."
+         }
+        ],
+        "contrast": {
+         "example": "Mount Etna erupts lava.",
+         "nonExample": "A sand dune is not a volcano."
+        },
+        "mission": "Be a volcano detective: decide from three clues which island was made by a volcano.",
+        "transfer": "Explain why hot springs appear in Iceland.",
+        "sources": [
+         1
+        ]
+       },
+       {
+        "key": "magma-and-lava",
+        "title": "Magma and lava",
+        "idea": "Magma and lava is an important idea about volcanoes.",
+        "dimension": "conceptual",
+        "prereqs": [
+         "what-is-a-volcano"
+        ],
+        "crossLinks": [],
+        "success": {
+         "foundations": "Explain magma and lava in their own words.",
+         "use": "Use magma and lava to explain a new photo of a volcano.",
+         "judge": "Judge which of two plans would work better and explain why."
+        },
+        "misconceptions": [
+         {
+          "belief": "All mountains are volcanoes.",
+          "probe": "Is every mountain a volcano?",
+          "fix": "Compare a volcano with a folded mountain."
+         }
+        ],
+        "contrast": {
+         "example": "Mount Etna erupts lava.",
+         "nonExample": "A sand dune is not a volcano."
+        },
+        "mission": "Be a volcano detective: decide from three clues which island was made by a volcano.",
+        "transfer": "Explain why hot springs appear in Iceland.",
+        "sources": [
+         2
+        ]
+       }
+      ]
+     },
+     {
+      "title": "Why volcanoes erupt",
+      "concepts": [
+       {
+        "key": "pressure-builds",
+        "title": "Pressure builds underground",
+        "idea": "Pressure builds underground is an important idea about volcanoes.",
+        "dimension": "conceptual",
+        "prereqs": [
+         "magma-and-lava"
+        ],
+        "crossLinks": [],
+        "success": {
+         "foundations": "Explain pressure builds underground in their own words.",
+         "use": "Use pressure builds underground to explain a new photo of a volcano.",
+         "judge": "Judge which of two plans would work better and explain why."
+        },
+        "misconceptions": [
+         {
+          "belief": "All mountains are volcanoes.",
+          "probe": "Is every mountain a volcano?",
+          "fix": "Compare a volcano with a folded mountain."
+         }
+        ],
+        "contrast": {
+         "example": "Mount Etna erupts lava.",
+         "nonExample": "A sand dune is not a volcano."
+        },
+        "mission": "Be a volcano detective: decide from three clues which island was made by a volcano.",
+        "transfer": "Explain why hot springs appear in Iceland.",
+        "sources": [
+         1
+        ]
+       },
+       {
+        "key": "plate-edges",
+        "title": "Volcanoes at plate edges",
+        "idea": "Volcanoes at plate edges is an important idea about volcanoes.",
+        "dimension": "conceptual",
+        "prereqs": [
+         "what-is-a-volcano"
+        ],
+        "crossLinks": [],
+        "success": {
+         "foundations": "Explain volcanoes at plate edges in their own words.",
+         "use": "Use volcanoes at plate edges to explain a new photo of a volcano.",
+         "judge": "Judge which of two plans would work better and explain why."
+        },
+        "misconceptions": [
+         {
+          "belief": "All mountains are volcanoes.",
+          "probe": "Is every mountain a volcano?",
+          "fix": "Compare a volcano with a folded mountain."
+         }
+        ],
+        "contrast": {
+         "example": "Mount Etna erupts lava.",
+         "nonExample": "A sand dune is not a volcano."
+        },
+        "mission": "Be a volcano detective: decide from three clues which island was made by a volcano.",
+        "transfer": "Explain why hot springs appear in Iceland.",
+        "sources": [
+         1,
+         2
+        ]
+       },
+       {
+        "key": "volcano-safety",
+        "title": "Living near volcanoes",
+        "idea": "Living near volcanoes is an important idea about volcanoes.",
+        "dimension": "conceptual",
+        "prereqs": [
+         "pressure-builds"
+        ],
+        "crossLinks": [],
+        "success": {
+         "foundations": "Explain living near volcanoes in their own words.",
+         "use": "Use living near volcanoes to explain a new photo of a volcano.",
+         "judge": "Judge which of two plans would work better and explain why."
+        },
+        "misconceptions": [
+         {
+          "belief": "All mountains are volcanoes.",
+          "probe": "Is every mountain a volcano?",
+          "fix": "Compare a volcano with a folded mountain."
+         }
+        ],
+        "contrast": {
+         "example": "Mount Etna erupts lava.",
+         "nonExample": "A sand dune is not a volcano."
+        },
+        "mission": "Be a volcano detective: decide from three clues which island was made by a volcano.",
+        "transfer": "Explain why hot springs appear in Iceland.",
+        "sources": [
+         2
+        ]
+       }
+      ]
+     }
+    ],
+    "sources": [
+     {
+      "title": "Volcano",
+      "publisher": "National Geographic Education",
+      "url": "https://education.nationalgeographic.org/resource/volcano/"
+     },
+     {
+      "title": "About volcanoes",
+      "publisher": "USGS",
+      "url": "https://www.usgs.gov/programs/VHP/about-volcanoes"
+     }
+    ],
+    "cautions": "Some photos of eruptions can frighten young children.",
+    "selfCheck": [
+     {
+      "question": "Check 1",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 2",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 3",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 4",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 5",
+      "answer": "Yes, checked.",
+      "ok": true
+     }
+    ]
+   },
+   "critic": {
+    "concepts": [
+     {
+      "index": 0,
+      "accurate": true,
+      "ageFit": 5,
+      "realMisconceptions": true,
+      "issue": ""
+     },
+     {
+      "index": 1,
+      "accurate": true,
+      "ageFit": 5,
+      "realMisconceptions": true,
+      "issue": ""
+     },
+     {
+      "index": 2,
+      "accurate": true,
+      "ageFit": 5,
+      "realMisconceptions": true,
+      "issue": ""
+     },
+     {
+      "index": 3,
+      "accurate": true,
+      "ageFit": 5,
+      "realMisconceptions": true,
+      "issue": ""
+     },
+     {
+      "index": 4,
+      "accurate": true,
+      "ageFit": 5,
+      "realMisconceptions": true,
+      "issue": ""
+     }
+    ]
+   }
+  },
+  "expect": {
+   "outcome": "accepted",
+   "absent": [
+    "map_source_ref"
+   ]
+  }
+ },
+ {
+  "name": "a concept citing a link the search never returned is dropped",
+  "input": {
+   "subject": "Volcanoes",
+   "about": "My son loves volcanoes",
+   "why": "He wants to know if Hawaii is safe",
+   "grade": 3,
+   "uploads": "",
+   "existing": [],
+   "searchable": true,
+   "found": {
+    "web": true,
+    "urls": [
+     "https://education.nationalgeographic.org/resource/volcano/",
+     "https://www.usgs.gov/programs/VHP/about-volcanoes"
+    ]
+   }
+  },
+  "replies": {
+   "write": {
+    "subject": "Volcanoes",
+    "purpose": "Explain how volcanoes form and judge how people can live safely near them.",
+    "scope": "Volcano types, eruptions and safety; not detailed rock chemistry.",
+    "groups": [
+     {
+      "title": "What volcanoes are",
+      "concepts": [
+       {
+        "key": "what-is-a-volcano",
+        "title": "What a volcano is",
+        "idea": "What a volcano is is an important idea about volcanoes.",
+        "dimension": "conceptual",
+        "prereqs": [],
+        "crossLinks": [],
+        "success": {
+         "foundations": "Explain what a volcano is in their own words.",
+         "use": "Use what a volcano is to explain a new photo of a volcano.",
+         "judge": "Judge which of two plans would work better and explain why."
+        },
+        "misconceptions": [
+         {
+          "belief": "All mountains are volcanoes.",
+          "probe": "Is every mountain a volcano?",
+          "fix": "Compare a volcano with a folded mountain."
+         }
+        ],
+        "contrast": {
+         "example": "Mount Etna erupts lava.",
+         "nonExample": "A sand dune is not a volcano."
+        },
+        "mission": "Be a volcano detective: decide from three clues which island was made by a volcano.",
+        "transfer": "Explain why hot springs appear in Iceland.",
+        "sources": [
+         0
+        ]
+       },
+       {
+        "key": "magma-and-lava",
+        "title": "Magma and lava",
+        "idea": "Magma and lava is an important idea about volcanoes.",
+        "dimension": "conceptual",
+        "prereqs": [
+         "what-is-a-volcano"
+        ],
+        "crossLinks": [],
+        "success": {
+         "foundations": "Explain magma and lava in their own words.",
+         "use": "Use magma and lava to explain a new photo of a volcano.",
+         "judge": "Judge which of two plans would work better and explain why."
+        },
+        "misconceptions": [
+         {
+          "belief": "All mountains are volcanoes.",
+          "probe": "Is every mountain a volcano?",
+          "fix": "Compare a volcano with a folded mountain."
+         }
+        ],
+        "contrast": {
+         "example": "Mount Etna erupts lava.",
+         "nonExample": "A sand dune is not a volcano."
+        },
+        "mission": "Be a volcano detective: decide from three clues which island was made by a volcano.",
+        "transfer": "Explain why hot springs appear in Iceland.",
+        "sources": [
+         1
+        ]
+       }
+      ]
+     },
+     {
+      "title": "Why volcanoes erupt",
+      "concepts": [
+       {
+        "key": "pressure-builds",
+        "title": "Pressure builds underground",
+        "idea": "Pressure builds underground is an important idea about volcanoes.",
+        "dimension": "conceptual",
+        "prereqs": [
+         "magma-and-lava"
+        ],
+        "crossLinks": [],
+        "success": {
+         "foundations": "Explain pressure builds underground in their own words.",
+         "use": "Use pressure builds underground to explain a new photo of a volcano.",
+         "judge": "Judge which of two plans would work better and explain why."
+        },
+        "misconceptions": [
+         {
+          "belief": "All mountains are volcanoes.",
+          "probe": "Is every mountain a volcano?",
+          "fix": "Compare a volcano with a folded mountain."
+         }
+        ],
+        "contrast": {
+         "example": "Mount Etna erupts lava.",
+         "nonExample": "A sand dune is not a volcano."
+        },
+        "mission": "Be a volcano detective: decide from three clues which island was made by a volcano.",
+        "transfer": "Explain why hot springs appear in Iceland.",
+        "sources": [
+         0
+        ]
+       },
+       {
+        "key": "plate-edges",
+        "title": "Volcanoes at plate edges",
+        "idea": "Volcanoes at plate edges is an important idea about volcanoes.",
+        "dimension": "conceptual",
+        "prereqs": [
+         "what-is-a-volcano"
+        ],
+        "crossLinks": [],
+        "success": {
+         "foundations": "Explain volcanoes at plate edges in their own words.",
+         "use": "Use volcanoes at plate edges to explain a new photo of a volcano.",
+         "judge": "Judge which of two plans would work better and explain why."
+        },
+        "misconceptions": [
+         {
+          "belief": "All mountains are volcanoes.",
+          "probe": "Is every mountain a volcano?",
+          "fix": "Compare a volcano with a folded mountain."
+         }
+        ],
+        "contrast": {
+         "example": "Mount Etna erupts lava.",
+         "nonExample": "A sand dune is not a volcano."
+        },
+        "mission": "Be a volcano detective: decide from three clues which island was made by a volcano.",
+        "transfer": "Explain why hot springs appear in Iceland.",
+        "sources": [
+         0,
+         1
+        ]
+       },
+       {
+        "key": "volcano-safety",
+        "title": "Living near volcanoes",
+        "idea": "Living near volcanoes is an important idea about volcanoes.",
+        "dimension": "conceptual",
+        "prereqs": [
+         "pressure-builds"
+        ],
+        "crossLinks": [],
+        "success": {
+         "foundations": "Explain living near volcanoes in their own words.",
+         "use": "Use living near volcanoes to explain a new photo of a volcano.",
+         "judge": "Judge which of two plans would work better and explain why."
+        },
+        "misconceptions": [
+         {
+          "belief": "All mountains are volcanoes.",
+          "probe": "Is every mountain a volcano?",
+          "fix": "Compare a volcano with a folded mountain."
+         }
+        ],
+        "contrast": {
+         "example": "Mount Etna erupts lava.",
+         "nonExample": "A sand dune is not a volcano."
+        },
+        "mission": "Be a volcano detective: decide from three clues which island was made by a volcano.",
+        "transfer": "Explain why hot springs appear in Iceland.",
+        "sources": [
+         2
+        ]
+       }
+      ]
+     }
+    ],
+    "sources": [
+     {
+      "title": "Volcano",
+      "publisher": "National Geographic Education",
+      "url": "https://education.nationalgeographic.org/resource/volcano/"
+     },
+     {
+      "title": "About volcanoes",
+      "publisher": "USGS",
+      "url": "https://www.usgs.gov/programs/VHP/about-volcanoes"
+     },
+     {
+      "title": "Made up",
+      "publisher": "Nobody",
+      "url": "https://example.com/invented"
+     }
+    ],
+    "cautions": "Some photos of eruptions can frighten young children.",
+    "selfCheck": [
+     {
+      "question": "Check 1",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 2",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 3",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 4",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 5",
+      "answer": "Yes, checked.",
+      "ok": true
+     }
+    ]
+   },
+   "critic": {
+    "concepts": [
+     {
+      "index": 0,
+      "accurate": true,
+      "ageFit": 5,
+      "realMisconceptions": true,
+      "issue": ""
+     },
+     {
+      "index": 1,
+      "accurate": true,
+      "ageFit": 5,
+      "realMisconceptions": true,
+      "issue": ""
+     },
+     {
+      "index": 2,
+      "accurate": true,
+      "ageFit": 5,
+      "realMisconceptions": true,
+      "issue": ""
+     },
+     {
+      "index": 3,
+      "accurate": true,
+      "ageFit": 5,
+      "realMisconceptions": true,
+      "issue": ""
+     },
+     {
+      "index": 4,
+      "accurate": true,
+      "ageFit": 5,
+      "realMisconceptions": true,
+      "issue": ""
+     }
+    ]
+   }
+  },
+  "expect": {
+   "outcome": "pruned",
+   "rules": [
+    "unverified_source"
+   ]
+  }
+ },
+ {
+  "name": "a prerequisite that comes later is dropped",
+  "input": {
+   "subject": "Volcanoes",
+   "about": "My son loves volcanoes",
+   "why": "He wants to know if Hawaii is safe",
+   "grade": 3,
+   "uploads": "",
+   "existing": [],
+   "searchable": true,
+   "found": {
+    "web": true,
+    "urls": [
+     "https://education.nationalgeographic.org/resource/volcano/",
+     "https://www.usgs.gov/programs/VHP/about-volcanoes"
+    ]
+   }
+  },
+  "replies": {
+   "write": {
+    "subject": "Volcanoes",
+    "purpose": "Explain how volcanoes form and judge how people can live safely near them.",
+    "scope": "Volcano types, eruptions and safety; not detailed rock chemistry.",
+    "groups": [
+     {
+      "title": "What volcanoes are",
+      "concepts": [
+       {
+        "key": "what-is-a-volcano",
+        "title": "What a volcano is",
+        "idea": "What a volcano is is an important idea about volcanoes.",
+        "dimension": "conceptual",
+        "prereqs": [
+         "volcano-safety"
+        ],
+        "crossLinks": [],
+        "success": {
+         "foundations": "Explain what a volcano is in their own words.",
+         "use": "Use what a volcano is to explain a new photo of a volcano.",
+         "judge": "Judge which of two plans would work better and explain why."
+        },
+        "misconceptions": [
+         {
+          "belief": "All mountains are volcanoes.",
+          "probe": "Is every mountain a volcano?",
+          "fix": "Compare a volcano with a folded mountain."
+         }
+        ],
+        "contrast": {
+         "example": "Mount Etna erupts lava.",
+         "nonExample": "A sand dune is not a volcano."
+        },
+        "mission": "Be a volcano detective: decide from three clues which island was made by a volcano.",
+        "transfer": "Explain why hot springs appear in Iceland.",
+        "sources": [
+         0
+        ]
+       },
+       {
+        "key": "magma-and-lava",
+        "title": "Magma and lava",
+        "idea": "Magma and lava is an important idea about volcanoes.",
+        "dimension": "conceptual",
+        "prereqs": [
+         "what-is-a-volcano"
+        ],
+        "crossLinks": [],
+        "success": {
+         "foundations": "Explain magma and lava in their own words.",
+         "use": "Use magma and lava to explain a new photo of a volcano.",
+         "judge": "Judge which of two plans would work better and explain why."
+        },
+        "misconceptions": [
+         {
+          "belief": "All mountains are volcanoes.",
+          "probe": "Is every mountain a volcano?",
+          "fix": "Compare a volcano with a folded mountain."
+         }
+        ],
+        "contrast": {
+         "example": "Mount Etna erupts lava.",
+         "nonExample": "A sand dune is not a volcano."
+        },
+        "mission": "Be a volcano detective: decide from three clues which island was made by a volcano.",
+        "transfer": "Explain why hot springs appear in Iceland.",
+        "sources": [
+         1
+        ]
+       }
+      ]
+     },
+     {
+      "title": "Why volcanoes erupt",
+      "concepts": [
+       {
+        "key": "pressure-builds",
+        "title": "Pressure builds underground",
+        "idea": "Pressure builds underground is an important idea about volcanoes.",
+        "dimension": "conceptual",
+        "prereqs": [
+         "magma-and-lava"
+        ],
+        "crossLinks": [],
+        "success": {
+         "foundations": "Explain pressure builds underground in their own words.",
+         "use": "Use pressure builds underground to explain a new photo of a volcano.",
+         "judge": "Judge which of two plans would work better and explain why."
+        },
+        "misconceptions": [
+         {
+          "belief": "All mountains are volcanoes.",
+          "probe": "Is every mountain a volcano?",
+          "fix": "Compare a volcano with a folded mountain."
+         }
+        ],
+        "contrast": {
+         "example": "Mount Etna erupts lava.",
+         "nonExample": "A sand dune is not a volcano."
+        },
+        "mission": "Be a volcano detective: decide from three clues which island was made by a volcano.",
+        "transfer": "Explain why hot springs appear in Iceland.",
+        "sources": [
+         0
+        ]
+       },
+       {
+        "key": "plate-edges",
+        "title": "Volcanoes at plate edges",
+        "idea": "Volcanoes at plate edges is an important idea about volcanoes.",
+        "dimension": "conceptual",
+        "prereqs": [
+         "what-is-a-volcano"
+        ],
+        "crossLinks": [],
+        "success": {
+         "foundations": "Explain volcanoes at plate edges in their own words.",
+         "use": "Use volcanoes at plate edges to explain a new photo of a volcano.",
+         "judge": "Judge which of two plans would work better and explain why."
+        },
+        "misconceptions": [
+         {
+          "belief": "All mountains are volcanoes.",
+          "probe": "Is every mountain a volcano?",
+          "fix": "Compare a volcano with a folded mountain."
+         }
+        ],
+        "contrast": {
+         "example": "Mount Etna erupts lava.",
+         "nonExample": "A sand dune is not a volcano."
+        },
+        "mission": "Be a volcano detective: decide from three clues which island was made by a volcano.",
+        "transfer": "Explain why hot springs appear in Iceland.",
+        "sources": [
+         0,
+         1
+        ]
+       },
+       {
+        "key": "volcano-safety",
+        "title": "Living near volcanoes",
+        "idea": "Living near volcanoes is an important idea about volcanoes.",
+        "dimension": "conceptual",
+        "prereqs": [
+         "pressure-builds"
+        ],
+        "crossLinks": [],
+        "success": {
+         "foundations": "Explain living near volcanoes in their own words.",
+         "use": "Use living near volcanoes to explain a new photo of a volcano.",
+         "judge": "Judge which of two plans would work better and explain why."
+        },
+        "misconceptions": [
+         {
+          "belief": "All mountains are volcanoes.",
+          "probe": "Is every mountain a volcano?",
+          "fix": "Compare a volcano with a folded mountain."
+         }
+        ],
+        "contrast": {
+         "example": "Mount Etna erupts lava.",
+         "nonExample": "A sand dune is not a volcano."
+        },
+        "mission": "Be a volcano detective: decide from three clues which island was made by a volcano.",
+        "transfer": "Explain why hot springs appear in Iceland.",
+        "sources": [
+         1
+        ]
+       }
+      ]
+     }
+    ],
+    "sources": [
+     {
+      "title": "Volcano",
+      "publisher": "National Geographic Education",
+      "url": "https://education.nationalgeographic.org/resource/volcano/"
+     },
+     {
+      "title": "About volcanoes",
+      "publisher": "USGS",
+      "url": "https://www.usgs.gov/programs/VHP/about-volcanoes"
+     }
+    ],
+    "cautions": "Some photos of eruptions can frighten young children.",
+    "selfCheck": [
+     {
+      "question": "Check 1",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 2",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 3",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 4",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 5",
+      "answer": "Yes, checked.",
+      "ok": true
+     }
+    ]
+   },
+   "critic": {
+    "concepts": [
+     {
+      "index": 0,
+      "accurate": true,
+      "ageFit": 5,
+      "realMisconceptions": true,
+      "issue": ""
+     },
+     {
+      "index": 1,
+      "accurate": true,
+      "ageFit": 5,
+      "realMisconceptions": true,
+      "issue": ""
+     },
+     {
+      "index": 2,
+      "accurate": true,
+      "ageFit": 5,
+      "realMisconceptions": true,
+      "issue": ""
+     },
+     {
+      "index": 3,
+      "accurate": true,
+      "ageFit": 5,
+      "realMisconceptions": true,
+      "issue": ""
+     },
+     {
+      "index": 4,
+      "accurate": true,
+      "ageFit": 5,
+      "realMisconceptions": true,
+      "issue": ""
+     }
+    ]
+   }
+  },
+  "expect": {
+   "outcome": "pruned",
+   "rules": [
+    "map_order"
+   ]
+  }
+ },
+ {
+  "name": "a top level that is really recall is dropped",
+  "input": {
+   "subject": "Volcanoes",
+   "about": "My son loves volcanoes",
+   "why": "He wants to know if Hawaii is safe",
+   "grade": 3,
+   "uploads": "",
+   "existing": [],
+   "searchable": true,
+   "found": {
+    "web": true,
+    "urls": [
+     "https://education.nationalgeographic.org/resource/volcano/",
+     "https://www.usgs.gov/programs/VHP/about-volcanoes"
+    ]
+   }
+  },
+  "replies": {
+   "write": {
+    "subject": "Volcanoes",
+    "purpose": "Explain how volcanoes form and judge how people can live safely near them.",
+    "scope": "Volcano types, eruptions and safety; not detailed rock chemistry.",
+    "groups": [
+     {
+      "title": "What volcanoes are",
+      "concepts": [
+       {
+        "key": "what-is-a-volcano",
+        "title": "What a volcano is",
+        "idea": "What a volcano is is an important idea about volcanoes.",
+        "dimension": "conceptual",
+        "prereqs": [],
+        "crossLinks": [],
+        "success": {
+         "foundations": "Explain what a volcano is in their own words.",
+         "use": "Use what a volcano is to explain a new photo of a volcano.",
+         "judge": "Judge which of two plans would work better and explain why."
+        },
+        "misconceptions": [
+         {
+          "belief": "All mountains are volcanoes.",
+          "probe": "Is every mountain a volcano?",
+          "fix": "Compare a volcano with a folded mountain."
+         }
+        ],
+        "contrast": {
+         "example": "Mount Etna erupts lava.",
+         "nonExample": "A sand dune is not a volcano."
+        },
+        "mission": "Be a volcano detective: decide from three clues which island was made by a volcano.",
+        "transfer": "Explain why hot springs appear in Iceland.",
+        "sources": [
+         0
+        ]
+       },
+       {
+        "key": "magma-and-lava",
+        "title": "Magma and lava",
+        "idea": "Magma and lava is an important idea about volcanoes.",
+        "dimension": "conceptual",
+        "prereqs": [
+         "what-is-a-volcano"
+        ],
+        "crossLinks": [],
+        "success": {
+         "foundations": "Explain magma and lava in their own words.",
+         "use": "Use magma and lava to explain a new photo of a volcano.",
+         "judge": "Judge which of two plans would work better and explain why."
+        },
+        "misconceptions": [
+         {
+          "belief": "All mountains are volcanoes.",
+          "probe": "Is every mountain a volcano?",
+          "fix": "Compare a volcano with a folded mountain."
+         }
+        ],
+        "contrast": {
+         "example": "Mount Etna erupts lava.",
+         "nonExample": "A sand dune is not a volcano."
+        },
+        "mission": "Be a volcano detective: decide from three clues which island was made by a volcano.",
+        "transfer": "Explain why hot springs appear in Iceland.",
+        "sources": [
+         1
+        ]
+       }
+      ]
+     },
+     {
+      "title": "Why volcanoes erupt",
+      "concepts": [
+       {
+        "key": "pressure-builds",
+        "title": "Pressure builds underground",
+        "idea": "Pressure builds underground is an important idea about volcanoes.",
+        "dimension": "conceptual",
+        "prereqs": [
+         "magma-and-lava"
+        ],
+        "crossLinks": [],
+        "success": {
+         "foundations": "Explain pressure builds underground in their own words.",
+         "use": "Use pressure builds underground to explain a new photo of a volcano.",
+         "judge": "Judge which of two plans would work better and explain why."
+        },
+        "misconceptions": [
+         {
+          "belief": "All mountains are volcanoes.",
+          "probe": "Is every mountain a volcano?",
+          "fix": "Compare a volcano with a folded mountain."
+         }
+        ],
+        "contrast": {
+         "example": "Mount Etna erupts lava.",
+         "nonExample": "A sand dune is not a volcano."
+        },
+        "mission": "Be a volcano detective: decide from three clues which island was made by a volcano.",
+        "transfer": "Explain why hot springs appear in Iceland.",
+        "sources": [
+         0
+        ]
+       },
+       {
+        "key": "plate-edges",
+        "title": "Volcanoes at plate edges",
+        "idea": "Volcanoes at plate edges is an important idea about volcanoes.",
+        "dimension": "conceptual",
+        "prereqs": [
+         "what-is-a-volcano"
+        ],
+        "crossLinks": [],
+        "success": {
+         "foundations": "Explain volcanoes at plate edges in their own words.",
+         "use": "Use volcanoes at plate edges to explain a new photo of a volcano.",
+         "judge": "Name three volcanoes."
+        },
+        "misconceptions": [
+         {
+          "belief": "All mountains are volcanoes.",
+          "probe": "Is every mountain a volcano?",
+          "fix": "Compare a volcano with a folded mountain."
+         }
+        ],
+        "contrast": {
+         "example": "Mount Etna erupts lava.",
+         "nonExample": "A sand dune is not a volcano."
+        },
+        "mission": "Be a volcano detective: decide from three clues which island was made by a volcano.",
+        "transfer": "Explain why hot springs appear in Iceland.",
+        "sources": [
+         0,
+         1
+        ]
+       },
+       {
+        "key": "volcano-safety",
+        "title": "Living near volcanoes",
+        "idea": "Living near volcanoes is an important idea about volcanoes.",
+        "dimension": "conceptual",
+        "prereqs": [
+         "pressure-builds"
+        ],
+        "crossLinks": [],
+        "success": {
+         "foundations": "Explain living near volcanoes in their own words.",
+         "use": "Use living near volcanoes to explain a new photo of a volcano.",
+         "judge": "Judge which of two plans would work better and explain why."
+        },
+        "misconceptions": [
+         {
+          "belief": "All mountains are volcanoes.",
+          "probe": "Is every mountain a volcano?",
+          "fix": "Compare a volcano with a folded mountain."
+         }
+        ],
+        "contrast": {
+         "example": "Mount Etna erupts lava.",
+         "nonExample": "A sand dune is not a volcano."
+        },
+        "mission": "Be a volcano detective: decide from three clues which island was made by a volcano.",
+        "transfer": "Explain why hot springs appear in Iceland.",
+        "sources": [
+         1
+        ]
+       }
+      ]
+     }
+    ],
+    "sources": [
+     {
+      "title": "Volcano",
+      "publisher": "National Geographic Education",
+      "url": "https://education.nationalgeographic.org/resource/volcano/"
+     },
+     {
+      "title": "About volcanoes",
+      "publisher": "USGS",
+      "url": "https://www.usgs.gov/programs/VHP/about-volcanoes"
+     }
+    ],
+    "cautions": "Some photos of eruptions can frighten young children.",
+    "selfCheck": [
+     {
+      "question": "Check 1",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 2",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 3",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 4",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 5",
+      "answer": "Yes, checked.",
+      "ok": true
+     }
+    ]
+   },
+   "critic": {
+    "concepts": [
+     {
+      "index": 0,
+      "accurate": true,
+      "ageFit": 5,
+      "realMisconceptions": true,
+      "issue": ""
+     },
+     {
+      "index": 1,
+      "accurate": true,
+      "ageFit": 5,
+      "realMisconceptions": true,
+      "issue": ""
+     },
+     {
+      "index": 2,
+      "accurate": true,
+      "ageFit": 5,
+      "realMisconceptions": true,
+      "issue": ""
+     },
+     {
+      "index": 3,
+      "accurate": true,
+      "ageFit": 5,
+      "realMisconceptions": true,
+      "issue": ""
+     },
+     {
+      "index": 4,
+      "accurate": true,
+      "ageFit": 5,
+      "realMisconceptions": true,
+      "issue": ""
+     }
+    ]
+   }
+  },
+  "expect": {
+   "outcome": "pruned",
+   "rules": [
+    "judge_level"
+   ]
+  }
+ },
+ {
+  "name": "the reviewer's factual problem drops that concept",
+  "input": {
+   "subject": "Volcanoes",
+   "about": "My son loves volcanoes",
+   "why": "He wants to know if Hawaii is safe",
+   "grade": 3,
+   "uploads": "",
+   "existing": [],
+   "searchable": true,
+   "found": {
+    "web": true,
+    "urls": [
+     "https://education.nationalgeographic.org/resource/volcano/",
+     "https://www.usgs.gov/programs/VHP/about-volcanoes"
+    ]
+   }
+  },
+  "replies": {
+   "write": {
+    "subject": "Volcanoes",
+    "purpose": "Explain how volcanoes form and judge how people can live safely near them.",
+    "scope": "Volcano types, eruptions and safety; not detailed rock chemistry.",
+    "groups": [
+     {
+      "title": "What volcanoes are",
+      "concepts": [
+       {
+        "key": "what-is-a-volcano",
+        "title": "What a volcano is",
+        "idea": "What a volcano is is an important idea about volcanoes.",
+        "dimension": "conceptual",
+        "prereqs": [],
+        "crossLinks": [],
+        "success": {
+         "foundations": "Explain what a volcano is in their own words.",
+         "use": "Use what a volcano is to explain a new photo of a volcano.",
+         "judge": "Judge which of two plans would work better and explain why."
+        },
+        "misconceptions": [
+         {
+          "belief": "All mountains are volcanoes.",
+          "probe": "Is every mountain a volcano?",
+          "fix": "Compare a volcano with a folded mountain."
+         }
+        ],
+        "contrast": {
+         "example": "Mount Etna erupts lava.",
+         "nonExample": "A sand dune is not a volcano."
+        },
+        "mission": "Be a volcano detective: decide from three clues which island was made by a volcano.",
+        "transfer": "Explain why hot springs appear in Iceland.",
+        "sources": [
+         0
+        ]
+       },
+       {
+        "key": "magma-and-lava",
+        "title": "Magma and lava",
+        "idea": "Magma and lava is an important idea about volcanoes.",
+        "dimension": "conceptual",
+        "prereqs": [
+         "what-is-a-volcano"
+        ],
+        "crossLinks": [],
+        "success": {
+         "foundations": "Explain magma and lava in their own words.",
+         "use": "Use magma and lava to explain a new photo of a volcano.",
+         "judge": "Judge which of two plans would work better and explain why."
+        },
+        "misconceptions": [
+         {
+          "belief": "All mountains are volcanoes.",
+          "probe": "Is every mountain a volcano?",
+          "fix": "Compare a volcano with a folded mountain."
+         }
+        ],
+        "contrast": {
+         "example": "Mount Etna erupts lava.",
+         "nonExample": "A sand dune is not a volcano."
+        },
+        "mission": "Be a volcano detective: decide from three clues which island was made by a volcano.",
+        "transfer": "Explain why hot springs appear in Iceland.",
+        "sources": [
+         1
+        ]
+       }
+      ]
+     },
+     {
+      "title": "Why volcanoes erupt",
+      "concepts": [
+       {
+        "key": "pressure-builds",
+        "title": "Pressure builds underground",
+        "idea": "Pressure builds underground is an important idea about volcanoes.",
+        "dimension": "conceptual",
+        "prereqs": [
+         "magma-and-lava"
+        ],
+        "crossLinks": [],
+        "success": {
+         "foundations": "Explain pressure builds underground in their own words.",
+         "use": "Use pressure builds underground to explain a new photo of a volcano.",
+         "judge": "Judge which of two plans would work better and explain why."
+        },
+        "misconceptions": [
+         {
+          "belief": "All mountains are volcanoes.",
+          "probe": "Is every mountain a volcano?",
+          "fix": "Compare a volcano with a folded mountain."
+         }
+        ],
+        "contrast": {
+         "example": "Mount Etna erupts lava.",
+         "nonExample": "A sand dune is not a volcano."
+        },
+        "mission": "Be a volcano detective: decide from three clues which island was made by a volcano.",
+        "transfer": "Explain why hot springs appear in Iceland.",
+        "sources": [
+         0
+        ]
+       },
+       {
+        "key": "plate-edges",
+        "title": "Volcanoes at plate edges",
+        "idea": "Volcanoes at plate edges is an important idea about volcanoes.",
+        "dimension": "conceptual",
+        "prereqs": [
+         "what-is-a-volcano"
+        ],
+        "crossLinks": [],
+        "success": {
+         "foundations": "Explain volcanoes at plate edges in their own words.",
+         "use": "Use volcanoes at plate edges to explain a new photo of a volcano.",
+         "judge": "Judge which of two plans would work better and explain why."
+        },
+        "misconceptions": [
+         {
+          "belief": "All mountains are volcanoes.",
+          "probe": "Is every mountain a volcano?",
+          "fix": "Compare a volcano with a folded mountain."
+         }
+        ],
+        "contrast": {
+         "example": "Mount Etna erupts lava.",
+         "nonExample": "A sand dune is not a volcano."
+        },
+        "mission": "Be a volcano detective: decide from three clues which island was made by a volcano.",
+        "transfer": "Explain why hot springs appear in Iceland.",
+        "sources": [
+         0,
+         1
+        ]
+       },
+       {
+        "key": "volcano-safety",
+        "title": "Living near volcanoes",
+        "idea": "Living near volcanoes is an important idea about volcanoes.",
+        "dimension": "conceptual",
+        "prereqs": [
+         "pressure-builds"
+        ],
+        "crossLinks": [],
+        "success": {
+         "foundations": "Explain living near volcanoes in their own words.",
+         "use": "Use living near volcanoes to explain a new photo of a volcano.",
+         "judge": "Judge which of two plans would work better and explain why."
+        },
+        "misconceptions": [
+         {
+          "belief": "All mountains are volcanoes.",
+          "probe": "Is every mountain a volcano?",
+          "fix": "Compare a volcano with a folded mountain."
+         }
+        ],
+        "contrast": {
+         "example": "Mount Etna erupts lava.",
+         "nonExample": "A sand dune is not a volcano."
+        },
+        "mission": "Be a volcano detective: decide from three clues which island was made by a volcano.",
+        "transfer": "Explain why hot springs appear in Iceland.",
+        "sources": [
+         1
+        ]
+       }
+      ]
+     }
+    ],
+    "sources": [
+     {
+      "title": "Volcano",
+      "publisher": "National Geographic Education",
+      "url": "https://education.nationalgeographic.org/resource/volcano/"
+     },
+     {
+      "title": "About volcanoes",
+      "publisher": "USGS",
+      "url": "https://www.usgs.gov/programs/VHP/about-volcanoes"
+     }
+    ],
+    "cautions": "Some photos of eruptions can frighten young children.",
+    "selfCheck": [
+     {
+      "question": "Check 1",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 2",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 3",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 4",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 5",
+      "answer": "Yes, checked.",
+      "ok": true
+     }
+    ]
+   },
+   "critic": {
+    "concepts": [
+     {
+      "index": 0,
+      "accurate": true,
+      "ageFit": 5,
+      "realMisconceptions": true,
+      "issue": ""
+     },
+     {
+      "index": 1,
+      "accurate": true,
+      "ageFit": 5,
+      "realMisconceptions": true,
+      "issue": ""
+     },
+     {
+      "index": 2,
+      "accurate": true,
+      "ageFit": 5,
+      "realMisconceptions": true,
+      "issue": ""
+     },
+     {
+      "index": 3,
+      "accurate": true,
+      "ageFit": 5,
+      "realMisconceptions": true,
+      "issue": ""
+     },
+     {
+      "index": 4,
+      "accurate": false,
+      "ageFit": 5,
+      "realMisconceptions": true,
+      "issue": ""
+     }
+    ]
+   }
+  },
+  "expect": {
+   "outcome": "pruned",
+   "rules": [
+    "inaccurate"
+   ]
+  }
+ },
+ {
+  "name": "a mission asking for personal details is dropped",
+  "input": {
+   "subject": "Volcanoes",
+   "about": "My son loves volcanoes",
+   "why": "He wants to know if Hawaii is safe",
+   "grade": 3,
+   "uploads": "",
+   "existing": [],
+   "searchable": true,
+   "found": {
+    "web": true,
+    "urls": [
+     "https://education.nationalgeographic.org/resource/volcano/",
+     "https://www.usgs.gov/programs/VHP/about-volcanoes"
+    ]
+   }
+  },
+  "replies": {
+   "write": {
+    "subject": "Volcanoes",
+    "purpose": "Explain how volcanoes form and judge how people can live safely near them.",
+    "scope": "Volcano types, eruptions and safety; not detailed rock chemistry.",
+    "groups": [
+     {
+      "title": "What volcanoes are",
+      "concepts": [
+       {
+        "key": "what-is-a-volcano",
+        "title": "What a volcano is",
+        "idea": "What a volcano is is an important idea about volcanoes.",
+        "dimension": "conceptual",
+        "prereqs": [],
+        "crossLinks": [],
+        "success": {
+         "foundations": "Explain what a volcano is in their own words.",
+         "use": "Use what a volcano is to explain a new photo of a volcano.",
+         "judge": "Judge which of two plans would work better and explain why."
+        },
+        "misconceptions": [
+         {
+          "belief": "All mountains are volcanoes.",
+          "probe": "Is every mountain a volcano?",
+          "fix": "Compare a volcano with a folded mountain."
+         }
+        ],
+        "contrast": {
+         "example": "Mount Etna erupts lava.",
+         "nonExample": "A sand dune is not a volcano."
+        },
+        "mission": "Be a volcano detective: decide from three clues which island was made by a volcano.",
+        "transfer": "Explain why hot springs appear in Iceland.",
+        "sources": [
+         0
+        ]
+       },
+       {
+        "key": "magma-and-lava",
+        "title": "Magma and lava",
+        "idea": "Magma and lava is an important idea about volcanoes.",
+        "dimension": "conceptual",
+        "prereqs": [
+         "what-is-a-volcano"
+        ],
+        "crossLinks": [],
+        "success": {
+         "foundations": "Explain magma and lava in their own words.",
+         "use": "Use magma and lava to explain a new photo of a volcano.",
+         "judge": "Judge which of two plans would work better and explain why."
+        },
+        "misconceptions": [
+         {
+          "belief": "All mountains are volcanoes.",
+          "probe": "Is every mountain a volcano?",
+          "fix": "Compare a volcano with a folded mountain."
+         }
+        ],
+        "contrast": {
+         "example": "Mount Etna erupts lava.",
+         "nonExample": "A sand dune is not a volcano."
+        },
+        "mission": "Be a volcano detective: decide from three clues which island was made by a volcano.",
+        "transfer": "Explain why hot springs appear in Iceland.",
+        "sources": [
+         1
+        ]
+       }
+      ]
+     },
+     {
+      "title": "Why volcanoes erupt",
+      "concepts": [
+       {
+        "key": "pressure-builds",
+        "title": "Pressure builds underground",
+        "idea": "Pressure builds underground is an important idea about volcanoes.",
+        "dimension": "conceptual",
+        "prereqs": [
+         "magma-and-lava"
+        ],
+        "crossLinks": [],
+        "success": {
+         "foundations": "Explain pressure builds underground in their own words.",
+         "use": "Use pressure builds underground to explain a new photo of a volcano.",
+         "judge": "Judge which of two plans would work better and explain why."
+        },
+        "misconceptions": [
+         {
+          "belief": "All mountains are volcanoes.",
+          "probe": "Is every mountain a volcano?",
+          "fix": "Compare a volcano with a folded mountain."
+         }
+        ],
+        "contrast": {
+         "example": "Mount Etna erupts lava.",
+         "nonExample": "A sand dune is not a volcano."
+        },
+        "mission": "Be a volcano detective: decide from three clues which island was made by a volcano.",
+        "transfer": "Explain why hot springs appear in Iceland.",
+        "sources": [
+         0
+        ]
+       },
+       {
+        "key": "plate-edges",
+        "title": "Volcanoes at plate edges",
+        "idea": "Volcanoes at plate edges is an important idea about volcanoes.",
+        "dimension": "conceptual",
+        "prereqs": [
+         "what-is-a-volcano"
+        ],
+        "crossLinks": [],
+        "success": {
+         "foundations": "Explain volcanoes at plate edges in their own words.",
+         "use": "Use volcanoes at plate edges to explain a new photo of a volcano.",
+         "judge": "Judge which of two plans would work better and explain why."
+        },
+        "misconceptions": [
+         {
+          "belief": "All mountains are volcanoes.",
+          "probe": "Is every mountain a volcano?",
+          "fix": "Compare a volcano with a folded mountain."
+         }
+        ],
+        "contrast": {
+         "example": "Mount Etna erupts lava.",
+         "nonExample": "A sand dune is not a volcano."
+        },
+        "mission": "Be a volcano detective: decide from three clues which island was made by a volcano.",
+        "transfer": "Explain why hot springs appear in Iceland.",
+        "sources": [
+         0,
+         1
+        ]
+       },
+       {
+        "key": "volcano-safety",
+        "title": "Living near volcanoes",
+        "idea": "Living near volcanoes is an important idea about volcanoes.",
+        "dimension": "conceptual",
+        "prereqs": [
+         "pressure-builds"
+        ],
+        "crossLinks": [],
+        "success": {
+         "foundations": "Explain living near volcanoes in their own words.",
+         "use": "Use living near volcanoes to explain a new photo of a volcano.",
+         "judge": "Judge which of two plans would work better and explain why."
+        },
+        "misconceptions": [
+         {
+          "belief": "All mountains are volcanoes.",
+          "probe": "Is every mountain a volcano?",
+          "fix": "Compare a volcano with a folded mountain."
+         }
+        ],
+        "contrast": {
+         "example": "Mount Etna erupts lava.",
+         "nonExample": "A sand dune is not a volcano."
+        },
+        "mission": "Send me a photo of your house and street.",
+        "transfer": "Explain why hot springs appear in Iceland.",
+        "sources": [
+         1
+        ]
+       }
+      ]
+     }
+    ],
+    "sources": [
+     {
+      "title": "Volcano",
+      "publisher": "National Geographic Education",
+      "url": "https://education.nationalgeographic.org/resource/volcano/"
+     },
+     {
+      "title": "About volcanoes",
+      "publisher": "USGS",
+      "url": "https://www.usgs.gov/programs/VHP/about-volcanoes"
+     }
+    ],
+    "cautions": "Some photos of eruptions can frighten young children.",
+    "selfCheck": [
+     {
+      "question": "Check 1",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 2",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 3",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 4",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 5",
+      "answer": "Yes, checked.",
+      "ok": true
+     }
+    ]
+   },
+   "critic": {
+    "concepts": [
+     {
+      "index": 0,
+      "accurate": true,
+      "ageFit": 5,
+      "realMisconceptions": true,
+      "issue": ""
+     },
+     {
+      "index": 1,
+      "accurate": true,
+      "ageFit": 5,
+      "realMisconceptions": true,
+      "issue": ""
+     },
+     {
+      "index": 2,
+      "accurate": true,
+      "ageFit": 5,
+      "realMisconceptions": true,
+      "issue": ""
+     },
+     {
+      "index": 3,
+      "accurate": true,
+      "ageFit": 5,
+      "realMisconceptions": true,
+      "issue": ""
+     },
+     {
+      "index": 4,
+      "accurate": true,
+      "ageFit": 5,
+      "realMisconceptions": true,
+      "issue": ""
+     }
+    ]
+   }
+  },
+  "expect": {
+   "outcome": "pruned",
+   "rules": [
+    "child_safety"
+   ]
+  }
+ },
+ {
+  "name": "too few web sources refuses the whole map",
+  "input": {
+   "subject": "Volcanoes",
+   "about": "My son loves volcanoes",
+   "why": "He wants to know if Hawaii is safe",
+   "grade": 3,
+   "uploads": "",
+   "existing": [],
+   "searchable": true,
+   "found": {
+    "web": true,
+    "urls": [
+     "https://education.nationalgeographic.org/resource/volcano/",
+     "https://www.usgs.gov/programs/VHP/about-volcanoes"
+    ]
+   }
+  },
+  "replies": {
+   "write": {
+    "subject": "Volcanoes",
+    "purpose": "Explain how volcanoes form and judge how people can live safely near them.",
+    "scope": "Volcano types, eruptions and safety; not detailed rock chemistry.",
+    "groups": [
+     {
+      "title": "What volcanoes are",
+      "concepts": [
+       {
+        "key": "what-is-a-volcano",
+        "title": "What a volcano is",
+        "idea": "What a volcano is is an important idea about volcanoes.",
+        "dimension": "conceptual",
+        "prereqs": [],
+        "crossLinks": [],
+        "success": {
+         "foundations": "Explain what a volcano is in their own words.",
+         "use": "Use what a volcano is to explain a new photo of a volcano.",
+         "judge": "Judge which of two plans would work better and explain why."
+        },
+        "misconceptions": [
+         {
+          "belief": "All mountains are volcanoes.",
+          "probe": "Is every mountain a volcano?",
+          "fix": "Compare a volcano with a folded mountain."
+         }
+        ],
+        "contrast": {
+         "example": "Mount Etna erupts lava.",
+         "nonExample": "A sand dune is not a volcano."
+        },
+        "mission": "Be a volcano detective: decide from three clues which island was made by a volcano.",
+        "transfer": "Explain why hot springs appear in Iceland.",
+        "sources": [
+         0
+        ]
+       },
+       {
+        "key": "magma-and-lava",
+        "title": "Magma and lava",
+        "idea": "Magma and lava is an important idea about volcanoes.",
+        "dimension": "conceptual",
+        "prereqs": [
+         "what-is-a-volcano"
+        ],
+        "crossLinks": [],
+        "success": {
+         "foundations": "Explain magma and lava in their own words.",
+         "use": "Use magma and lava to explain a new photo of a volcano.",
+         "judge": "Judge which of two plans would work better and explain why."
+        },
+        "misconceptions": [
+         {
+          "belief": "All mountains are volcanoes.",
+          "probe": "Is every mountain a volcano?",
+          "fix": "Compare a volcano with a folded mountain."
+         }
+        ],
+        "contrast": {
+         "example": "Mount Etna erupts lava.",
+         "nonExample": "A sand dune is not a volcano."
+        },
+        "mission": "Be a volcano detective: decide from three clues which island was made by a volcano.",
+        "transfer": "Explain why hot springs appear in Iceland.",
+        "sources": [
+         0
+        ]
+       }
+      ]
+     },
+     {
+      "title": "Why volcanoes erupt",
+      "concepts": [
+       {
+        "key": "pressure-builds",
+        "title": "Pressure builds underground",
+        "idea": "Pressure builds underground is an important idea about volcanoes.",
+        "dimension": "conceptual",
+        "prereqs": [
+         "magma-and-lava"
+        ],
+        "crossLinks": [],
+        "success": {
+         "foundations": "Explain pressure builds underground in their own words.",
+         "use": "Use pressure builds underground to explain a new photo of a volcano.",
+         "judge": "Judge which of two plans would work better and explain why."
+        },
+        "misconceptions": [
+         {
+          "belief": "All mountains are volcanoes.",
+          "probe": "Is every mountain a volcano?",
+          "fix": "Compare a volcano with a folded mountain."
+         }
+        ],
+        "contrast": {
+         "example": "Mount Etna erupts lava.",
+         "nonExample": "A sand dune is not a volcano."
+        },
+        "mission": "Be a volcano detective: decide from three clues which island was made by a volcano.",
+        "transfer": "Explain why hot springs appear in Iceland.",
+        "sources": [
+         0
+        ]
+       },
+       {
+        "key": "plate-edges",
+        "title": "Volcanoes at plate edges",
+        "idea": "Volcanoes at plate edges is an important idea about volcanoes.",
+        "dimension": "conceptual",
+        "prereqs": [
+         "what-is-a-volcano"
+        ],
+        "crossLinks": [],
+        "success": {
+         "foundations": "Explain volcanoes at plate edges in their own words.",
+         "use": "Use volcanoes at plate edges to explain a new photo of a volcano.",
+         "judge": "Judge which of two plans would work better and explain why."
+        },
+        "misconceptions": [
+         {
+          "belief": "All mountains are volcanoes.",
+          "probe": "Is every mountain a volcano?",
+          "fix": "Compare a volcano with a folded mountain."
+         }
+        ],
+        "contrast": {
+         "example": "Mount Etna erupts lava.",
+         "nonExample": "A sand dune is not a volcano."
+        },
+        "mission": "Be a volcano detective: decide from three clues which island was made by a volcano.",
+        "transfer": "Explain why hot springs appear in Iceland.",
+        "sources": [
+         0
+        ]
+       },
+       {
+        "key": "volcano-safety",
+        "title": "Living near volcanoes",
+        "idea": "Living near volcanoes is an important idea about volcanoes.",
+        "dimension": "conceptual",
+        "prereqs": [
+         "pressure-builds"
+        ],
+        "crossLinks": [],
+        "success": {
+         "foundations": "Explain living near volcanoes in their own words.",
+         "use": "Use living near volcanoes to explain a new photo of a volcano.",
+         "judge": "Judge which of two plans would work better and explain why."
+        },
+        "misconceptions": [
+         {
+          "belief": "All mountains are volcanoes.",
+          "probe": "Is every mountain a volcano?",
+          "fix": "Compare a volcano with a folded mountain."
+         }
+        ],
+        "contrast": {
+         "example": "Mount Etna erupts lava.",
+         "nonExample": "A sand dune is not a volcano."
+        },
+        "mission": "Be a volcano detective: decide from three clues which island was made by a volcano.",
+        "transfer": "Explain why hot springs appear in Iceland.",
+        "sources": [
+         0
+        ]
+       }
+      ]
+     }
+    ],
+    "sources": [
+     {
+      "title": "Volcano",
+      "publisher": "National Geographic Education",
+      "url": "https://education.nationalgeographic.org/resource/volcano/"
+     }
+    ],
+    "cautions": "Some photos of eruptions can frighten young children.",
+    "selfCheck": [
+     {
+      "question": "Check 1",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 2",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 3",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 4",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 5",
+      "answer": "Yes, checked.",
+      "ok": true
+     }
+    ]
+   },
+   "critic": {
+    "concepts": [
+     {
+      "index": 0,
+      "accurate": true,
+      "ageFit": 5,
+      "realMisconceptions": true,
+      "issue": ""
+     },
+     {
+      "index": 1,
+      "accurate": true,
+      "ageFit": 5,
+      "realMisconceptions": true,
+      "issue": ""
+     },
+     {
+      "index": 2,
+      "accurate": true,
+      "ageFit": 5,
+      "realMisconceptions": true,
+      "issue": ""
+     },
+     {
+      "index": 3,
+      "accurate": true,
+      "ageFit": 5,
+      "realMisconceptions": true,
+      "issue": ""
+     },
+     {
+      "index": 4,
+      "accurate": true,
+      "ageFit": 5,
+      "realMisconceptions": true,
+      "issue": ""
+     }
+    ]
+   }
+  },
+  "expect": {
+   "outcome": "rejected",
+   "rules": [
+    "sources"
+   ]
+  }
+ },
+ {
+  "name": "without web search, uncited concepts only warn",
+  "input": {
+   "subject": "Volcanoes",
+   "about": "My son loves volcanoes",
+   "why": "He wants to know if Hawaii is safe",
+   "grade": 3,
+   "uploads": "",
+   "existing": [],
+   "searchable": false,
+   "found": {
+    "web": false,
+    "urls": []
+   }
+  },
+  "replies": {
+   "write": {
+    "subject": "Volcanoes",
+    "purpose": "Explain how volcanoes form and judge how people can live safely near them.",
+    "scope": "Volcano types, eruptions and safety; not detailed rock chemistry.",
+    "groups": [
+     {
+      "title": "What volcanoes are",
+      "concepts": [
+       {
+        "key": "what-is-a-volcano",
+        "title": "What a volcano is",
+        "idea": "What a volcano is is an important idea about volcanoes.",
+        "dimension": "conceptual",
+        "prereqs": [],
+        "crossLinks": [],
+        "success": {
+         "foundations": "Explain what a volcano is in their own words.",
+         "use": "Use what a volcano is to explain a new photo of a volcano.",
+         "judge": "Judge which of two plans would work better and explain why."
+        },
+        "misconceptions": [
+         {
+          "belief": "All mountains are volcanoes.",
+          "probe": "Is every mountain a volcano?",
+          "fix": "Compare a volcano with a folded mountain."
+         }
+        ],
+        "contrast": {
+         "example": "Mount Etna erupts lava.",
+         "nonExample": "A sand dune is not a volcano."
+        },
+        "mission": "Be a volcano detective: decide from three clues which island was made by a volcano.",
+        "transfer": "Explain why hot springs appear in Iceland.",
+        "sources": []
+       },
+       {
+        "key": "magma-and-lava",
+        "title": "Magma and lava",
+        "idea": "Magma and lava is an important idea about volcanoes.",
+        "dimension": "conceptual",
+        "prereqs": [
+         "what-is-a-volcano"
+        ],
+        "crossLinks": [],
+        "success": {
+         "foundations": "Explain magma and lava in their own words.",
+         "use": "Use magma and lava to explain a new photo of a volcano.",
+         "judge": "Judge which of two plans would work better and explain why."
+        },
+        "misconceptions": [
+         {
+          "belief": "All mountains are volcanoes.",
+          "probe": "Is every mountain a volcano?",
+          "fix": "Compare a volcano with a folded mountain."
+         }
+        ],
+        "contrast": {
+         "example": "Mount Etna erupts lava.",
+         "nonExample": "A sand dune is not a volcano."
+        },
+        "mission": "Be a volcano detective: decide from three clues which island was made by a volcano.",
+        "transfer": "Explain why hot springs appear in Iceland.",
+        "sources": []
+       }
+      ]
+     },
+     {
+      "title": "Why volcanoes erupt",
+      "concepts": [
+       {
+        "key": "pressure-builds",
+        "title": "Pressure builds underground",
+        "idea": "Pressure builds underground is an important idea about volcanoes.",
+        "dimension": "conceptual",
+        "prereqs": [
+         "magma-and-lava"
+        ],
+        "crossLinks": [],
+        "success": {
+         "foundations": "Explain pressure builds underground in their own words.",
+         "use": "Use pressure builds underground to explain a new photo of a volcano.",
+         "judge": "Judge which of two plans would work better and explain why."
+        },
+        "misconceptions": [
+         {
+          "belief": "All mountains are volcanoes.",
+          "probe": "Is every mountain a volcano?",
+          "fix": "Compare a volcano with a folded mountain."
+         }
+        ],
+        "contrast": {
+         "example": "Mount Etna erupts lava.",
+         "nonExample": "A sand dune is not a volcano."
+        },
+        "mission": "Be a volcano detective: decide from three clues which island was made by a volcano.",
+        "transfer": "Explain why hot springs appear in Iceland.",
+        "sources": []
+       },
+       {
+        "key": "plate-edges",
+        "title": "Volcanoes at plate edges",
+        "idea": "Volcanoes at plate edges is an important idea about volcanoes.",
+        "dimension": "conceptual",
+        "prereqs": [
+         "what-is-a-volcano"
+        ],
+        "crossLinks": [],
+        "success": {
+         "foundations": "Explain volcanoes at plate edges in their own words.",
+         "use": "Use volcanoes at plate edges to explain a new photo of a volcano.",
+         "judge": "Judge which of two plans would work better and explain why."
+        },
+        "misconceptions": [
+         {
+          "belief": "All mountains are volcanoes.",
+          "probe": "Is every mountain a volcano?",
+          "fix": "Compare a volcano with a folded mountain."
+         }
+        ],
+        "contrast": {
+         "example": "Mount Etna erupts lava.",
+         "nonExample": "A sand dune is not a volcano."
+        },
+        "mission": "Be a volcano detective: decide from three clues which island was made by a volcano.",
+        "transfer": "Explain why hot springs appear in Iceland.",
+        "sources": []
+       },
+       {
+        "key": "volcano-safety",
+        "title": "Living near volcanoes",
+        "idea": "Living near volcanoes is an important idea about volcanoes.",
+        "dimension": "conceptual",
+        "prereqs": [
+         "pressure-builds"
+        ],
+        "crossLinks": [],
+        "success": {
+         "foundations": "Explain living near volcanoes in their own words.",
+         "use": "Use living near volcanoes to explain a new photo of a volcano.",
+         "judge": "Judge which of two plans would work better and explain why."
+        },
+        "misconceptions": [
+         {
+          "belief": "All mountains are volcanoes.",
+          "probe": "Is every mountain a volcano?",
+          "fix": "Compare a volcano with a folded mountain."
+         }
+        ],
+        "contrast": {
+         "example": "Mount Etna erupts lava.",
+         "nonExample": "A sand dune is not a volcano."
+        },
+        "mission": "Be a volcano detective: decide from three clues which island was made by a volcano.",
+        "transfer": "Explain why hot springs appear in Iceland.",
+        "sources": []
+       }
+      ]
+     }
+    ],
+    "sources": [
+     {
+      "title": "Volcanoes (children's encyclopaedia)",
+      "publisher": "",
+      "url": ""
+     }
+    ],
+    "cautions": "Some photos of eruptions can frighten young children.",
+    "selfCheck": [
+     {
+      "question": "Check 1",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 2",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 3",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 4",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 5",
+      "answer": "Yes, checked.",
+      "ok": true
+     }
+    ]
+   },
+   "critic": {
+    "concepts": [
+     {
+      "index": 0,
+      "accurate": true,
+      "ageFit": 5,
+      "realMisconceptions": true,
+      "issue": ""
+     },
+     {
+      "index": 1,
+      "accurate": true,
+      "ageFit": 5,
+      "realMisconceptions": true,
+      "issue": ""
+     },
+     {
+      "index": 2,
+      "accurate": true,
+      "ageFit": 5,
+      "realMisconceptions": true,
+      "issue": ""
+     },
+     {
+      "index": 3,
+      "accurate": true,
+      "ageFit": 5,
+      "realMisconceptions": true,
+      "issue": ""
+     },
+     {
+      "index": 4,
+      "accurate": true,
+      "ageFit": 5,
+      "realMisconceptions": true,
+      "issue": ""
+     }
+    ]
+   }
+  },
+  "expect": {
+   "outcome": "accepted",
+   "rules": [
+    "uncited"
+   ]
+  }
+ },
+ {
+  "name": "a group with one concept breaks the schema",
+  "input": {
+   "subject": "Volcanoes",
+   "about": "My son loves volcanoes",
+   "why": "He wants to know if Hawaii is safe",
+   "grade": 3,
+   "uploads": "",
+   "existing": [],
+   "searchable": true,
+   "found": {
+    "web": true,
+    "urls": [
+     "https://education.nationalgeographic.org/resource/volcano/",
+     "https://www.usgs.gov/programs/VHP/about-volcanoes"
+    ]
+   }
+  },
+  "replies": {
+   "write": {
+    "subject": "Volcanoes",
+    "purpose": "Explain how volcanoes form and judge how people can live safely near them.",
+    "scope": "Volcano types, eruptions and safety; not detailed rock chemistry.",
+    "groups": [
+     {
+      "title": "What volcanoes are",
+      "concepts": [
+       {
+        "key": "what-is-a-volcano",
+        "title": "What a volcano is",
+        "idea": "What a volcano is is an important idea about volcanoes.",
+        "dimension": "conceptual",
+        "prereqs": [],
+        "crossLinks": [],
+        "success": {
+         "foundations": "Explain what a volcano is in their own words.",
+         "use": "Use what a volcano is to explain a new photo of a volcano.",
+         "judge": "Judge which of two plans would work better and explain why."
+        },
+        "misconceptions": [
+         {
+          "belief": "All mountains are volcanoes.",
+          "probe": "Is every mountain a volcano?",
+          "fix": "Compare a volcano with a folded mountain."
+         }
+        ],
+        "contrast": {
+         "example": "Mount Etna erupts lava.",
+         "nonExample": "A sand dune is not a volcano."
+        },
+        "mission": "Be a volcano detective: decide from three clues which island was made by a volcano.",
+        "transfer": "Explain why hot springs appear in Iceland.",
+        "sources": [
+         0
+        ]
+       }
+      ]
+     },
+     {
+      "title": "Why volcanoes erupt",
+      "concepts": [
+       {
+        "key": "pressure-builds",
+        "title": "Pressure builds underground",
+        "idea": "Pressure builds underground is an important idea about volcanoes.",
+        "dimension": "conceptual",
+        "prereqs": [
+         "magma-and-lava"
+        ],
+        "crossLinks": [],
+        "success": {
+         "foundations": "Explain pressure builds underground in their own words.",
+         "use": "Use pressure builds underground to explain a new photo of a volcano.",
+         "judge": "Judge which of two plans would work better and explain why."
+        },
+        "misconceptions": [
+         {
+          "belief": "All mountains are volcanoes.",
+          "probe": "Is every mountain a volcano?",
+          "fix": "Compare a volcano with a folded mountain."
+         }
+        ],
+        "contrast": {
+         "example": "Mount Etna erupts lava.",
+         "nonExample": "A sand dune is not a volcano."
+        },
+        "mission": "Be a volcano detective: decide from three clues which island was made by a volcano.",
+        "transfer": "Explain why hot springs appear in Iceland.",
+        "sources": [
+         0
+        ]
+       },
+       {
+        "key": "plate-edges",
+        "title": "Volcanoes at plate edges",
+        "idea": "Volcanoes at plate edges is an important idea about volcanoes.",
+        "dimension": "conceptual",
+        "prereqs": [
+         "what-is-a-volcano"
+        ],
+        "crossLinks": [],
+        "success": {
+         "foundations": "Explain volcanoes at plate edges in their own words.",
+         "use": "Use volcanoes at plate edges to explain a new photo of a volcano.",
+         "judge": "Judge which of two plans would work better and explain why."
+        },
+        "misconceptions": [
+         {
+          "belief": "All mountains are volcanoes.",
+          "probe": "Is every mountain a volcano?",
+          "fix": "Compare a volcano with a folded mountain."
+         }
+        ],
+        "contrast": {
+         "example": "Mount Etna erupts lava.",
+         "nonExample": "A sand dune is not a volcano."
+        },
+        "mission": "Be a volcano detective: decide from three clues which island was made by a volcano.",
+        "transfer": "Explain why hot springs appear in Iceland.",
+        "sources": [
+         0,
+         1
+        ]
+       },
+       {
+        "key": "volcano-safety",
+        "title": "Living near volcanoes",
+        "idea": "Living near volcanoes is an important idea about volcanoes.",
+        "dimension": "conceptual",
+        "prereqs": [
+         "pressure-builds"
+        ],
+        "crossLinks": [],
+        "success": {
+         "foundations": "Explain living near volcanoes in their own words.",
+         "use": "Use living near volcanoes to explain a new photo of a volcano.",
+         "judge": "Judge which of two plans would work better and explain why."
+        },
+        "misconceptions": [
+         {
+          "belief": "All mountains are volcanoes.",
+          "probe": "Is every mountain a volcano?",
+          "fix": "Compare a volcano with a folded mountain."
+         }
+        ],
+        "contrast": {
+         "example": "Mount Etna erupts lava.",
+         "nonExample": "A sand dune is not a volcano."
+        },
+        "mission": "Be a volcano detective: decide from three clues which island was made by a volcano.",
+        "transfer": "Explain why hot springs appear in Iceland.",
+        "sources": [
+         1
+        ]
+       }
+      ]
+     }
+    ],
+    "sources": [
+     {
+      "title": "Volcano",
+      "publisher": "National Geographic Education",
+      "url": "https://education.nationalgeographic.org/resource/volcano/"
+     },
+     {
+      "title": "About volcanoes",
+      "publisher": "USGS",
+      "url": "https://www.usgs.gov/programs/VHP/about-volcanoes"
+     }
+    ],
+    "cautions": "Some photos of eruptions can frighten young children.",
+    "selfCheck": [
+     {
+      "question": "Check 1",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 2",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 3",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 4",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 5",
+      "answer": "Yes, checked.",
+      "ok": true
+     }
+    ]
+   }
+  },
+  "expect": {
+   "outcome": "rejected",
+   "rules": [
+    "schema"
+   ]
+  }
+ }
+]

@@ -1,0 +1,374 @@
+[
+ {
+  "name": "a sound explanation with quoted evidence is accepted",
+  "input": {
+   "concept": "Equivalent fractions",
+   "bloomLevel": 2,
+   "prompt": "Explain why 2/4 and 1/2 are the same amount.",
+   "key": "Rubric: both are one half; multiplying the top and bottom of 1/2 by 2 gives 2/4.",
+   "response": "because if you double the top and bottom of one half you get two fourths, same size"
+  },
+  "replies": {
+   "write": {
+    "rubricPoints": [
+     {
+      "point": "Says they are the same amount",
+      "met": true,
+      "quote": "same size"
+     },
+     {
+      "point": "Explains doubling top and bottom",
+      "met": true,
+      "quote": "double the top and bottom"
+     }
+    ],
+    "reasoningSound": true,
+    "correct": true,
+    "reason": "You explained that doubling the top and bottom keeps the same amount.",
+    "confidence": 0.93,
+    "errorType": null
+   }
+  },
+  "expect": {
+   "outcome": "accepted"
+  },
+  "live": true
+ },
+ {
+  "name": "a right conclusion with a false reason, honestly graded, is accepted as not yet",
+  "input": {
+   "concept": "Equivalent fractions",
+   "bloomLevel": 2,
+   "prompt": "Explain why 2/4 and 1/2 are the same amount.",
+   "key": "Rubric: both are one half; multiplying the top and bottom of 1/2 by 2 gives 2/4.",
+   "response": "because 2+2=4 and 1+1=2 so they match"
+  },
+  "replies": {
+   "write": {
+    "rubricPoints": [
+     {
+      "point": "Says they are the same amount",
+      "met": true,
+      "quote": "they match"
+     },
+     {
+      "point": "Gives a valid reason",
+      "met": false,
+      "quote": ""
+     }
+    ],
+    "reasoningSound": false,
+    "correct": false,
+    "reason": "You said they match, but adding the tops and bottoms is not why. What do you multiply 1/2 by to get 2/4?",
+    "confidence": 0.9,
+    "errorType": "misconception"
+   }
+  },
+  "expect": {
+   "outcome": "accepted"
+  }
+ },
+ {
+  "name": "a grade whose own working shows a false reason cannot be marked correct",
+  "input": {
+   "concept": "Equivalent fractions",
+   "bloomLevel": 2,
+   "prompt": "Explain why 2/4 and 1/2 are the same amount.",
+   "key": "Rubric: both are one half; multiplying the top and bottom of 1/2 by 2 gives 2/4.",
+   "response": "because 2+2=4 and 1+1=2 so they match"
+  },
+  "replies": {
+   "write": {
+    "rubricPoints": [
+     {
+      "point": "Says they are the same amount",
+      "met": true,
+      "quote": "they match"
+     },
+     {
+      "point": "Gives a valid reason",
+      "met": true,
+      "quote": "2+2=4 and 1+1=2"
+     }
+    ],
+    "reasoningSound": false,
+    "correct": true,
+    "reason": "You showed they match.",
+    "confidence": 0.92,
+    "errorType": null
+   }
+  },
+  "expect": {
+   "outcome": "rejected",
+   "rules": [
+    "verdict_unsupported"
+   ]
+  }
+ },
+ {
+  "name": "quoting words the child never wrote is refused",
+  "input": {
+   "concept": "Equivalent fractions",
+   "bloomLevel": 2,
+   "prompt": "Explain why 2/4 and 1/2 are the same amount.",
+   "key": "Rubric: both are one half; multiplying the top and bottom of 1/2 by 2 gives 2/4.",
+   "response": "because if you double the top and bottom of one half you get two fourths, same size"
+  },
+  "replies": {
+   "write": {
+    "rubricPoints": [
+     {
+      "point": "Says they are the same amount",
+      "met": true,
+      "quote": "they are equivalent fractions"
+     },
+     {
+      "point": "Explains doubling",
+      "met": true,
+      "quote": "double the top and bottom"
+     }
+    ],
+    "reasoningSound": true,
+    "correct": true,
+    "reason": "You explained that doubling the top and bottom keeps the same amount.",
+    "confidence": 0.93,
+    "errorType": null
+   }
+  },
+  "expect": {
+   "outcome": "rejected",
+   "rules": [
+    "invented_quote"
+   ]
+  }
+ },
+ {
+  "name": "marking correct with an unmet point is refused",
+  "input": {
+   "concept": "Equivalent fractions",
+   "bloomLevel": 2,
+   "prompt": "Explain why 2/4 and 1/2 are the same amount.",
+   "key": "Rubric: both are one half; multiplying the top and bottom of 1/2 by 2 gives 2/4.",
+   "response": "because if you double the top and bottom of one half you get two fourths, same size"
+  },
+  "replies": {
+   "write": {
+    "rubricPoints": [
+     {
+      "point": "Says they are the same amount",
+      "met": true,
+      "quote": "same size"
+     },
+     {
+      "point": "Explains doubling",
+      "met": false,
+      "quote": ""
+     }
+    ],
+    "reasoningSound": true,
+    "correct": true,
+    "reason": "You explained that doubling the top and bottom keeps the same amount.",
+    "confidence": 0.93,
+    "errorType": null
+   }
+  },
+  "expect": {
+   "outcome": "rejected",
+   "rules": [
+    "verdict_unsupported"
+   ]
+  }
+ },
+ {
+  "name": "an inconsistent grade that a repair fixes is accepted",
+  "input": {
+   "concept": "Equivalent fractions",
+   "bloomLevel": 2,
+   "prompt": "Explain why 2/4 and 1/2 are the same amount.",
+   "key": "Rubric: both are one half; multiplying the top and bottom of 1/2 by 2 gives 2/4.",
+   "response": "because if you double the top and bottom of one half you get two fourths, same size"
+  },
+  "replies": {
+   "write": {
+    "sequence": [
+     {
+      "rubricPoints": [
+       {
+        "point": "Says they are the same amount",
+        "met": true,
+        "quote": "same size"
+       },
+       {
+        "point": "Explains doubling",
+        "met": false,
+        "quote": ""
+       }
+      ],
+      "reasoningSound": true,
+      "correct": true,
+      "reason": "You explained that doubling the top and bottom keeps the same amount.",
+      "confidence": 0.93,
+      "errorType": null
+     },
+     {
+      "rubricPoints": [
+       {
+        "point": "Says they are the same amount",
+        "met": true,
+        "quote": "same size"
+       },
+       {
+        "point": "Explains doubling top and bottom",
+        "met": true,
+        "quote": "double the top and bottom"
+       }
+      ],
+      "reasoningSound": true,
+      "correct": true,
+      "reason": "You explained that doubling the top and bottom keeps the same amount.",
+      "confidence": 0.93,
+      "errorType": null
+     }
+    ]
+   }
+  },
+  "expect": {
+   "outcome": "accepted",
+   "absent": [
+    "verdict_unsupported"
+   ]
+  }
+ },
+ {
+  "name": "low confidence stays unresolved instead of a miss",
+  "input": {
+   "concept": "Equivalent fractions",
+   "bloomLevel": 2,
+   "prompt": "Explain why 2/4 and 1/2 are the same amount.",
+   "key": "Rubric: both are one half; multiplying the top and bottom of 1/2 by 2 gives 2/4.",
+   "response": "because if you double the top and bottom of one half you get two fourths, same size"
+  },
+  "replies": {
+   "write": {
+    "rubricPoints": [
+     {
+      "point": "Says they are the same amount",
+      "met": true,
+      "quote": "same size"
+     },
+     {
+      "point": "Explains doubling top and bottom",
+      "met": true,
+      "quote": "double the top and bottom"
+     }
+    ],
+    "reasoningSound": true,
+    "correct": false,
+    "reason": "You explained that doubling the top and bottom keeps the same amount.",
+    "confidence": 0.6,
+    "errorType": "misconception"
+   }
+  },
+  "expect": {
+   "outcome": "accepted"
+  }
+ },
+ {
+  "name": "feedback that mentions the rubric is kept with a warning",
+  "input": {
+   "concept": "Equivalent fractions",
+   "bloomLevel": 2,
+   "prompt": "Explain why 2/4 and 1/2 are the same amount.",
+   "key": "Rubric: both are one half; multiplying the top and bottom of 1/2 by 2 gives 2/4.",
+   "response": "because if you double the top and bottom of one half you get two fourths, same size"
+  },
+  "replies": {
+   "write": {
+    "rubricPoints": [
+     {
+      "point": "Says they are the same amount",
+      "met": true,
+      "quote": "same size"
+     },
+     {
+      "point": "Explains doubling top and bottom",
+      "met": true,
+      "quote": "double the top and bottom"
+     }
+    ],
+    "reasoningSound": true,
+    "correct": true,
+    "reason": "Your answer matches the rubric.",
+    "confidence": 0.93,
+    "errorType": null
+   }
+  },
+  "expect": {
+   "outcome": "accepted",
+   "rules": [
+    "reveals_grading"
+   ]
+  }
+ },
+ {
+  "name": "a correct verdict with an error type breaks the contract",
+  "input": {
+   "concept": "Equivalent fractions",
+   "bloomLevel": 2,
+   "prompt": "Explain why 2/4 and 1/2 are the same amount.",
+   "key": "Rubric: both are one half; multiplying the top and bottom of 1/2 by 2 gives 2/4.",
+   "response": "because if you double the top and bottom of one half you get two fourths, same size"
+  },
+  "replies": {
+   "write": {
+    "rubricPoints": [
+     {
+      "point": "Says they are the same amount",
+      "met": true,
+      "quote": "same size"
+     },
+     {
+      "point": "Explains doubling top and bottom",
+      "met": true,
+      "quote": "double the top and bottom"
+     }
+    ],
+    "reasoningSound": true,
+    "correct": true,
+    "reason": "You explained that doubling the top and bottom keeps the same amount.",
+    "confidence": 0.93,
+    "errorType": "misconception"
+   }
+  },
+  "expect": {
+   "outcome": "rejected",
+   "rules": [
+    "contract"
+   ]
+  }
+ },
+ {
+  "name": "a grade without its working is refused by the schema",
+  "input": {
+   "concept": "Equivalent fractions",
+   "bloomLevel": 2,
+   "prompt": "Explain why 2/4 and 1/2 are the same amount.",
+   "key": "Rubric: both are one half; multiplying the top and bottom of 1/2 by 2 gives 2/4.",
+   "response": "because if you double the top and bottom of one half you get two fourths, same size"
+  },
+  "replies": {
+   "write": {
+    "correct": true,
+    "reason": "Good.",
+    "confidence": 0.95,
+    "errorType": null
+   }
+  },
+  "expect": {
+   "outcome": "rejected",
+   "rules": [
+    "schema"
+   ]
+  }
+ }
+]

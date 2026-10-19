@@ -1,6 +1,8 @@
 ---
 name: plan-course
 description: Create or revise a Tutor Engine course from its spec, backbone, school sources, and learner evidence. Use for a standing program, dated target, or curiosity scope before planning individual lessons.
+version: 1
+role: planner
 ---
 
 # Plan the course

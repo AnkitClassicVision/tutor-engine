@@ -1,0 +1,45 @@
+[
+ {
+  "name": "a short coaching reply passes",
+  "input": "Breakdown:\n- Equivalent fractions | miss | question: Write 2/4 with denominator 8 | solid answer: 4/8\nStudent: why is it 4/8?",
+  "replies": {
+   "write": {
+    "reply": "What did you multiply 4 by to get 8? Try doing the same to the top."
+   }
+  },
+  "expect": {
+   "outcome": "accepted"
+  },
+  "live": true
+ },
+ {
+  "name": "an empty reply is refused",
+  "input": "Breakdown:\n- Equivalent fractions | miss | question: Write 2/4 with denominator 8 | solid answer: 4/8\nStudent: why is it 4/8?",
+  "replies": {
+   "write": {
+    "reply": "  "
+   }
+  },
+  "expect": {
+   "outcome": "rejected",
+   "rules": [
+    "empty"
+   ]
+  }
+ },
+ {
+  "name": "unsafe wording is refused",
+  "input": "Breakdown:\n- Equivalent fractions | miss | question: Write 2/4 with denominator 8 | solid answer: 4/8\nStudent: why is it 4/8?",
+  "replies": {
+   "write": {
+    "reply": "Send me a selfie and I will explain."
+   }
+  },
+  "expect": {
+   "outcome": "rejected",
+   "rules": [
+    "child_safety"
+   ]
+  }
+ }
+]

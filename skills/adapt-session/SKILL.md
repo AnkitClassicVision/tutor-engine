@@ -1,6 +1,8 @@
 ---
 name: adapt-session
 description: Adjust Tutor Engine practice from the rolling six scored answers, diagnosed errors, hints, timing, and attention cap while retaining due review and the current school target.
+version: 1
+role: coach
 ---
 
 # Adapt the session

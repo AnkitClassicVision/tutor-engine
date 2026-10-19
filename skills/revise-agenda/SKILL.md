@@ -1,6 +1,8 @@
 ---
 name: revise-agenda
 description: After homework or an assessment, rewrite the next agenda from the pattern of holds, misses, and remarks.
+version: 1
+role: planner
 ---
 
 # Revise the agenda

@@ -1,0 +1,44 @@
+[
+ {
+  "name": "times tables for a quiz",
+  "request": "times tables 6 and 7 for my quiz on Friday",
+  "subject": "Math",
+  "grade": 3,
+  "expectRunbook": "pack-math-procedure"
+ },
+ {
+  "name": "money word problems",
+  "request": "word problems with money and making change",
+  "subject": "Math",
+  "grade": 4,
+  "expectRunbook": "pack-math-word-problems"
+ },
+ {
+  "name": "prefix vocabulary",
+  "request": "words that start with un- and re-",
+  "subject": "Reading",
+  "grade": 3,
+  "expectRunbook": "pack-vocabulary"
+ },
+ {
+  "name": "water cycle concepts",
+  "request": "the water cycle",
+  "subject": "Science",
+  "grade": 4,
+  "expectRunbook": "pack-concept-check"
+ },
+ {
+  "name": "challenge mission on the water cycle",
+  "request": "a challenge mission on the water cycle",
+  "subject": "Science",
+  "grade": 4,
+  "expectRunbook": "pack-mission"
+ },
+ {
+  "name": "detective case on fractions",
+  "request": "a detective case about comparing fractions",
+  "subject": "Math",
+  "grade": 5,
+  "expectRunbook": "pack-mission"
+ }
+]

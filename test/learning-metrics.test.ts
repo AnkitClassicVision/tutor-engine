@@ -31,7 +31,7 @@ test('with too little history every measure says so instead of showing a number'
   const f = await learner()
   try {
     const measures = await learningMeasures(f.db, f.student)
-    assert.deepEqual(measures.map((m) => m.key), ['time_to_first', 'self_correction', 'hint_before_answer', 'completion', 'retention'])
+    assert.deepEqual(measures.map((m) => m.key), ['time_to_first', 'self_correction', 'hint_before_answer', 'completion', 'retention', 'calibration'])
     for (const m of measures) { assert.equal(m.enough, false); assert.match(m.value, /^Not enough yet: 0 of \d+/); assert.ok(m.definition.length > 20) }
   } finally { f.db.close() }
 })

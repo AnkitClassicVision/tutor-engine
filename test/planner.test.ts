@@ -104,8 +104,10 @@ test("the planner job mirrors class planning into the class thread and offers a 
     assert.equal((await latestProposal(f.db, f.student, "Science"))?.ready, true)
     const applied = await applyProposal(f.db, f.owner, f.student, accepted.messageId)
     assert.ok(applied.jobId); assert.match(applied.location, /classes#learning-plan$/)
+    // Science is new to this child, so it is researched and approved before anything is taught.
     const pending = await f.db.prepare("SELECT kind FROM jobs WHERE id = ?").get(applied.jobId!)
-    assert.equal(pending?.kind, "curriculum")
+    assert.equal(pending?.kind, "research_subject")
+    assert.match(applied.message, /researched first/)
   } finally { f.db.close() }
 })
 

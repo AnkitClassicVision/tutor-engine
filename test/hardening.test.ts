@@ -1,3 +1,4 @@
+import { stubReply } from './contract-stub.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { openDb } from '../src/db.ts'
@@ -91,7 +92,7 @@ test('F1: locked and student-only material intake/extraction never changes paren
     const otherStudent = await createStudent(f.db, other.userId, { displayName: 'Synthetic other', grade: 4, sessionCapMinutes: 10 })
     const forbidden = await Promise.all([[f.owner, sibling], [other.userId, otherStudent]].map(async ([owner, id]) => ({ student: id, material: await createMaterial(f.db, owner, id, { kind: 'syllabus', workState: 'blank', transcription: 'Synthetic private source' }, '/tmp/synthetic-hardening') })))
     await saveAiSettings(f.db, f.owner, { provider: 'openai', model: 'fixture', apiKey: 'synthetic-key' })
-    globalThis.fetch = async () => new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ questions: [{ number: '1', prompt: 'Synthetic addition coverage', readable: true, confidence: .99 }] }) } }] }))
+    globalThis.fetch = async (_url: any, init: any) => new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(stubReply(JSON.parse(init.body).messages[0].content, { questions: [{ number: '1', prompt: 'Synthetic addition coverage', readable: true, confidence: .99 }] })) } }] }))
     const auth = await openAuthSession(f.db, f.owner)
     for (const studentOnly of [0, 1]) {
       await f.db.prepare('UPDATE auth_sessions SET selected_student = ?, parent_unlocked_until = NULL, student_only = ?').run(student, studentOnly)
@@ -404,7 +405,7 @@ test('F1: extracting an existing parent material from child mode requires fresh 
     assert.equal(f.db.prepare('SELECT scope_approved FROM materials WHERE id = ?').get(material)!.scope_approved, 1)
     await request(f.db, auth, '/parent/lock', { studentId: student })
     assert.equal((await request(f.db, auth, `/materials/${material}/extract`, {})).status, 202)
-    globalThis.fetch = async () => new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ questions: [{ number: '1', prompt: 'Synthetic coverage', readable: true, confidence: .99 }] }) } }] }))
+    globalThis.fetch = async (_url: any, init: any) => new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(stubReply(JSON.parse(init.body).messages[0].content, { questions: [{ number: '1', prompt: 'Synthetic coverage', readable: true, confidence: .99 }] })) } }] }))
     await runNextJob(f.db, jobHandlers({ db: f.db, uploadsDir: '/tmp/synthetic-hardening' }))
     assert.equal(f.db.prepare('SELECT scope_approved FROM materials WHERE id = ?').get(material)!.scope_approved, 0)
     assert.equal(f.db.prepare('SELECT count(*) n FROM subject_sources').get()!.n, 0)

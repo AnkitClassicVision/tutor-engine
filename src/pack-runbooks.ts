@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url"
 import { skillText } from "./skill-text.ts"
 
 /** Runbooks are skills named pack-*; their front matter tells the router and the quality gate how to treat them. */
-export const RUNBOOKS = ["pack-math-word-problems", "pack-math-procedure", "pack-vocabulary", "pack-concept-check"] as const
+export const RUNBOOKS = ["pack-math-word-problems", "pack-math-procedure", "pack-vocabulary", "pack-concept-check", "pack-mission"] as const
 export type RunbookId = (typeof RUNBOOKS)[number]
 export interface Runbook { id: RunbookId; subjects: string[]; keywords: string[]; formats: string[]; bloomMin: number; bloomMax: number; requireWork: boolean; text: string }
 
@@ -43,6 +43,8 @@ const has = (text: string, phrase: string) => new RegExp(`\\b${phrase.replace(/[
  */
 export function routeRunbook(subject: string, request: string): RunbookId {
   const text = request.toLowerCase(), area = subject.toLowerCase()
+  // Asking for a challenge, a case, a debate or a build is a mission in any subject.
+  if (runbook("pack-mission").keywords.some((word) => has(text, word))) return "pack-mission"
   let best: RunbookId = "pack-concept-check", score = 0
   for (const id of RUNBOOKS) {
     const book = runbook(id)

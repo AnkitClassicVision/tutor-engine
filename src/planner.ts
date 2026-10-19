@@ -8,6 +8,10 @@ import { askText, draftFromWords, type TalkTurn } from "./talk.ts"
 import { readModelJson, type AiConfig } from "./ai.ts"
 import { skillText } from "./skill-text.ts"
 import { coursePlanningBrief } from "./course-planning.ts"
+import type { Contract, RunReport } from "./runbook/contract.ts"
+import { childSafe } from "./runbook/gates.ts"
+import { runContract, type Ask } from "./runbook/run.ts"
+import { recordRun } from "./runbook/record.ts"
 import { planClassTurn, commitClassTurn, startCurriculumJob } from "./class-planning.ts"
 import {
   acceptPlan, addDirection, addTalk, aiConfigFor, aiConnectionProblem, aiSettings, assertStudent, createTarget, listSubjectPlans, listTalk,
@@ -302,7 +306,10 @@ export async function applyProposal(db: DatabaseSync, ownerUserId: string, stude
         const accepted = await acceptPlan(db, ownerUserId, studentId, thread)
         jobId = await startCurriculumJob(db, ownerUserId, studentId, accepted.subject, focus)
         location = `/students/${studentId}/classes#learning-plan`
-        message = `${accepted.subject} is being built. Lessons and questions are written in the background.`
+        const researching = (await db.prepare("SELECT kind FROM jobs WHERE id = ?").get(jobId)) as { kind: string } | undefined
+        message = researching?.kind === "research_subject"
+          ? `${accepted.subject} is new, so it is being researched first. You will see its subject map to approve before anything is taught.`
+          : `${accepted.subject} is being built. Lessons and questions are written in the background.`
         details = {
           subject: accepted.subject, jobId, sourceId, conceptsBefore,
           before: { planExisted: Boolean(planBefore), about: planBefore?.about ?? "", syllabusName: planBefore?.syllabus_name ?? "", agenda: planBefore?.agenda ?? "", subjects: JSON.parse(String(student.subjects || "[]")), mathCourse: String(student.math_course || "grade") },
@@ -399,7 +406,7 @@ function settle(turn: PlannerTurn, context: PlannerContext, classTurn?: { subjec
   return { reply: turn.reply, proposal: null }
 }
 
-export async function classifyIntent(context: PlannerContext, message: string, prior: Array<{ role: string; body: string }>, ai: AiConfig, timeoutMs = 40000) {
+export async function classifyIntent(context: PlannerContext, message: string, prior: Array<{ role: string; body: string }>, ai: AiConfig, timeoutMs = 40000, options: { ask?: Ask; record?: (report: RunReport) => Promise<void> } = {}) {
   const prompt = [
     "Context for this family:",
     ...contextLines(context),
@@ -407,8 +414,19 @@ export async function classifyIntent(context: PlannerContext, message: string, p
     ...prior.map((line) => `${line.role === "parent" ? "Parent" : "Planner"}: ${line.body}`),
     `Parent: ${message}`,
   ].join("\n")
-  const raw = await askText(prompt, plannerBrief(), PLANNER_SCHEMA, timeoutMs, ai)
-  return parsePlannerTurn(raw)
+  const { output, report } = await runContract({ ...PARENT_PLANNER, timeoutMs }, prompt, ai, { ask: options.ask })
+  await options.record?.(report).catch(() => {})
+  return output
+}
+
+export const PARENT_PLANNER: Contract<string, PlannerTurn> = {
+  id: "parent-planner", version: 2, role: "planner",
+  skills: ["parent-planner"],
+  brief: () => coursePlanningBrief(),
+  schema: JSON.parse(PLANNER_SCHEMA), selfCheck: [], repairs: 0,
+  prompt: text => text,
+  parse: reply => { const turn = parsePlannerTurn(JSON.stringify(reply)); if (!turn) throw new Error("The planner reply broke its contract."); return turn },
+  gate: turn => childSafe([turn.reply]),
 }
 
 export async function processPlanner(options: { db: DatabaseSync }, ctx: JobContext, payload: { messageId: string; message: string; packMode?: "now" | "review" }, ask: typeof classifyIntent = classifyIntent) {
@@ -420,7 +438,7 @@ export async function processPlanner(options: { db: DatabaseSync }, ctx: JobCont
     const context = await plannerContext(db, ownerUserId, studentId)
     const prior = (await listPlanner(db, ownerUserId, studentId, 12)).filter((m) => m.id !== payload.messageId && m.status !== "pending").slice(-8).map((m) => ({ role: m.role, body: m.body }))
     let turn: PlannerTurn
-    try { turn = (await ask(context, payload.message, prior, await aiConfigFor(db, ownerUserId))) ?? draftPlannerTurn(payload.message, context) } catch { turn = draftPlannerTurn(payload.message, context) }
+    try { turn = (await ask(context, payload.message, prior, await aiConfigFor(db, ownerUserId), 40000, { record: report => recordRun(db, ownerUserId, studentId, report) })) ?? draftPlannerTurn(payload.message, context) } catch { turn = draftPlannerTurn(payload.message, context) }
     if (turn.intent === "make_pack" && !turn.needsClarification) {
       const made = await makePackFromPlanner(db, ownerUserId, studentId, String(turn.params.request || payload.message), payload.messageId, payload.packMode ?? "now", context.name)
       await ctx.commit(async () => { await finishPlannerMessage(db, studentId, payload.messageId, { body: made.reply, intent: "make_pack", params: made.packId ? { packId: made.packId } : {}, status: "" }) })

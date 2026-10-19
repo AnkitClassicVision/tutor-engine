@@ -1,6 +1,8 @@
 ---
 name: plan-from-uploads
 description: Turn every uploaded source for a class into the first lesson plan. Topics only. Questions come later.
+version: 1
+role: planner
 ---
 
 # Plan from the uploads

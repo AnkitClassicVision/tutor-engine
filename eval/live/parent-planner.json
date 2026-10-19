@@ -1,0 +1,44 @@
+[
+ {
+  "name": "add a class",
+  "input": "Context for this family:\nChild: Maya, Grade 4. Classes: Math, Science.\nRecent planner conversation:\nParent: Can you add a Spanish class?",
+  "expect": {
+   "intent": "add_class"
+  }
+ },
+ {
+  "name": "test date",
+  "input": "Context for this family:\nChild: Maya, Grade 4. Classes: Math, Science.\nRecent planner conversation:\nParent: She has a science test next Friday on the water cycle.",
+  "expect": {
+   "intent": "set_test"
+  }
+ },
+ {
+  "name": "make practice",
+  "input": "Context for this family:\nChild: Maya, Grade 4. Classes: Math, Science.\nRecent planner conversation:\nParent: Make her 10 questions on multiplying by 7.",
+  "expect": {
+   "intent": "make_pack"
+  }
+ },
+ {
+  "name": "session length",
+  "input": "Context for this family:\nChild: Maya, Grade 4. Classes: Math, Science.\nRecent planner conversation:\nParent: Please make her sessions 15 minutes long.",
+  "expect": {
+   "intent": "set_minutes_presentation"
+  }
+ },
+ {
+  "name": "how is she doing",
+  "input": "Context for this family:\nChild: Maya, Grade 4. Classes: Math, Science.\nRecent planner conversation:\nParent: How is she doing in math this week?",
+  "expect": {
+   "intent": "question"
+  }
+ },
+ {
+  "name": "note to the child",
+  "input": "Context for this family:\nChild: Maya, Grade 4. Classes: Math, Science.\nRecent planner conversation:\nParent: Tell her I'm proud of how hard she worked today.",
+  "expect": {
+   "intent": "parent_note"
+  }
+ }
+]

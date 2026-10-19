@@ -1,6 +1,8 @@
 ---
 name: record-learning-decisions
 description: Preserve Tutor Engine learner choices, model judgments, curriculum overrides, and adaptive decisions with their reasons so a new model can continue the same learning path.
+version: 1
+role: planner
 ---
 
 # Record learning decisions

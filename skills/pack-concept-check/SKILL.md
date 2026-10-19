@@ -4,8 +4,10 @@ description: Runbook for a learning pack on ideas and facts in science, social s
 subjects: science, social studies, history, geography, health, biology, chemistry, physics, earth science, civics, art, music
 keywords: science, history, geography, explain, why, how, cause, effect, cycle, system, process, compare, map, timeline, event, events, causes, life cycle, states of matter, ecosystem, government, planets
 formats: choice, word, written, number
-bloom: 1-4
+bloom: 1-5
 require_work: false
+version: 2
+role: coach
 ---
 
 # Concept-check pack

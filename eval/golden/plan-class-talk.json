@@ -1,0 +1,73 @@
+[
+ {
+  "name": "a class proposal with topics passes",
+  "input": "Class in this chat: not named yet.\nGrade: Grade 4. Math class: Grade-level math.\nParent: Add a science class about plants and water.",
+  "replies": {
+   "write": {
+    "reply": "Here is a plan for Plants: how they make food and move water. Shall I build it?",
+    "subject": "Science",
+    "about": "Plants and water",
+    "mathCourse": "",
+    "ready": true,
+    "topics": [
+     {
+      "title": "How plants make food",
+      "recall": "Plants use light, water and air to make sugar."
+     },
+     {
+      "title": "How water moves in a plant",
+      "recall": "Water goes up from the roots through the stem."
+     }
+    ]
+   }
+  },
+  "expect": {
+   "outcome": "accepted"
+  },
+  "live": true
+ },
+ {
+  "name": "a reply asking for personal details is refused",
+  "input": "Class in this chat: not named yet.\nGrade: Grade 4. Math class: Grade-level math.\nParent: Add a science class about plants and water.",
+  "replies": {
+   "write": {
+    "reply": "Great! What is your child's home address?",
+    "subject": "Science",
+    "about": "Plants and water",
+    "mathCourse": "",
+    "ready": true,
+    "topics": [
+     {
+      "title": "How plants make food",
+      "recall": "Plants use light, water and air to make sugar."
+     },
+     {
+      "title": "How water moves in a plant",
+      "recall": "Water goes up from the roots through the stem."
+     }
+    ]
+   }
+  },
+  "expect": {
+   "outcome": "rejected",
+   "rules": [
+    "child_safety"
+   ]
+  }
+ },
+ {
+  "name": "a reply with a missing field is refused",
+  "input": "Class in this chat: not named yet.\nGrade: Grade 4. Math class: Grade-level math.\nParent: Add a science class about plants and water.",
+  "replies": {
+   "write": {
+    "reply": "Sure."
+   }
+  },
+  "expect": {
+   "outcome": "rejected",
+   "rules": [
+    "schema"
+   ]
+  }
+ }
+]

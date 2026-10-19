@@ -2,13 +2,14 @@ import type { DatabaseSync } from 'node:sqlite'
 
 export function migrateJourney(db: DatabaseSync) {
   const columns: Record<string, Record<string, string>> = {
-    session_items: { shown_at: 'TEXT', skipped: 'INTEGER NOT NULL DEFAULT 0', skip_reason: "TEXT NOT NULL DEFAULT ''", draft_answer: 'TEXT', format: "TEXT NOT NULL DEFAULT 'text'", choices_json: 'TEXT', explanation: "TEXT NOT NULL DEFAULT ''" },
+    session_items: { shown_at: 'TEXT', skipped: 'INTEGER NOT NULL DEFAULT 0', skip_reason: "TEXT NOT NULL DEFAULT ''", draft_answer: 'TEXT', format: "TEXT NOT NULL DEFAULT 'text'", choices_json: 'TEXT', explanation: "TEXT NOT NULL DEFAULT ''", evidence_kind: "TEXT NOT NULL DEFAULT 'practice'", confidence: 'TEXT', disputed: 'INTEGER NOT NULL DEFAULT 0' },
     sheets: { score_results: 'TEXT' },
-    students: { access_code: "TEXT NOT NULL DEFAULT ''", access_code_hash: "TEXT NOT NULL DEFAULT ''", access_pin_hash: "TEXT NOT NULL DEFAULT ''", presentation: "TEXT NOT NULL DEFAULT 'auto'", world: "TEXT NOT NULL DEFAULT 'cartoon'", last_duration: 'INTEGER NOT NULL DEFAULT 10', pack_child_requests: "TEXT NOT NULL DEFAULT 'classes'", pack_child_mode: "TEXT NOT NULL DEFAULT 'now'", pack_daily_limit: 'INTEGER NOT NULL DEFAULT 3' },
+    students: { access_code: "TEXT NOT NULL DEFAULT ''", access_code_hash: "TEXT NOT NULL DEFAULT ''", access_pin_hash: "TEXT NOT NULL DEFAULT ''", presentation: "TEXT NOT NULL DEFAULT 'auto'", world: "TEXT NOT NULL DEFAULT 'cartoon'", last_duration: 'INTEGER NOT NULL DEFAULT 10', pack_child_requests: "TEXT NOT NULL DEFAULT 'classes'", pack_child_mode: "TEXT NOT NULL DEFAULT 'now'", pack_daily_limit: 'INTEGER NOT NULL DEFAULT 3', experiments: "TEXT NOT NULL DEFAULT '{}'" },
     auth_sessions: { student_only: 'INTEGER NOT NULL DEFAULT 0', selected_student: 'TEXT', parent_unlocked_until: 'TEXT' },
     users: { photo_model: "TEXT NOT NULL DEFAULT ''", data_key: "TEXT NOT NULL DEFAULT ''", email_verified_at: 'TEXT', ai_refresh_lease: 'TEXT', chatgpt_welcomed_at: 'TEXT' },
     tutor_sessions: { lesson_done: 'INTEGER NOT NULL DEFAULT 1', carried_from: 'TEXT', feedback_cursor: 'INTEGER NOT NULL DEFAULT 0', goal: "TEXT NOT NULL DEFAULT 'practice'", material_id: 'TEXT', question_id: 'TEXT', paused_at: 'TEXT' },
-    practice_items: { pack_id: 'TEXT', format: "TEXT NOT NULL DEFAULT 'text'", choices_json: 'TEXT', hints_json: 'TEXT', explanation: "TEXT NOT NULL DEFAULT ''" },
+    custom_concepts: { prereqs: "TEXT NOT NULL DEFAULT '[]'", map_key: "TEXT NOT NULL DEFAULT ''" },
+    practice_items: { evidence_kind: "TEXT NOT NULL DEFAULT 'practice'", pack_id: 'TEXT', format: "TEXT NOT NULL DEFAULT 'text'", choices_json: 'TEXT', hints_json: 'TEXT', explanation: "TEXT NOT NULL DEFAULT ''" },
   }
   for (const [table, fields] of Object.entries(columns)) {
     const existing = db.prepare(`PRAGMA table_info(${table})`).all().map(c => c.name)
@@ -113,6 +114,30 @@ CREATE INDEX IF NOT EXISTS jobs_student_paid ON jobs(student_id, created_at);
       created_at TEXT NOT NULL, updated_at TEXT NOT NULL, published_at TEXT, UNIQUE(student_id, request_id)
     );
     CREATE INDEX IF NOT EXISTS packs_student ON packs(student_id, created_at);
+    CREATE TABLE IF NOT EXISTS grading_audits (
+      id TEXT PRIMARY KEY, student_id TEXT NOT NULL REFERENCES students(id), item_id TEXT NOT NULL UNIQUE, grader TEXT NOT NULL,
+      ai_correct INTEGER NOT NULL, parent_agrees INTEGER NOT NULL, created_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS grading_audits_student ON grading_audits(student_id, created_at);
+    CREATE TABLE IF NOT EXISTS changed_minds (
+      id TEXT PRIMARY KEY, student_id TEXT NOT NULL REFERENCES students(id), session_id TEXT NOT NULL, concept_id TEXT NOT NULL,
+      before_prompt TEXT NOT NULL, before_answer TEXT NOT NULL, after_prompt TEXT NOT NULL, after_answer TEXT NOT NULL, created_at TEXT NOT NULL,
+      UNIQUE(session_id, concept_id)
+    );
+    CREATE INDEX IF NOT EXISTS changed_minds_student ON changed_minds(student_id, created_at);
+    CREATE TABLE IF NOT EXISTS subject_maps (
+      id TEXT PRIMARY KEY, student_id TEXT NOT NULL REFERENCES students(id), subject TEXT NOT NULL, version INTEGER NOT NULL,
+      status TEXT NOT NULL, research TEXT NOT NULL DEFAULT '', map_json TEXT NOT NULL DEFAULT '', note TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL, decided_at TEXT, job_id TEXT
+    );
+    CREATE INDEX IF NOT EXISTS subject_maps_student ON subject_maps(student_id, subject, version);
+    CREATE TABLE IF NOT EXISTS runbook_runs (
+      id TEXT PRIMARY KEY, owner_user_id TEXT NOT NULL, student_id TEXT, runbook TEXT NOT NULL, version INTEGER NOT NULL, role TEXT NOT NULL,
+      provider TEXT NOT NULL DEFAULT '', model TEXT NOT NULL DEFAULT '', outcome TEXT NOT NULL, attempts INTEGER NOT NULL,
+      rules TEXT NOT NULL DEFAULT '{}', critic TEXT NOT NULL DEFAULT '{}', ms INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS runbook_runs_owner ON runbook_runs(owner_user_id, created_at);
+    CREATE INDEX IF NOT EXISTS runbook_runs_runbook ON runbook_runs(runbook, version, created_at);
     CREATE INDEX IF NOT EXISTS practice_items_pack ON practice_items(pack_id);
     CREATE TABLE IF NOT EXISTS digests (
       id TEXT PRIMARY KEY, owner_user_id TEXT NOT NULL REFERENCES users(id), week TEXT NOT NULL, subject TEXT NOT NULL, body TEXT NOT NULL,

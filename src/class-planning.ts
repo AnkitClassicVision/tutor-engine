@@ -1,3 +1,5 @@
+import { recordRun } from "./runbook/record.ts"
+import { approvedMap, isBuiltIn, mapBrief, startResearchJob } from "./subject-map.ts"
 import { createHash } from "node:crypto"
 import type { Database as DatabaseSync } from "./database.ts"
 import { createJob, type JobContext } from "./jobs.ts"
@@ -52,6 +54,8 @@ export async function planClassTurn(db: DatabaseSync, ownerId: string, studentId
       latest: message,
     },
     (await aiConfigFor(db, ownerId)),
+    40000,
+    { record: report => recordRun(db, ownerId, studentId, report) },
   )
 }
 /** Commits a planning turn into the subject thread, renaming a "new" thread once the subject is known. */
@@ -99,6 +103,15 @@ export async function startCurriculumJob(
   direction = "",
   source?: SchoolSource,
 ) {
+  // A subject the tutor has no course for is researched and approved by the parent before any teaching.
+  const map = isBuiltIn(subject) ? null : await approvedMap(db, studentId, subject)
+  if (!isBuiltIn(subject) && !map) {
+    const known = (await db.prepare("SELECT count(*) AS n FROM custom_concepts WHERE student_id = ? AND lower(subject) = lower(?)").get(studentId, subject)) as { n: number }
+    if (!Number(known.n)) {
+      await markPlanBuild(db, studentId, subject, "building", "Researching this subject first. You approve its map before anything is taught.")
+      return startResearchJob(db, ownerId, studentId, subject)
+    }
+  }
   const candidates = (await topicCandidates(db, ownerId, studentId, subject, "assessment"))
   const savedPlan = (await listSubjectPlans(db, ownerId, studentId)).find((plan) => plan.subject.toLowerCase() === subject.toLowerCase())
   const latest = [direction || (await latestDirection(db, studentId, subject))?.body || "", savedPlan?.agenda ? `Current agenda from the last checks:\n${savedPlan.agenda}` : ""]
@@ -110,6 +123,7 @@ export async function startCurriculumJob(
     subject, about: savedPlan?.about ?? "", syllabus, direction: latest,
     ageGrade: candidates.ageGrade, mathClass: candidates.mathClass, existing: candidates.topics,
     decisionHistory: (await decisionContext(db, ownerId, studentId)),
+    ...(map ? { map: mapBrief(map) } : {}),
   }
   const revision = createHash("sha256").update(JSON.stringify({ input, source })).digest("hex")
   return (await createJob(db, ownerId, studentId, "curriculum", { subject, input, revision, ...(source ? { materialId: source.materialId, schoolSource: source } : {}) }, `curriculum:${studentId}:${revision}`))

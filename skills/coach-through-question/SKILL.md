@@ -1,6 +1,8 @@
 ---
 name: coach-through-question
 description: Teach one checked idea with a bounded Socratic question, hint and worked explanation, fitting the supplied school level without changing placement or mastery.
+version: 1
+role: coach
 ---
 
 # Coach through a question

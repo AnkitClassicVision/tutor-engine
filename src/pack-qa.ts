@@ -1,4 +1,5 @@
 import { safetyReply } from "./child-safety.ts"
+import { childSafe } from "./runbook/gates.ts"
 import { promptIdentity } from "./session-feedback.ts"
 import { parseNumber, plain } from "./engine/score.ts"
 
@@ -123,7 +124,7 @@ export function copiesSource(text: string, sources: string[], n = 8) {
 // ---- Rules -------------------------------------------------------------------------------------------
 
 /** The learner tripwire plus phrasing a model might use when writing for a child. */
-export const unsafeForChild = (text: string) => Boolean(safetyReply(text)) || /\b(?:hurt|harm|kill|injure)\s+(?:yourself|themselves|himself|herself|someone|others|people)\b|\b(?:drugs?|alcohol|vaping|gambling)\s+(?:to|for)\s+(?:fun|kids)\b/i.test(text)
+export const unsafeForChild = (text: string) => Boolean(safetyReply(text)) || childSafe([text]).length > 0 || /\b(?:hurt|harm|kill|injure)\s+(?:yourself|themselves|himself|herself|someone|others|people)\b|\b(?:drugs?|alcohol|vaping|gambling)\s+(?:to|for)\s+(?:fun|kids)\b/i.test(text)
 
 const block = (rule: string, message: string): Issue => ({ rule, message, block: true })
 const warn = (rule: string, message: string): Issue => ({ rule, message, block: false })

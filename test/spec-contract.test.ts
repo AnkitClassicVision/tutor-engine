@@ -71,8 +71,13 @@ test("API providers receive the same course instructions and share result valida
   let malformed = false
   t.mock.method(globalThis, "fetch", async (_url: unknown, options: RequestInit) => {
     const body = JSON.parse(String(options.body))
-    captured.push(body.system ?? body.messages[0].content)
-    const content = JSON.stringify(malformed ? { ...valid, topics: [] } : valid)
+    const system = String(body.system ?? body.messages[0].content)
+    // The writer must answer its self-check; a separate blind reviewer then solves each question.
+    const reviewing = system.includes("You independently review questions")
+    if (!reviewing) captured.push(system)
+    const selfCheck = Array.from({ length: 4 }, (_, i) => ({ question: `Check ${i + 1}`, answer: "Yes, checked.", ok: true }))
+    const review = { items: [{ id: 0, answer: "7/12", bloom: 3, onTopic: 5, ageFit: 5, issue: "" }, { id: 1, answer: "1/2 + 1/4 = 3/4, checked by drawing", bloom: 6, onTopic: 5, ageFit: 5, issue: "" }] }
+    const content = JSON.stringify(reviewing ? review : malformed ? { ...valid, topics: [], selfCheck } : { ...valid, selfCheck })
     return new Response(JSON.stringify(body.system ? { content: [{ text: content }] } : { choices: [{ message: { content } }] }), { status: 200 })
   })
   for (const provider of ["openai", "xai", "anthropic"] as AiProvider[]) {
@@ -179,11 +184,18 @@ test("automatic rubric grading persists a real model verdict while uncertain out
   let confidence = 0.95
   try {
     await saveAiSettings(db, ownerId, { provider: "openai", model: "test-grader", apiKey: "test-only" })
+    let secondChecks = 0
     t.mock.method(globalThis, "fetch", async (_url: unknown, options: RequestInit) => {
       const body = JSON.parse(String(options.body))
+      // A create-level grade gets an independent second judgment that never sees the first verdict.
+      if (body.messages[0].content.includes("# Verify a judgment")) {
+        secondChecks++
+        assert.doesNotMatch(body.messages[1].content, /independent check/)
+        return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ rubricPoints: [{ point: "Original problem with a check", met: true, quote: "complete solution and check" }], reasoningSound: true, correct: true, confidence: 0.9, reason: "Complete problem and check." }) } }] }), { status: 200 })
+      }
       assert.match(body.messages[0].content, /keyword overlap/)
       assert.match(body.messages[1].content, /original fraction problem/)
-      const verdict = { correct: true, reason: "The original problem has a correct common-denominator solution and an independent check.", confidence, errorType: null }
+      const verdict = { rubricPoints: [{ point: "Original problem with a check", met: true, quote: "complete solution and check" }], reasoningSound: true, correct: true, reason: "The original problem has a correct common-denominator solution and an independent check.", confidence, errorType: null }
       return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(verdict) } }] }), { status: 200 })
     })
     const sessionId = (await startTutorSession(db, ownerId, studentId, now))
@@ -201,6 +213,7 @@ test("automatic rubric grading persists a real model verdict while uncertain out
       } else assert.equal(graded.correct, null)
     }
     assert.equal((await db.prepare("SELECT count(*) AS n FROM attempts WHERE session_id = ?").get(sessionId))?.n, 1)
+    assert.equal(secondChecks, 1, "the confident first verdict was checked independently; the uncertain one stayed pending")
     assert.equal(parseRubricVerdict(JSON.stringify({ correct: true, confidence: 0.99, reason: "Looks good", errorType: "misconception" })), null)
     assert.equal(parseRubricVerdict(JSON.stringify({ correct: "yes", confidence: 1, reason: "Good", errorType: null })), null)
   } finally { db.close() }

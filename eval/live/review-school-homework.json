@@ -1,0 +1,50 @@
+[
+ {
+  "name": "correct work",
+  "input": {
+   "input": {
+    "number": "1",
+    "prompt": "23 x 4 =",
+    "visible_work": "92"
+   },
+   "presentationGrade": 4,
+   "history": "",
+   "concepts": []
+  },
+  "expect": {
+   "verdict": "correct"
+  }
+ },
+ {
+  "name": "wrong work",
+  "input": {
+   "input": {
+    "number": "1",
+    "prompt": "15 x 6 =",
+    "visible_work": "80"
+   },
+   "presentationGrade": 4,
+   "history": "",
+   "concepts": []
+  },
+  "expect": {
+   "verdict": "needs_work"
+  }
+ },
+ {
+  "name": "unclear work",
+  "input": {
+   "input": {
+    "number": "1",
+    "prompt": "31 x 3 =",
+    "visible_work": "9?"
+   },
+   "presentationGrade": 4,
+   "history": "",
+   "concepts": []
+  },
+  "expect": {
+   "verdict": "unresolved"
+  }
+ }
+]

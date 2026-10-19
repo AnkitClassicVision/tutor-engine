@@ -1,4 +1,4 @@
-import { mkdtempSync } from 'node:fs'
+import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { openDb } from '../src/db.ts'
@@ -13,6 +13,15 @@ const strengthsUser = await registerUser(db, 'strengths-browser@example.invalid'
 if (!strengthsUser.ok) throw new Error('Synthetic strengths registration failed')
 await db.prepare("UPDATE users SET email_verified_at = ?, ai_provider = 'openai', ai_model = '', ai_key = '' WHERE id = ?").run(new Date().toISOString(), strengthsUser.userId)
 await seedStrengths(db, strengthsUser.userId)
+// A researched subject map for any new class, from the research golden case.
+const researchMap = JSON.parse(readFileSync(new URL('../eval/golden/research-subject.json', import.meta.url), 'utf8'))[0].replies.write
+// Graders show their working: one point, met with the learner's own words unless the answer says "definitely wrong".
+const graded = (content: any) => {
+  let response = ''
+  try { response = String(JSON.parse(String(content).split('\n\nReply with one JSON')[0]).response ?? '') } catch { response = '' }
+  const correct = !response.includes('definitely wrong')
+  return { rubricPoints: [{ point: 'Does what the question asks', met: correct, quote: correct ? response.slice(0, 30) : '' }], reasoningSound: correct, correct }
+}
 // Deterministic, isolated model fixture exercises the actual worker and routing contracts.
 globalThis.fetch = async (_input: any, init: any) => {
   const body = JSON.parse(init.body), content = body.messages.at(-1).content
@@ -30,12 +39,18 @@ globalThis.fetch = async (_input: any, init: any) => {
     const items = JSON.parse(String(content).split('\n\nReply with one JSON')[0]).items as Array<{ id: string; prompt: string }>
     result = { items: items.map(item => ({ id: item.id, answer: String(7 * Number(item.prompt.match(/7 × (\d+)/)?.[1] ?? 0)), onTopic: 5, ageFit: 5, issue: '' })) }
   }
+  else if (system.includes('You independently review questions')) result = { items: Array.from({ length: 40 }, (_, id) => ({ id, answer: '', bloom: 6, onTopic: 5, ageFit: 5, issue: '' })) }
+  else if (system.includes('independent subject expert')) result = { concepts: Array.from({ length: 18 }, (_, index) => ({ index, accurate: true, ageFit: 5, realMisconceptions: true, issue: '' })) }
+  else if (system.includes('# Research a subject')) result = researchMap
+  else if (system.includes('# Verify a judgment')) result = { ...graded(content), confidence: .95, reason: 'The response meets the stored rubric.' }
   else if (system.includes('Instructions for planning a class.')) result = { reply: 'Here is your science class plan.', subject: 'Science', about: 'A small science class', mathCourse: '', ready: true, topics: [{ title: 'Cells', recall: 'Name parts of a cell.' }] }
   else if (system.includes('Fresh practice for one existing concept')) result = {questions:[1,2,3,4].map(n=>({prompt:`Fresh situation ${n}: explain why a cell needs a boundary.`,answer:'Rubric: distinguish the inside from the surroundings.',bloomLevel:2}))}
   else if (typeof content === 'string' && content.startsWith('Make a curriculum for')) result = { reason: 'Use the parent-selected sample test to practise addition.', topics: [{ title: 'Add and subtract multi-digit numbers', recall: 'Add with regrouping.', example: '12 plus 8 is 20.', nonExample: 'Ignoring place value.', questions: [{ prompt: 'What is 13 + 8?', answer: '21', bloomLevel: 3 }, { prompt: 'Create an addition question with a sum of 30 and solve it.', answer: 'Rubric: Give an addition problem whose terms add to 30 and show its solution.', bloomLevel: 6 }] }] }
   else if (system.includes('# Read school material')) result = { questions: [{ number: '12b', prompt: 'What is 2 + 2?', figure: '', visibleWork: '5', answerKey: '4', teacherMark: '', conceptId: 'math.4.nbt.b.4', readable: true, confidence: .98 }] }
   else if (system.includes('# Review school homework')) result = system.includes('For guidance') && typeof content === 'string' && content.includes('transcript') ? { reply: 'You counted one extra. What happens if you group two and two?' } : { verdict: 'needs_work', explanation: 'Two and two make four. Check the extra count.', confidence: .99 }
-  else result = { correct: !(typeof content === 'string' && content.includes('definitely wrong')), reason: 'The response meets the stored rubric.', confidence: .99, errorType: null }
+  else { const g = graded(content); result = { ...g, reason: g.correct ? 'You did what the question asked.' : 'Look again at what the question asks.', confidence: .99, errorType: g.correct ? null : 'misconception' } }
+  // Runbook writers answer their self-check; the fixture always reports its checks as done.
+  if (system.includes('Self-check. Before replying') && result && !result.selfCheck) result = { ...result, selfCheck: Array.from({ length: 12 }, (_, i) => ({ question: `Check ${i + 1}`, answer: 'Yes, checked.', ok: true })) }
   return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(result) } }] }), { status: 200 })
 }
 await startServer({ db, judgeResponse: async (input, ai) => ['grok', 'claude'].includes(ai.provider) ? null : gradeResponse(input, ai), uploadsDir: join(dir, 'uploads'), host: '127.0.0.1', port: 8799 })

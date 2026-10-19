@@ -98,6 +98,12 @@ test("building waits for an agreed plan, and a finished check has a lesson", asy
   const done = (await listTalk(db, user.userId, studentId, "Biology"))
   assert.equal(done.at(-1)?.body.includes("Build this"), true)
   assert.equal(done.at(-1)?.proposal.includes("pending"), false)
+  // A brand-new subject is researched before any topic is posted.
+  await acceptPlan(db, user.userId, studentId, "Biology")
+  assert.equal((await db.prepare("SELECT count(*) AS n FROM custom_concepts WHERE student_id = ? AND subject = ?").get(studentId, "Biology"))!.n, 0)
+  assert.match(String((await listTalk(db, user.userId, studentId, "Biology")).at(-1)?.body), /research it first/)
+  // Once its map is approved, the agreed plan's topics are posted.
+  await db.prepare("INSERT INTO subject_maps (id, student_id, subject, version, status, research, map_json, note, created_at) VALUES (?, ?, 'Biology', 1, 'approved', 'web', '{}', '', ?)").run(crypto.randomUUID(), studentId, now.toISOString())
   const accepted = (await acceptPlan(db, user.userId, studentId, "Biology"))
   assert.equal(accepted.subject, "Biology")
   const posted = (await db.prepare("SELECT title FROM custom_concepts WHERE student_id = ? AND subject = ?").get(studentId, "Biology")) as { title: string }

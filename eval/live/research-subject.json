@@ -1,0 +1,66 @@
+[
+ {
+  "name": "chess, grade 3",
+  "input": {
+   "subject": "Chess",
+   "about": "Learn to play chess",
+   "why": "She wants to beat her grandad",
+   "grade": 3,
+   "uploads": "",
+   "existing": [],
+   "searchable": false,
+   "found": {
+    "web": false,
+    "urls": []
+   }
+  }
+ },
+ {
+  "name": "ancient Egypt, grade 4",
+  "input": {
+   "subject": "Ancient Egypt",
+   "about": "Pyramids, pharaohs and daily life",
+   "why": "School topic this term",
+   "grade": 4,
+   "uploads": "",
+   "existing": [],
+   "searchable": false,
+   "found": {
+    "web": false,
+    "urls": []
+   }
+  }
+ },
+ {
+  "name": "coding with Scratch, grade 5",
+  "input": {
+   "subject": "Coding with Scratch",
+   "about": "Block coding games",
+   "why": "He wants to make his own game",
+   "grade": 5,
+   "uploads": "",
+   "existing": [],
+   "searchable": false,
+   "found": {
+    "web": false,
+    "urls": []
+   }
+  }
+ },
+ {
+  "name": "the human body, grade 2",
+  "input": {
+   "subject": "The human body",
+   "about": "How our bodies work",
+   "why": "Curious about where food goes",
+   "grade": 2,
+   "uploads": "",
+   "existing": [],
+   "searchable": false,
+   "found": {
+    "web": false,
+    "urls": []
+   }
+  }
+ }
+]

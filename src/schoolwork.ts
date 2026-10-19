@@ -12,6 +12,11 @@ import { askModel, askPhoto, readModelJson } from './ai.ts'
 import { skillText } from './skill-text.ts'
 import { decisionContext, recordDecision } from './decisions.ts'
 import { coachingStage } from './coaching.ts'
+import type { Contract } from './runbook/contract.ts'
+import { childSafe } from './runbook/gates.ts'
+import { recordRun } from './runbook/record.ts'
+import { runContract, type Ask } from './runbook/run.ts'
+import type { Schema } from './runbook/schema.ts'
 import { safetyReply } from './child-safety.ts'
 import type { JobContext } from './jobs.ts'
 
@@ -124,14 +129,51 @@ export async function correctMaterial(db: DatabaseSync, owner: string, id: strin
     await recordDecision(db, String(m.student_id), 'material_corrected', 'A parent corrected the source. Earlier interpretations and feedback remain recorded; stale background results will be ignored.', { materialId: id, supersedesRevision: m.revision })
   })
 }
-export async function schoolJson(db: DatabaseSync, owner: string, student: string, contract: string, input: unknown) {
-  const dir = mkdtempSync(join(tmpdir(), 'tutor-school-')), path = join(dir, 'prompt.txt')
-  try {
-    const learner = await assertStudent(db, owner, student)
-    const coaching = input !== null && typeof input === 'object' && 'coaching' in input
-    writeFileSync(path, JSON.stringify({ input, presentationGrade:Number(learner.grade), history: (await decisionContext(db, owner, student)) }))
-    return readModelJson(await askModel(path, '{}', [skillText(contract), skillText('reconcile-school-results'), skillText('learner-observations'), coaching ? skillText('coach-through-question') : ''].join('\n\n'), 120000, (await aiConfigFor(db, owner))))
-  } finally { rmSync(dir, { recursive: true, force: true }) }
+type SchoolInput = { input: any; presentationGrade: number; history: unknown; concepts?: string[] }
+const SCHOOL_SKILLS = ['reconcile-school-results', 'learner-observations']
+const QUESTION_SHAPE: Schema = { type: 'object', required: ['number', 'prompt', 'readable', 'confidence'], properties: { number: { type: 'string' }, prompt: { type: 'string' }, figure: { type: 'string' }, visibleWork: { type: 'string' }, answerKey: { type: 'string' }, teacherMark: { type: 'string' }, conceptId: { type: 'string', nullable: true }, readable: { type: 'boolean' }, confidence: { type: 'number', minimum: 0, maximum: 1 } } }
+
+export const READ_MATERIAL: Contract<SchoolInput, ReturnType<typeof validateQuestions>> = {
+  id: 'read-school-material', version: 2, role: 'planner',
+  skills: ['read-school-material', ...SCHOOL_SKILLS],
+  schema: { type: 'object', required: ['questions'], properties: { questions: { type: 'array', maxItems: 100, items: QUESTION_SHAPE } } },
+  selfCheck: ['Did you include every visible question, with its original number?', 'Did you leave unreadable or uncertain text unresolved instead of guessing it?', 'Are visible answers kept separate from keys you inferred?'],
+  prompt: input => input,
+  parse: (reply, input) => validateQuestions(reply, new Set(input.concepts ?? [])),
+  gate: () => [],
+  timeoutMs: 120000,
+}
+const VERDICT = { type: 'object', required: ['verdict', 'explanation', 'confidence'], properties: { verdict: { enum: ['correct', 'needs_work', 'unresolved'] }, explanation: { type: 'string', minLength: 1, maxLength: 10000 }, confidence: { type: 'number', minimum: 0, maximum: 1 } } } as Schema
+export const REVIEW_HOMEWORK: Contract<SchoolInput, { verdict: string; explanation: string }> = {
+  id: 'review-school-homework', version: 2, role: 'verifier',
+  skills: ['review-school-homework', ...SCHOOL_SKILLS],
+  schema: VERDICT,
+  selfCheck: ['Did you solve the question yourself before comparing it with the visible answer?', 'Is a blank, unreadable, uncertain or ambiguous answer left unresolved rather than marked wrong?'],
+  prompt: input => input,
+  // Below the confidence bar the verdict stays unresolved; it is never turned into a miss.
+  parse: reply => Number(reply.confidence) >= .8 ? { verdict: String(reply.verdict), explanation: String(reply.explanation).slice(0, 10000) } : { verdict: 'unresolved', explanation: 'The tutor could not make a reliable judgment. Ask a parent to review.' },
+  gate: output => childSafe([output.explanation]),
+  repairs: 0,
+  timeoutMs: 120000,
+}
+export const GUIDE_HOMEWORK: Contract<SchoolInput, { reply: string }> = {
+  id: 'guide-school-homework', version: 2, role: 'coach',
+  skills: ['review-school-homework', ...SCHOOL_SKILLS, 'coach-through-question'],
+  schema: { type: 'object', required: ['reply'], properties: { reply: { type: 'string', minLength: 1, maxLength: 4000 } } },
+  selfCheck: [],
+  prompt: input => input,
+  parse: reply => ({ reply: String(reply.reply).trim() }),
+  gate: output => childSafe([output.reply]),
+  repairs: 0,
+  timeoutMs: 120000,
+}
+
+export async function schoolRun<O>(db: DatabaseSync, owner: string, student: string, contract: Contract<SchoolInput, O>, input: unknown, concepts: string[] = [], ask?: Ask): Promise<O> {
+  const learner = await assertStudent(db, owner, student)
+  const { output, report } = await runContract(contract, { input, presentationGrade: Number(learner.grade), history: await decisionContext(db, owner, student), concepts }, await aiConfigFor(db, owner), { ask })
+  await recordRun(db, owner, student, report).catch(() => {})
+  if (!output) throw new Error(`The ${contract.id} reply did not pass its checks.`)
+  return output
 }
 export function validateQuestions(raw: any, allowed: Set<string>) {
   if (!Array.isArray(raw.questions) || raw.questions.length > 100) throw new Error('Invalid page interpretation.')
@@ -153,7 +195,7 @@ export async function extractMaterial(db: DatabaseSync, ctx: JobContext, payload
     let raw: any
     const prompt = { transcription: page.transcription, concepts, kind: material.kind, workState: material.work_state }
     const task = async () => {
-      if (page.transcription) return (await schoolJson(db, ctx.job.owner_user_id, String(material.student_id), 'read-school-material', prompt))
+      if (page.transcription) return { questions: await schoolRun(db, ctx.job.owner_user_id, String(material.student_id), READ_MATERIAL, prompt, concepts.map(c => c.id)) }
       const ai = (await aiConfigFor(db, ctx.job.owner_user_id))
       const row = (await db.prepare('SELECT photo_model FROM users WHERE id = ?').get(ctx.job.owner_user_id))!
       ai.model = String(row.photo_model)
@@ -189,10 +231,8 @@ export async function reviewMaterial(db: DatabaseSync, ctx: JobContext, payload:
     if (q.verdict) continue
     let verdict = 'unresolved', explanation = 'This question needs a clearer photo or transcription before it can be checked.'
     if (q.readable && String(q.visible_work).trim()) {
-      const raw = await schoolJson(db, ctx.job.owner_user_id, String(material.student_id), 'review-school-homework', q)
-      if (['correct', 'needs_work', 'unresolved'].includes(String(raw.verdict)) && typeof raw.explanation === 'string' && typeof raw.confidence === 'number' && raw.confidence >= .8 && raw.confidence <= 1) {
-        verdict = String(raw.verdict); explanation = raw.explanation.slice(0, 10000)
-      } else explanation = 'The tutor could not make a reliable judgment. Ask a parent to review.'
+      try { ({ verdict, explanation } = await schoolRun(db, ctx.job.owner_user_id, String(material.student_id), REVIEW_HOMEWORK, q)) }
+      catch { explanation = 'The tutor could not make a reliable judgment. Ask a parent to review.' }
     }
     await ctx.commit(async () => {
       if ((await ownedMaterial(db, ctx.job.owner_user_id, payload.materialId)).revision !== payload.revision) return
@@ -226,7 +266,7 @@ export async function guideQuestion(db: DatabaseSync, ctx: JobContext, payload: 
   const latest = String(transcript.filter(t=>t.role==='student').at(-1)?.body ?? '')
   const stage = coachingStage(transcript.slice(0,-1).map(t=>({role:String(t.role),body:String(t.body)})),latest)
   const blocked = safetyReply(latest)
-  const raw = blocked ? {reply:blocked} : await schoolJson(db, ctx.job.owner_user_id, String(m.student_id), 'review-school-homework', { question: q, transcript, coaching: stage, coachingPolicy: 'Ask one concrete Socratic question first; give a hint next; after two learner turns or a request to explain, show a worked explanation and offer a fresh try or break. Never endlessly repeat a question. Grade and correct only explicitly requested work; do not demand unstated steps.' })
+  const raw = blocked ? {reply:blocked} : await schoolRun(db, ctx.job.owner_user_id, String(m.student_id), GUIDE_HOMEWORK, { question: q, transcript, coaching: stage, coachingPolicy: 'Ask one concrete Socratic question first; give a hint next; after two learner turns or a request to explain, show a worked explanation and offer a fresh try or break. Never endlessly repeat a question. Grade and correct only explicitly requested work; do not demand unstated steps.' })
   if (typeof raw.reply !== 'string' || !raw.reply.trim()) throw new Error('Invalid guidance.')
   await ctx.commit(async () => {
     await ownedQuestion(db, ctx.job.owner_user_id, payload.questionId)

@@ -102,6 +102,20 @@ details[open] > summary::before { transform: rotate(45deg); }
 .panel { margin: 20px 0; padding: 22px; background: var(--parts); border-radius: var(--r-lg); }
 .panel > h2:first-child, .panel > summary + * { margin-top: 0; }
 .banner { margin: 16px 0; padding: 14px 16px; background: var(--yellow-wash); border: var(--line) solid var(--ink); border-radius: var(--radius); font-weight: 500; }
+.banner.warn { border-style: dashed; }
+form.inline { display: inline; }
+.subject-maps ul { margin: 8px 0 0; padding-left: 20px; }
+.subject-maps li { margin: 6px 0; }
+.map-group { margin: 24px 0; }
+.map-concept { margin: 12px 0; padding: 14px 16px; border: var(--line) solid var(--ink); border-radius: var(--radius); background: var(--card); }
+.map-concept h3 { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; }
+.map-levels { display: grid; gap: 8px; margin: 10px 0; }
+.map-levels > div { display: grid; grid-template-columns: minmax(0, 9rem) minmax(0, 1fr); gap: 10px; }
+.map-levels dt { font-weight: 600; }
+.map-levels dd { margin: 0; }
+@media (max-width: 520px) { .map-levels > div { grid-template-columns: 1fr; gap: 2px; } }
+.map-decision form { margin: 10px 0; }
+.map-decision textarea { width: 100%; min-height: 80px; }
 .ok, .miss, .hint, .reask, .celebration { margin: 14px 0; padding: 14px 16px; border-radius: var(--radius); border: var(--line) solid var(--ink); }
 .ok, .celebration { background: var(--green-wash); border-color: var(--green); }
 .miss { background: var(--yellow-wash); border-color: var(--yellow-side); }
@@ -202,6 +216,14 @@ details[open] > summary::before { transform: rotate(45deg); }
 .quick-missions > .tile-form button > span { background: var(--green); color: #fff; }
 .tile-form { margin: 0; }
 .week-trail { margin: 28px 0 0; padding-top: 18px; border-top: var(--line) solid var(--ink); }
+.museum { margin: 28px 0 0; padding: 16px; border: var(--line) solid var(--ink); border-radius: var(--radius); background: var(--card); }
+.museum h2 { margin-top: 0; font-size: 1.15rem; }
+.museum ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 12px; }
+.museum li { display: grid; gap: 4px; }
+.audit-item .audit-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.audit-item .audit-actions form { margin: 0; }
+.experiments .experiment { padding: 12px 0; border-top: 1px solid var(--rule); }
+.experiments .experiment h3 { margin: 0 0 4px; font-size: 1rem; }
 .week-trail h2 { font-size: 1.15rem; }
 .week-trail ul { list-style: none; padding: 0; margin: 10px 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
 .keepsake { display: flex; align-items: center; gap: 12px; padding: 10px; border-radius: var(--r); background: var(--parts); list-style: none; }
@@ -304,6 +326,13 @@ details[open] > summary::before { transform: rotate(45deg); }
 .choice:has(input:checked) { background: var(--yellow); box-shadow: inset 0 -5px 0 var(--yellow-side); }
 .choice:has(input:checked) .choice-letter { background: var(--ink); color: #fff; }
 .choice:has(input:focus-visible) { outline: 3px solid var(--blue); outline-offset: 3px; }
+.sure { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 4px; padding: 0; border: 0; }
+.sure legend { width: 100%; margin-bottom: 6px; font-size: 15px; }
+.sure-chip { position: relative; display: inline-flex; align-items: center; min-height: 44px; padding: 6px 14px; border: 2px solid var(--ink); border-radius: 999px; background: var(--card); font-size: 16px; font-weight: 600; cursor: pointer; }
+.sure-chip input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+.sure-chip:has(input:checked) { background: var(--yellow); }
+.sure-chip:has(input:focus-visible) { outline: 3px solid var(--blue); outline-offset: 3px; }
+.calibration { display: block; margin-top: 4px; font-weight: 500; }
 .show-how { margin-top: 8px; }
 .show-how > summary { min-height: 44px; }
 .math-picture { margin: 12px 0; }
@@ -579,6 +608,12 @@ button.chatgpt-button:hover { background: #222; }
 .gradebook th, .gradebook td { height: 44px; padding: 0 8px; text-align: left; border-bottom: 1px solid var(--rule); }
 .gradebook th { font-size: 13px; color: var(--ink-3); font-weight: 600; }
 .table-scroll { width: 100%; overflow-x: auto; }
+.ladder th[scope="row"] { font-weight: 600; text-align: left; }
+.ladder .steps { display: flex; flex-wrap: wrap; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.ladder .steps li { padding: 2px 8px; border: 1px solid var(--rule); border-radius: 999px; font-size: 13px; color: var(--ink-2); }
+.ladder .steps li[data-done="true"] { border-color: var(--ink); background: var(--parts); color: var(--ink); font-weight: 600; }
+.ladder tr.goal-met th[scope="row"]::after { content: " ★"; }
+.gain .metric { font-size: 1.6rem; }
 .strength { font-size: 13px; font-weight: 600; color: var(--ink-2); white-space: nowrap; }
 /* Mastery as four bricks: each filled brick is one step of the way. */
 .strength::before { content: ""; display: inline-block; vertical-align: middle; width: 88px; height: 16px; margin-right: 10px; border-radius: 4px; border: var(--line) solid var(--ink); background: repeating-linear-gradient(90deg, transparent 0 19px, var(--page) 19px 22px), linear-gradient(var(--c, var(--parts)), var(--c, var(--parts))) 0 0 / var(--w, 0) 100% no-repeat, var(--parts); }

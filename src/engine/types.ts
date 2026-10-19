@@ -71,6 +71,10 @@ export interface AttemptRecord {
   evidenceCertainty?: "confirmed" | "unresolved" | "legacy"
   supportUsed?: "none" | "hint" | "homework"
   decisionReason?: string
+  /** "transfer" when the question was written to use the idea in an unfamiliar situation. */
+  kind?: "practice" | "transfer"
+  /** What the child said before answering, when they said anything. */
+  confidence?: "sure" | "think" | "guess"
 }
 
 export interface Item {

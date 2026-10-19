@@ -1,6 +1,8 @@
 ---
 name: plan-class
 description: Talk a parent through a class plan from the Tutor Engine spec and the course topics. Build lessons only after they agree.
+version: 1
+role: planner
 ---
 
 # Plan a class

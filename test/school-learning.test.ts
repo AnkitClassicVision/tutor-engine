@@ -1,3 +1,4 @@
+import { stubReply } from './contract-stub.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { mkdtempSync, rmSync } from 'node:fs'
@@ -25,7 +26,7 @@ async function fixture(purpose: 'test' | 'learning' = 'test') {
   const title = (await titleMap(db, student))[concept]
   return { db, owner, student, material, source, job, dir, title, close() { db.close(); rmSync(dir, { recursive: true, force: true }) } }
 }
-function response(result: any) { return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(result) } }] })) }
+function response(result: any, init?: any) { return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(init ? stubReply(JSON.parse(init.body).messages[0].content, result) : result) } }] })) }
 function curriculum(title: string, copy = false) {
   return { reason: 'The sample test covers addition; preserve existing progress.', topics: [{ title, recall: 'Add using place value.', example: '12 + 8 = 20.', nonExample: 'Ignoring place value.', questions: [{ prompt: copy ? original : 'What is 13 + 8?', answer: '21', bloomLevel: 3 }, { prompt: 'Create an addition question with a sum of 30 and solve it.', answer: 'Rubric: The terms sum to 30 and the solution is correct.', bloomLevel: 6 }] }] }
 }
@@ -35,7 +36,7 @@ test('sample pages produce a durable dated practice focus without changing maste
   globalThis.fetch = async (_url: any, init: any) => {
     const body = JSON.parse(init.body), prompt = body.messages.at(-1).content
     prompts.push(prompt)
-    return response(body.messages[0].content.includes('# Read school material') ? { questions: [{ number: '1', prompt: original, readable: true, confidence: .99, conceptId: null, visibleWork: '4', answerKey: '4' }] } : curriculum(f.title))
+    return response(body.messages[0].content.includes('# Read school material') ? { questions: [{ number: '1', prompt: original, readable: true, confidence: .99, conceptId: null, visibleWork: '4', answerKey: '4' }] } : curriculum(f.title), init)
   }
   try {
     const handlers = jobHandlers({ db: f.db, uploadsDir: f.dir })
@@ -62,7 +63,7 @@ test('sample pages produce a durable dated practice focus without changing maste
 test('learning-only school pages add coverage without creating a dated test or changing evidence', async () => {
   const f = await fixture('learning'), realFetch = globalThis.fetch
   const before = await listStates(f.db, f.student)
-  globalThis.fetch = async (_url: any, init: any) => response(JSON.parse(init.body).messages[0].content.includes('# Read school material') ? { questions: [{ number: '1', prompt: original, readable: true, confidence: .99 }] } : curriculum(f.title))
+  globalThis.fetch = async (_url: any, init: any) => response(JSON.parse(init.body).messages[0].content.includes('# Read school material') ? { questions: [{ number: '1', prompt: original, readable: true, confidence: .99 }] } : curriculum(f.title), init)
   try {
     const handlers = jobHandlers({ db: f.db, uploadsDir: f.dir })
     await runNextJob(f.db, handlers); await runNextJob(f.db, handlers)
@@ -76,10 +77,10 @@ test('correcting source while curriculum is running fences out its questions and
   const f = await fixture(), realFetch = globalThis.fetch
   globalThis.fetch = async (_url: any, init: any) => {
     const body = JSON.parse(init.body)
-    if (body.messages[0].content.includes('# Read school material')) return response({ questions: [{ number: '1', prompt: original, readable: true, confidence: .99 }] })
+    if (body.messages[0].content.includes('# Read school material')) return response({ questions: [{ number: '1', prompt: original, readable: true, confidence: .99 }] }, init)
     const page = f.db.prepare('SELECT id FROM material_pages WHERE material_id = ?').get(f.material)!
     await correctMaterial(f.db, f.owner, f.material, [{ id: page.id, transcription: 'Corrected coverage: multiplication' }])
-    return response(curriculum(f.title))
+    return response(curriculum(f.title), init)
   }
   try {
     const handlers = jobHandlers({ db: f.db, uploadsDir: f.dir })
@@ -96,7 +97,7 @@ test('unreadable pages and copied source questions never become a test plan', as
     const f = await fixture(), realFetch = globalThis.fetch
     globalThis.fetch = async (_url: any, init: any) => {
       const body = JSON.parse(init.body)
-      return response(body.messages[0].content.includes('# Read school material') ? { questions: [{ number: '1', prompt: original, readable: failure !== 'unreadable', confidence: .99 }] } : curriculum(f.title, true))
+      return response(body.messages[0].content.includes('# Read school material') ? { questions: [{ number: '1', prompt: original, readable: failure !== 'unreadable', confidence: .99 }] } : curriculum(f.title, true), init)
     }
     try {
       const handlers = jobHandlers({ db: f.db, uploadsDir: f.dir })
@@ -129,9 +130,9 @@ test('a failed school curriculum retains source fences during startup recovery a
   let unavailable = false
   globalThis.fetch = async (_url: any, init: any) => {
     const body = JSON.parse(init.body)
-    if (body.messages[0].content.includes('# Read school material')) return response({ questions: [{ number: '1', prompt: original, readable: true, confidence: .99 }] })
+    if (body.messages[0].content.includes('# Read school material')) return response({ questions: [{ number: '1', prompt: original, readable: true, confidence: .99 }] }, init)
     if (unavailable) throw new Error('Synthetic provider unavailable')
-    return response(curriculum('Synthetic extra coverage'))
+    return response(curriculum('Synthetic extra coverage'), init)
   }
   try {
     const handlers = jobHandlers({ db: f.db, uploadsDir: f.dir })

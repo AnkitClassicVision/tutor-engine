@@ -8,13 +8,16 @@ import { recordDecision } from "./decisions.ts"
 import { readModelJson, type AiConfig } from "./ai.ts"
 import { askText } from "./talk.ts"
 import { safetyReply } from "./child-safety.ts"
-import { skillText } from "./skill-text.ts"
+import { skillMeta, skillText } from "./skill-text.ts"
 import { teachingMovesBrief } from "./content-skills.ts"
 import { findDate } from "./find-date.ts"
 import { dayStamp } from "./engine/dates.ts"
 import { gradeLabel } from "./engine/grade.ts"
 import { scoreItem } from "./engine/score.ts"
 import { runbook, routeRunbook, type Runbook, type RunbookId } from "./pack-runbooks.ts"
+import type { RunReport } from "./runbook/contract.ts"
+import { recordRun } from "./runbook/record.ts"
+import { approvedMap, concepts } from "./subject-map.ts"
 import { blocked, checkDraft, checkItem, PACK_FORMATS, type Issue, type PackDraft, type PackItem, type PackSkill, type QaRules } from "./pack-qa.ts"
 import {
   addPackConcept, aiConfigFor, aiConnectionProblem, aiSettings, assertStudent, createTarget, findConceptByTitle, insertPackItem,
@@ -314,7 +317,7 @@ export const PACK_SCHEMA = JSON.stringify({
 })
 const CHECK_SCHEMA = JSON.stringify({
   type: "object", additionalProperties: false, required: ["items"],
-  properties: { items: { type: "array", items: { type: "object", additionalProperties: false, required: ["id", "answer", "onTopic", "ageFit", "issue"], properties: { id: { type: "string" }, answer: { type: "string" }, onTopic: { type: "integer", minimum: 1, maximum: 5 }, ageFit: { type: "integer", minimum: 1, maximum: 5 }, issue: { type: "string" } } } } },
+  properties: { items: { type: "array", items: { type: "object", additionalProperties: false, required: ["id", "answer", "onTopic", "ageFit", "issue"], properties: { id: { type: "string" }, answer: { type: "string" }, bloom: { type: "integer", minimum: 1, maximum: 6 }, onTopic: { type: "integer", minimum: 1, maximum: 5 }, ageFit: { type: "integer", minimum: 1, maximum: 5 }, issue: { type: "string" } } } } },
 })
 const REPAIR_SCHEMA = JSON.stringify({
   type: "object", additionalProperties: false, required: ["items"],
@@ -342,7 +345,7 @@ export function writerBrief(book: Runbook) {
   ].join("\n\n")
 }
 
-const CHECKER_BRIEF = "You are an independent reviewer of children's practice questions. You do not see the answer keys. For each question: answer it yourself carefully, in the form it asks for (a number with any unit, the exact text of the option you choose, a short word, or one sentence for a written question); rate onTopic 1-5 for how well it practises the stated request at this grade; rate ageFit 1-5 for whether the wording and difficulty suit the grade; in issue, name any real problem (ambiguous, more than one right answer, factual error, missing information, unclear wording, too hard or too easy) or leave it empty. Return {\"items\": [{\"id\", \"answer\", \"onTopic\", \"ageFit\", \"issue\"}]} with one entry per question."
+const CHECKER_BRIEF = "You are an independent reviewer of children's practice questions. You do not see the answer keys. For each question: answer it yourself carefully, in the form it asks for (a number with any unit, the exact text of the option you choose, a short word, or one sentence for a written question); rate onTopic 1-5 for how well it practises the stated request at this grade; rate ageFit 1-5 for whether the wording and difficulty suit the grade; give bloom 1-6 for the demand the question really makes (1 remember, 2 understand, 3 apply, 4 analyse, 5 evaluate, 6 create), judged from what the child must do; in issue, name any real problem (ambiguous, more than one right answer, factual error, missing information, unclear wording, too hard or too easy) or leave it empty. Return {\"items\": [{\"id\", \"answer\", \"onTopic\", \"ageFit\", \"issue\"}]} with one entry per question."
 
 const str = (value: unknown, max: number) => (typeof value === "string" ? value.replace(/\r/g, "").trim().slice(0, max) : "")
 
@@ -435,6 +438,7 @@ export async function checkAndRepair(draft: PackDraft, brief: PackBrief, book: R
         if (item.format !== "written" && theirs && !scoreItem({ answer: item.answer, format: item.format, choices: item.choices }, theirs).correct) { reasons.push(`An independent check answered ${theirs}, not ${item.answer}.`); checkerDisagreed++ }
         if (Number(verdict.onTopic) <= 2) reasons.push("It does not practise what was asked.")
         if (Number(verdict.ageFit) <= 2) reasons.push("It does not suit this grade.")
+        if (Number.isInteger(verdict.bloom) && item.bloom - Number(verdict.bloom) >= 2) { reasons.push(`It is labelled Bloom ${item.bloom} but asks for about ${verdict.bloom}.`); rulesHit.bloom_overstated = (rulesHit.bloom_overstated ?? 0) + 1 }
         const issue = str(verdict.issue, 300)
         if (issue && /ambiguous|more than one|incorrect|wrong|error|unclear|missing|not solvable|impossible/i.test(issue)) reasons.push(issue)
         if (reasons.length) { problems.set(id, reasons); rulesHit.checker = (rulesHit.checker ?? 0) + 1 }
@@ -483,6 +487,28 @@ export async function checkAndRepair(draft: PackDraft, brief: PackBrief, book: R
   return { final, dropped, qa: { modelChecked, written: report.items.length, published, repaired, dropped: dropped.length, recomputed, rules: rulesHit, warnings, checkerDisagreed } }
 }
 
+/** From the approved subject map: the concept this request is about, with its success levels and real misconceptions. */
+export async function mapContext(db: DatabaseSync, studentId: string, subject: string, topic: string) {
+  const map = await approvedMap(db, studentId, subject)
+  if (!map) return {}
+  const words = (text: string) => new Set(text.toLowerCase().match(/[a-z]{4,}/g) ?? [])
+  const wanted = words(topic)
+  const scored = concepts(map).map((concept) => ({ concept, score: [...words(`${concept.title} ${concept.idea}`)].filter((word) => wanted.has(word)).length })).sort((a, b) => b.score - a.score)
+  const match = scored[0]?.score ? scored[0].concept : null
+  return match ? { subjectMap: { concept: match.title, idea: match.idea, success: match.success, misconceptions: match.misconceptions, transfer: match.transfer, mission: match.mission } } : {}
+}
+
+/** The pack pipeline predates the runbook contract; its outcome is recorded in the same shape. */
+export function packReport(id: string, checked: PackChecked, ai: AiConfig, ms: number): RunReport {
+  const qa = checked.qa
+  const issues = Object.entries(qa.rules).flatMap(([rule, count]) => Array.from({ length: count }, () => ({ rule, message: "", block: rule !== "warning" })))
+  return {
+    runbook: id, version: Number(skillMeta(id).version ?? 1), role: "coach", provider: ai.provider, model: ai.model,
+    outcome: qa.published === 0 ? "rejected" : qa.dropped ? "pruned" : "accepted", attempts: qa.repaired ? 2 : 1,
+    issues, critic: { ran: qa.modelChecked, provider: ai.provider, model: ai.model, issues: [] }, selfCheck: [], ms,
+  }
+}
+
 // ---- The job ----------------------------------------------------------------------------------------------
 
 async function setPack(db: DatabaseSync, packId: string, fields: Record<string, unknown>) {
@@ -508,6 +534,7 @@ export async function runPack(options: { db: DatabaseSync }, ctx: JobContext, pa
         request: brief.request,
         learner: { grade: brief.gradeLabel, readingLevel: brief.reading === "junior" ? "early reader: short sentences, everyday words" : "confident reader", subject: brief.subject, ...evidence },
         pack: { topic: brief.topic, skills: brief.skills, questionsPerSkill: brief.perSkill, testDate: brief.testDate, preferredFormats: brief.preferred, allowedFormats: book.formats, bloomRange: `${book.bloomMin}-${book.bloomMax}` },
+        ...(await mapContext(db, pack.student_id, brief.subject, brief.topic)),
       })
       try { draft = parsePackDraft(await ask("write", prompt, writerBrief(book), PACK_SCHEMA, ai)) }
       catch (first) {
@@ -519,8 +546,10 @@ export async function runPack(options: { db: DatabaseSync }, ctx: JobContext, pa
     let checked: PackChecked
     if (!pack.check_json) {
       await ctx.stage("Checking every answer")
+      const started = Date.now()
       checked = await checkAndRepair(draft, brief, book, qaRules(book, brief, await seenFor(db, pack.student_id)), ai, ask, ctx.stage)
       await ctx.commit(async () => { await setPack(db, pack!.id, { check_json: JSON.stringify(checked), qa_json: JSON.stringify(checked.qa) }) })
+      await recordRun(db, ownerUserId, pack.student_id, packReport(brief.runbook, checked, ai, Date.now() - started)).catch(() => {})
     } else checked = JSON.parse(pack.check_json) as PackChecked
     pack = (await packRow(db, payload.packId))!
     if (!checked.final.skills.length) {

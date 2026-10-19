@@ -1,6 +1,8 @@
 ---
 name: assess-learning
 description: Design and judge Tutor Engine assessments that check the requested concept and actual Bloom demand, separate practice from testing, and require evidence over time before mastery.
+version: 1
+role: verifier
 ---
 
 # Assess learning

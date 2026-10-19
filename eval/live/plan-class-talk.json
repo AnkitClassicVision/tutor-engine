@@ -1,0 +1,14 @@
+[
+ {
+  "name": "parent names a new class",
+  "input": "Class in this chat: not named yet.\nGrade: Grade 5. Math class: Grade-level math.\nCourse topics already available:\nNone listed.\nTopics already on this class:\nNone yet.\nConversation:\nParent: I'd like her to learn about the solar system this term."
+ },
+ {
+  "name": "parent changes focus mid-chat",
+  "input": "Class in this chat: Science.\nGrade: Grade 4. Math class: Grade-level math.\nCourse topics already available:\nNone listed.\nTopics already on this class:\n- Plants | Getting there\nConversation:\nTutor: Here is a plan on plants.\nParent: Actually, can we do animals and habitats instead?"
+ },
+ {
+  "name": "vague request",
+  "input": "Class in this chat: not named yet.\nGrade: Grade 2. Math class: Grade-level math.\nCourse topics already available:\nNone listed.\nTopics already on this class:\nNone yet.\nConversation:\nParent: something fun"
+ }
+]

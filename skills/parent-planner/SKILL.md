@@ -1,6 +1,8 @@
 ---
 name: parent-planner
 description: Understand what a parent wants to change or know about their child's learning, pick one action from a fixed list, and describe it back. Nothing changes until the parent presses Apply.
+version: 1
+role: planner
 ---
 
 # Parent planner

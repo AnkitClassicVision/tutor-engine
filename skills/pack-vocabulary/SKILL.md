@@ -6,6 +6,8 @@ keywords: vocabulary, vocab, words, word list, meaning, meanings, definition, de
 formats: choice, word, written
 bloom: 1-3
 require_work: false
+version: 1
+role: coach
 ---
 
 # Vocabulary pack

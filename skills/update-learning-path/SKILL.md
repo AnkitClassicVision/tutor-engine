@@ -1,6 +1,8 @@
 ---
 name: update-learning-path
 description: Overlay school syllabi, agendas, homework, tests, and parent notes on an existing Tutor Engine learning path without losing foundations, retention review, or learner evidence.
+version: 1
+role: planner
 ---
 
 # Update the learning path

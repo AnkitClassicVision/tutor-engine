@@ -1,0 +1,74 @@
+[
+ {
+  "name": "first step with a stuck child",
+  "input": {
+   "input": {
+    "question": {
+     "prompt": "15 x 6 ="
+    },
+    "transcript": [
+     {
+      "role": "student",
+      "body": "idk"
+     }
+    ],
+    "coaching": "ask"
+   },
+   "presentationGrade": 4,
+   "history": "",
+   "concepts": []
+  }
+ },
+ {
+  "name": "child shows a wrong step",
+  "input": {
+   "input": {
+    "question": {
+     "prompt": "15 x 6 ="
+    },
+    "transcript": [
+     {
+      "role": "tutor",
+      "body": "What is 10 x 6?"
+     },
+     {
+      "role": "student",
+      "body": "60"
+     },
+     {
+      "role": "tutor",
+      "body": "And 5 x 6?"
+     },
+     {
+      "role": "student",
+      "body": "25"
+     }
+    ],
+    "coaching": "hint"
+   },
+   "presentationGrade": 4,
+   "history": "",
+   "concepts": []
+  }
+ },
+ {
+  "name": "child asks for an explanation",
+  "input": {
+   "input": {
+    "question": {
+     "prompt": "15 x 6 ="
+    },
+    "transcript": [
+     {
+      "role": "student",
+      "body": "please just explain it"
+     }
+    ],
+    "coaching": "explain"
+   },
+   "presentationGrade": 4,
+   "history": "",
+   "concepts": []
+  }
+ }
+]

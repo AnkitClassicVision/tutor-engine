@@ -1,0 +1,41 @@
+[
+ {
+  "name": "sound judge-level answer",
+  "input": {
+   "concept": "Map scale",
+   "bloomLevel": 5,
+   "prompt": "Two routes to the lake are 6 cm and 8 cm on a map where 1 cm is 2 km. The 8 cm route is flat and the 6 cm route crosses a steep hill. Which route would you choose for a family bike ride, and why?",
+   "key": "Rubric: works out the distances (12 km and 16 km) and weighs distance against steepness with a reason that fits a family ride.",
+   "response": "12 km vs 16 km. Flat is better for a family ride, the hill would make the little ones walk."
+  },
+  "expect": {
+   "correct": true
+  }
+ },
+ {
+  "name": "choice with no reasons",
+  "input": {
+   "concept": "Map scale",
+   "bloomLevel": 5,
+   "prompt": "Two routes to the lake are 6 cm and 8 cm on a map where 1 cm is 2 km. The 8 cm route is flat and the 6 cm route crosses a steep hill. Which route would you choose for a family bike ride, and why?",
+   "key": "Rubric: works out the distances (12 km and 16 km) and weighs distance against steepness with a reason that fits a family ride.",
+   "response": "the 8 cm one"
+  },
+  "expect": {
+   "correct": false
+  }
+ },
+ {
+  "name": "wrong distances but a reason",
+  "input": {
+   "concept": "Map scale",
+   "bloomLevel": 5,
+   "prompt": "Two routes to the lake are 6 cm and 8 cm on a map where 1 cm is 2 km. The 8 cm route is flat and the 6 cm route crosses a steep hill. Which route would you choose for a family bike ride, and why?",
+   "key": "Rubric: works out the distances (12 km and 16 km) and weighs distance against steepness with a reason that fits a family ride.",
+   "response": "The flat one is 8 km and the hill one is 6 km, so I pick the flat one because hills are hard."
+  },
+  "expect": {
+   "correct": false
+  }
+ }
+]

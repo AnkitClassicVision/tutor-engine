@@ -84,6 +84,8 @@ test("test dates, profile changes and unread notes are undone; read notes are no
 test("a class built from the planner is removed by undo until it has been practised", async () => {
   const f = await family()
   try {
+    // Science already has an approved subject map, so building posts its topics straight away.
+    await f.db.prepare("INSERT INTO subject_maps (id, student_id, subject, version, status, research, map_json, note, created_at) VALUES (?, ?, 'Science', 1, 'approved', 'web', '{}', '', ?)").run(crypto.randomUUID(), f.student, new Date().toISOString())
     const proposal = { intent: "add_class", params: { thread: "Science", focus: "" }, summary: "Add Science: Cells", applyLabel: "Build Science", undoable: true }
     const build = async () => {
       await addTalk(f.db, f.owner, f.student, { subject: "Science", role: "parent", body: "Add science" })

@@ -1,0 +1,52 @@
+[
+ {
+  "name": "a clear intent passes",
+  "input": "Context for this family:\nChild: Grade 4.\nParent: She has a spelling test on Friday.",
+  "replies": {
+   "write": {
+    "reply": "I'll add a spelling test for Friday.",
+    "intent": "set_test",
+    "needsClarification": false,
+    "params": {
+     "title": "Spelling test",
+     "date": "Friday"
+    }
+   }
+  },
+  "expect": {
+   "outcome": "accepted"
+  },
+  "live": true
+ },
+ {
+  "name": "an intent outside the fixed list is refused",
+  "input": "Context for this family:\nChild: Grade 4.\nParent: She has a spelling test on Friday.",
+  "replies": {
+   "write": {
+    "reply": "Deleting the account.",
+    "intent": "delete_account",
+    "needsClarification": false,
+    "params": {}
+   }
+  },
+  "expect": {
+   "outcome": "rejected",
+   "rules": [
+    "schema"
+   ]
+  }
+ },
+ {
+  "name": "a reply that is not JSON is refused",
+  "input": "Context for this family:\nChild: Grade 4.\nParent: She has a spelling test on Friday.",
+  "replies": {
+   "write": "Sure thing!"
+  },
+  "expect": {
+   "outcome": "rejected",
+   "rules": [
+    "json"
+   ]
+  }
+ }
+]

@@ -87,5 +87,14 @@ export async function learningMeasures(db: DatabaseSync, studentId: string, now 
     value: pairs >= MIN ? percent(held, pairs) : notYet(pairs, MIN, 'topics checked again after a week'),
     detail: pairs >= MIN ? `${held} of ${pairs} topics first solved alone were still right, unaided, a week or more later.` : '',
     definition: 'For each topic first solved without help, the next unaided try at least seven days later.' })
+
+  // 6. Knows what they know: answers marked "Sure" that were right, beside guesses that were right.
+  const rated = (await loadAttempts(db, studentId)).filter((a) => a.confidence && a.evidenceCertainty !== 'unresolved' && a.day >= since.slice(0, 10))
+  const sure = rated.filter((a) => a.confidence === 'sure'), guesses = rated.filter((a) => a.confidence === 'guess')
+  const sureRight = sure.filter((a) => a.correct).length, guessRight = guesses.filter((a) => a.correct).length
+  measures.push({ key: 'calibration', label: 'Knows what they know', enough: sure.length >= MIN,
+    value: sure.length >= MIN ? `${percent(sureRight, sure.length)} of “sure” answers right` : notYet(sure.length, MIN, 'answers marked “sure”'),
+    detail: sure.length >= MIN ? `${sureRight} of ${sure.length} “sure” answers were right${guesses.length ? `; ${guessRight} of ${guesses.length} guesses were right` : ''}. Close to 100% for “sure” and lower for guesses means their confidence matches their knowledge.` : '',
+    definition: 'Before checking, a child can say Sure, I think so or Guessing. This compares what they said with the result, over the last 30 days.' })
   return measures
 }

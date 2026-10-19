@@ -4,8 +4,10 @@ description: Runbook for a learning pack of math word problems or real-life math
 subjects: math
 keywords: word problem, word problems, story problem, story problems, real life, real-world, situation, situations, money, shopping, time, measurement, recipe
 formats: number, choice, written
-bloom: 2-4
+bloom: 2-5
 require_work: true
+version: 2
+role: coach
 ---
 
 # Math word-problem pack

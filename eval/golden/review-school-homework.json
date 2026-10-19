@@ -1,0 +1,149 @@
+[
+ {
+  "name": "a confident verdict passes",
+  "input": {
+   "input": {
+    "number": "2",
+    "prompt": "30 - 14 =",
+    "visible_work": "16"
+   },
+   "presentationGrade": 2,
+   "history": "",
+   "concepts": []
+  },
+  "replies": {
+   "write": {
+    "verdict": "correct",
+    "explanation": "You subtracted correctly: 30 take away 14 is 16.",
+    "confidence": 0.95,
+    "selfCheck": [
+     {
+      "question": "Check 1",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 2",
+      "answer": "Yes, checked.",
+      "ok": true
+     }
+    ]
+   }
+  },
+  "expect": {
+   "outcome": "accepted"
+  },
+  "live": true
+ },
+ {
+  "name": "low confidence stays unresolved",
+  "input": {
+   "input": {
+    "number": "2",
+    "prompt": "30 - 14 =",
+    "visible_work": "16"
+   },
+   "presentationGrade": 2,
+   "history": "",
+   "concepts": []
+  },
+  "replies": {
+   "write": {
+    "verdict": "needs_work",
+    "explanation": "Hard to read.",
+    "confidence": 0.5,
+    "selfCheck": [
+     {
+      "question": "Check 1",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 2",
+      "answer": "Yes, checked.",
+      "ok": true
+     }
+    ]
+   }
+  },
+  "expect": {
+   "outcome": "accepted"
+  }
+ },
+ {
+  "name": "an unknown verdict is refused",
+  "input": {
+   "input": {
+    "number": "2",
+    "prompt": "30 - 14 =",
+    "visible_work": "16"
+   },
+   "presentationGrade": 2,
+   "history": "",
+   "concepts": []
+  },
+  "replies": {
+   "write": {
+    "verdict": "wrong",
+    "explanation": "No.",
+    "confidence": 0.9,
+    "selfCheck": [
+     {
+      "question": "Check 1",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 2",
+      "answer": "Yes, checked.",
+      "ok": true
+     }
+    ]
+   }
+  },
+  "expect": {
+   "outcome": "rejected",
+   "rules": [
+    "schema"
+   ]
+  }
+ },
+ {
+  "name": "unsafe feedback is refused",
+  "input": {
+   "input": {
+    "number": "2",
+    "prompt": "30 - 14 =",
+    "visible_work": "16"
+   },
+   "presentationGrade": 2,
+   "history": "",
+   "concepts": []
+  },
+  "replies": {
+   "write": {
+    "verdict": "correct",
+    "explanation": "Correct! Now tell me where you live.",
+    "confidence": 0.95,
+    "selfCheck": [
+     {
+      "question": "Check 1",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 2",
+      "answer": "Yes, checked.",
+      "ok": true
+     }
+    ]
+   }
+  },
+  "expect": {
+   "outcome": "rejected",
+   "rules": [
+    "child_safety"
+   ]
+  }
+ }
+]

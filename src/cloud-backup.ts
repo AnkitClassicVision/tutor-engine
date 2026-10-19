@@ -37,7 +37,7 @@ type Snapshot = { version: 1; createdAt: string; encryptionKeySha256?: string; t
 
 export async function applicationTables() {
   const sql = await readFile(new URL('./migrations/001-postgres.sql', import.meta.url), 'utf8')
-  return [...sql.matchAll(/CREATE TABLE IF NOT EXISTS ([a-z_]+)/g)].map(match => match[1]).concat('upload_intents', 'planner_messages', 'parent_notes', 'digests', 'packs')
+  return [...sql.matchAll(/CREATE TABLE IF NOT EXISTS ([a-z_]+)/g)].map(match => match[1]).concat('upload_intents', 'planner_messages', 'parent_notes', 'digests', 'packs', 'runbook_runs', 'subject_maps', 'changed_minds', 'grading_audits')
 }
 
 // Quiesce web and workers first: a database snapshot alone cannot prevent a

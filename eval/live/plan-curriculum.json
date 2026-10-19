@@ -1,0 +1,62 @@
+[
+ {
+  "name": "Spanish greetings, grade 2",
+  "input": {
+   "subject": "Spanish",
+   "about": "Beginner Spanish",
+   "syllabus": "Unit 1: greetings, numbers 1-10, colours.",
+   "direction": "",
+   "ageGrade": 2,
+   "mathClass": "",
+   "existing": []
+  }
+ },
+ {
+  "name": "US government, grade 8",
+  "input": {
+   "subject": "Civics",
+   "about": "How the US government works",
+   "syllabus": "Three branches, checks and balances, the Bill of Rights.",
+   "direction": "",
+   "ageGrade": 8,
+   "mathClass": "",
+   "existing": []
+  }
+ },
+ {
+  "name": "fractions with a test note, grade 4",
+  "input": {
+   "subject": "Math",
+   "about": "Fractions",
+   "syllabus": "Equivalent fractions, comparing fractions, adding with like denominators.",
+   "direction": "Test on Friday: comparing fractions with different denominators.",
+   "ageGrade": 4,
+   "mathClass": "Grade-level math",
+   "existing": []
+  }
+ },
+ {
+  "name": "states of matter, grade 5",
+  "input": {
+   "subject": "Science",
+   "about": "States of matter",
+   "syllabus": "Solids, liquids, gases; melting, freezing, evaporation, condensation.",
+   "direction": "",
+   "ageGrade": 5,
+   "mathClass": "",
+   "existing": []
+  }
+ },
+ {
+  "name": "colour theory, grade 3",
+  "input": {
+   "subject": "Art",
+   "about": "Colour mixing",
+   "syllabus": "Primary and secondary colours, warm and cool colours.",
+   "direction": "",
+   "ageGrade": 3,
+   "mathClass": "",
+   "existing": []
+  }
+ }
+]

@@ -1,0 +1,142 @@
+[
+ {
+  "name": "an independent agreeing judgment with evidence passes",
+  "input": {
+   "concept": "Floating and sinking",
+   "bloomLevel": 6,
+   "prompt": "Design a raft for 6 toy animals using 10 bottles and explain why it floats.",
+   "key": "Rubric: spreads the load and links floating to displaced water.",
+   "response": "I tie 5 bottles on each side so the weight is spread and the bottles push away enough water to hold it up."
+  },
+  "replies": {
+   "write": {
+    "rubricPoints": [
+     {
+      "point": "Spreads the load",
+      "met": true,
+      "quote": "the weight is spread"
+     },
+     {
+      "point": "Links floating to displaced water",
+      "met": true,
+      "quote": "push away enough water"
+     }
+    ],
+    "reasoningSound": true,
+    "correct": true,
+    "confidence": 0.9,
+    "reason": "The design spreads the load and explains displacement."
+   }
+  },
+  "expect": {
+   "outcome": "accepted"
+  },
+  "live": true
+ },
+ {
+  "name": "a doubtful judgment is still recorded so the grade stays open",
+  "input": {
+   "concept": "Floating and sinking",
+   "bloomLevel": 6,
+   "prompt": "Design a raft for 6 toy animals using 10 bottles and explain why it floats.",
+   "key": "Rubric: spreads the load and links floating to displaced water.",
+   "response": "I tie 5 bottles on each side so the weight is spread and the bottles push away enough water to hold it up."
+  },
+  "replies": {
+   "write": {
+    "rubricPoints": [
+     {
+      "point": "Spreads the load",
+      "met": true,
+      "quote": "the weight is spread"
+     },
+     {
+      "point": "Links floating to displaced water",
+      "met": true,
+      "quote": "push away enough water"
+     }
+    ],
+    "reasoningSound": true,
+    "correct": false,
+    "confidence": 0.55,
+    "reason": "The design spreads the load and explains displacement."
+   }
+  },
+  "expect": {
+   "outcome": "accepted"
+  }
+ },
+ {
+  "name": "an invented quote in the second check is refused",
+  "input": {
+   "concept": "Floating and sinking",
+   "bloomLevel": 6,
+   "prompt": "Design a raft for 6 toy animals using 10 bottles and explain why it floats.",
+   "key": "Rubric: spreads the load and links floating to displaced water.",
+   "response": "I tie 5 bottles on each side so the weight is spread and the bottles push away enough water to hold it up."
+  },
+  "replies": {
+   "write": {
+    "rubricPoints": [
+     {
+      "point": "Spreads the load",
+      "met": true,
+      "quote": "I used a big plank"
+     },
+     {
+      "point": "Displacement",
+      "met": true,
+      "quote": "push away enough water"
+     }
+    ],
+    "reasoningSound": true,
+    "correct": true,
+    "confidence": 0.9,
+    "reason": "The design spreads the load and explains displacement."
+   }
+  },
+  "expect": {
+   "outcome": "rejected",
+   "rules": [
+    "invented_quote"
+   ]
+  }
+ },
+ {
+  "name": "a reply that copies the first grader's fields is refused",
+  "input": {
+   "concept": "Floating and sinking",
+   "bloomLevel": 6,
+   "prompt": "Design a raft for 6 toy animals using 10 bottles and explain why it floats.",
+   "key": "Rubric: spreads the load and links floating to displaced water.",
+   "response": "I tie 5 bottles on each side so the weight is spread and the bottles push away enough water to hold it up."
+  },
+  "replies": {
+   "write": {
+    "rubricPoints": [
+     {
+      "point": "Spreads the load",
+      "met": true,
+      "quote": "the weight is spread"
+     },
+     {
+      "point": "Links floating to displaced water",
+      "met": true,
+      "quote": "push away enough water"
+     }
+    ],
+    "reasoningSound": true,
+    "correct": true,
+    "confidence": 0.9,
+    "reason": "The design spreads the load and explains displacement.",
+    "errorType": null
+   }
+  },
+  "expect": {
+   "outcome": "rejected",
+   "rules": [
+    "schema"
+   ]
+  }
+ }
+]

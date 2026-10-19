@@ -4,6 +4,13 @@ import { UserError, userMessage } from "./errors.ts"
 import { learningMeasures, type Measure } from "./learning-metrics.ts"
 import { ageBand } from "./engine/age.ts"
 import { FreshPracticeRequired, freshPractice } from './fresh-practice.ts'
+import { recordRun } from './runbook/record.ts'
+import { ladders } from "./engine/ladder.ts"
+import { approveMap, isBuiltIn, mapRow, runResearchJob, startResearchJob, decideMap, subjectMaps } from "./subject-map.ts"
+import { mapsSection, subjectMapPage } from "./subject-map-view.ts"
+import { auditPage, auditSample, auditSummary, recordAudit } from "./grading-audit.ts"
+import { EXPERIMENTS, armFor, enrolled, experimentReport, setExperiment, type ExperimentKey } from "./experiments.ts"
+import { gainOnFairChecks } from "./engine/gain.ts"
 import { feedbackState, promptIdentity } from './session-feedback.ts'
 import { withDatabaseScope } from "./transaction.ts"
 import { readPrivateFile } from "./storage.ts"
@@ -21,7 +28,7 @@ import { undoStates } from "./undo.ts"
 import { parentSurface, plannerDrawer, plannerStudentFor } from "./planner-view.ts"
 import { extractMaterial, reviewMaterial, guideQuestion, ownedMaterial, ownedQuestion, currentSchoolSource, schoolLearningText, applySchoolLearning, type SchoolSource } from "./schoolwork.ts"
 import { issueAccountToken, flushMail } from "./accounts.ts"
-import { enforceSessionTime } from "./services.ts"
+import { enforceSessionTime, loadAttempts } from "./services.ts"
 import { readFileSync } from "node:fs"
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http"
 import { dirname, join, resolve, sep } from "node:path"
@@ -290,6 +297,22 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse, options:
       return html(res, "Learning history", historyPage(historyMatch[1], records, { ...undo, notice: url.searchParams.get("notice") ?? "", error: url.searchParams.get("error") ?? "" }), csrf)
     } catch { return send(res, 404, "text/plain", "Student not found.") }
   }
+  const gradingMatch = url.pathname.match(/^\/students\/([0-9a-f-]{36})\/grading$/i)
+  if (gradingMatch && method === "GET") {
+    try {
+      const student = await assertStudent(options.db, auth!.userId, gradingMatch[1])
+      return html(res, "Check the grading", auditPage(student.id, student.display_name, await auditSample(options.db, student.id), await auditSummary(options.db, student.id), await titleMap(options.db, student.id)), csrf)
+    } catch { return send(res, 404, "text/plain", "Student not found.") }
+  }
+  const mapMatch = url.pathname.match(/^\/students\/([0-9a-f-]{36})\/maps\/([0-9a-f-]{36})$/i)
+  if (mapMatch && method === "GET") {
+    try {
+      const student = await assertStudent(options.db, auth!.userId, mapMatch[1])
+      const row = await mapRow(options.db, student.id, mapMatch[2])
+      if (!row) return send(res, 404, "text/plain", "Subject map not found.")
+      return html(res, `${row.subject} map`, subjectMapPage(student.id, student.display_name, row, row.job_id), csrf)
+    } catch { return send(res, 404, "text/plain", "Student not found.") }
+  }
   const studentMatch = url.pathname.match(/^\/students\/([0-9a-f-]{36})(\/scoreboard|\/parent|\/classes|\/school|\/controls|\/note)?$/i)
   if (studentMatch && method === "GET") {
     try {
@@ -299,7 +322,8 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse, options:
         return html(
           res,
           "Scoreboard",
-          scoreboardPage(student.display_name, student.id, board, (await titleMap(options.db, student.id)), auth!.parentUnlocked && !auth!.studentOnly ? await learningMeasures(options.db, student.id) : []),
+          scoreboardPage(student.display_name, student.id, board, (await titleMap(options.db, student.id)), auth!.parentUnlocked && !auth!.studentOnly ? await learningMeasures(options.db, student.id) : [],
+            auth!.parentUnlocked && !auth!.studentOnly ? await progressFor(options.db, student.id) : undefined),
           csrf,
         )
       }
@@ -346,7 +370,7 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse, options:
           })),
           live: /building|pending:/.test(live) ? live : "",
           nextAction: (await nextLearningAction(options.db, auth!.userId, student.id)),
-        }), url.searchParams.get("subject")?.trim().slice(0, 100) || "Math", { view, notice: view === "overview" || view === "note" ? url.searchParams.get("notice") ?? "" : "" })),
+        }) + mapsSection(student.id, [...new Set([...(await topicMenu(options.db, auth!.userId, student.id)).subjects, ...(await listSubjectPlans(options.db, auth!.userId, student.id)).map(plan => plan.subject)])], await subjectMaps(options.db, student.id)), url.searchParams.get("subject")?.trim().slice(0, 100) || "Math", { view, notice: view === "overview" || view === "note" ? url.searchParams.get("notice") ?? "" : "" })),
         csrf,
       )
     } catch {
@@ -417,6 +441,7 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse, options:
           results,
           pendingReviews: auth!.parentUnlocked ? items.filter((item) => item.answered === 1 && item.correct == null) : [],
           band: ageBand(learner),
+          askSure: armFor(learner.experiments, "confidence-check") === "on",
           feedbackConceptId: feedback?.itemId ? String(items.find((item) => item.id === feedback.itemId)?.concept_id ?? "") || undefined : undefined,
         }) + "</div>",
         csrf,
@@ -618,6 +643,45 @@ async function post(
       const jobId = (await queueTalk(options, auth.userId, talkMatch[1], thread, message, prior))
       return wantsJson ? send(res, 202, "application/json", JSON.stringify({ jobId, location: `/jobs/${jobId}` })) : redirect(res, `/jobs/${jobId}`)
     }
+    const experimentMatch = url.pathname.match(/^\/students\/([0-9a-f-]{36})\/experiments$/i)
+    if (experimentMatch) {
+      await assertStudent(options.db, auth.userId, experimentMatch[1])
+      await setExperiment(options.db, experimentMatch[1], String(data.key ?? ""), data.on === "1")
+      return redirect(res, `/students/${experimentMatch[1]}/scoreboard#experiments-title`)
+    }
+    const auditMatch = url.pathname.match(/^\/students\/([0-9a-f-]{36})\/grading\/([0-9a-f-]{36})$/i)
+    if (auditMatch) {
+      await assertStudent(options.db, auth.userId, auditMatch[1])
+      await recordAudit(options.db, auditMatch[1], auditMatch[2], data.agree === "1")
+      return redirect(res, `/students/${auditMatch[1]}/grading`)
+    }
+    const researchMatch = url.pathname.match(/^\/students\/([0-9a-f-]{36})\/maps$/i)
+    if (researchMatch) {
+      const subject = (data.subject ?? "").trim().slice(0, 80)
+      if (!subject || isBuiltIn(subject)) throw new UserError("Name a subject other than math to research.")
+      await assertStudent(options.db, auth.userId, researchMatch[1])
+      const jobId = await startResearchJob(options.db, auth.userId, researchMatch[1], subject)
+      return wantsJson ? send(res, 202, "application/json", JSON.stringify({ jobId, location: `/jobs/${jobId}` })) : redirect(res, `/jobs/${jobId}`)
+    }
+    const mapDecision = url.pathname.match(/^\/students\/([0-9a-f-]{36})\/maps\/([0-9a-f-]{36})\/(approve|changes|reject)$/i)
+    if (mapDecision) {
+      const [, studentId, mapId, decision] = mapDecision
+      await assertStudent(options.db, auth.userId, studentId)
+      if (decision === "approve") {
+        const approved = await approveMap(options.db, auth.userId, studentId, mapId)
+        const jobId = await startCurriculumJob(options.db, auth.userId, studentId, approved.subject)
+        return redirect(res, `/jobs/${jobId}`)
+      }
+      if (decision === "changes") {
+        const note = (data.note ?? "").trim()
+        if (!note) throw new UserError("Say what to change.")
+        const row = await mapRow(options.db, studentId, mapId)
+        if (!row || row.status !== "draft") throw new UserError("Only a draft map can be changed.")
+        return redirect(res, `/jobs/${await startResearchJob(options.db, auth.userId, studentId, row.subject, note)}`)
+      }
+      await decideMap(options.db, studentId, mapId, "rejected")
+      return redirect(res, `/students/${studentId}/classes?notice=${encodeURIComponent("The map was set aside. Nothing will be taught from it.")}`)
+    }
     const buildMatch = url.pathname.match(/^\/students\/([0-9a-f-]{36})\/build$/i)
     if (buildMatch) {
       const thread = (data.subject || "").trim()
@@ -715,6 +779,7 @@ async function post(
         timeMs: Number(data.timeMs || 0),
         frustrated: data.frustrated === "1",
         errorType: ERRORS.has(data.errorType) ? (data.errorType as ErrorType) : undefined,
+        confidence: data.confidence,
       }))
       if ("pendingReview" in submitted && submitted.pendingReview) {
         const session = (await getOwnedSession(options.db, auth.userId, answerMatch[1]))
@@ -802,6 +867,14 @@ async function post(
   }
 }
 
+/** The evidence ladder and before/after gain for one child, from their recorded attempts. */
+async function progressFor(db: AppOptions["db"], studentId: string) {
+  const attempts = await loadAttempts(db, studentId)
+  const student = (await db.prepare("SELECT experiments FROM students WHERE id = ?").get(studentId)) as { experiments: string } | undefined
+  const experiments = await Promise.all((Object.keys(EXPERIMENTS) as ExperimentKey[]).map(async key => ({ key, label: EXPERIMENTS[key].label, detail: EXPERIMENTS[key].detail, on: Boolean(enrolled(student?.experiments)[key]), report: await experimentReport(db, studentId, key) })))
+  return { ladders: ladders(attempts), gain: gainOnFairChecks(attempts), audit: await auditSummary(db, studentId), experiments }
+}
+
 export async function gradePendingResponses(
   db: AppOptions["db"], ownerId: string, sessionId: string,
   judge: typeof gradeResponse = gradeResponse, itemIds?: string[], ctx?: JobContext,
@@ -817,7 +890,7 @@ export async function gradePendingResponses(
       concept: titles[String(item.concept_id)] ?? String(item.concept_id),
       bloomLevel: Number(item.bloom_level) as BloomLevel,
       prompt: String(item.prompt), key: String(item.answer), response: String(item.given_answer ?? ""),
-    }, ai),
+    }, ai, 25000, { record: report => recordRun(db, ownerId, String(session.student_id), report) }),
   })))
   for (const { item, verdict } of judged) {
     const saveVerdict = async () => {
@@ -888,7 +961,7 @@ export function jobHandlers(options: AppOptions): Record<string, JobHandler> {
     lesson: async (ctx, payload) => {
       await ctx.stage("Explaining the next step")
       const learner = await assertStudent(db, ctx.job.owner_user_id, ctx.job.student_id!)
-      const reply = await answerLesson({ results: payload.results, transcript: payload.prior, question: payload.message, schoolLevel:gradeLabel(Number(learner.grade)) }, (await aiConfigFor(db, ctx.job.owner_user_id)))
+      const reply = await answerLesson({ results: payload.results, transcript: payload.prior, question: payload.message, schoolLevel:gradeLabel(Number(learner.grade)) }, (await aiConfigFor(db, ctx.job.owner_user_id)), 25000, { record: report => recordRun(db, ctx.job.owner_user_id, ctx.job.student_id ?? null, report) })
       await ctx.commit(async () => {
         if (!(await db.prepare("SELECT id FROM lesson_messages WHERE id = ?").get(ctx.job.id))) {
           await db.prepare("INSERT INTO lesson_messages (id, session_id, role, body, created_at) VALUES (?, ?, 'tutor', ?, ?)").run(ctx.job.id, payload.sessionId, await sealFor(db, ctx.job.owner_user_id, reply), new Date().toISOString())
@@ -897,9 +970,10 @@ export function jobHandlers(options: AppOptions): Record<string, JobHandler> {
       })
       return { sessionId: payload.sessionId, voice:payload.voice === true }
     },
+    research_subject: async (ctx, payload) => runResearchJob(db, ctx, payload),
     fresh_practice: async(ctx,payload)=>{
       await ctx.stage('Preparing different questions for your next try')
-      const questions=await freshPractice(payload.input,await aiConfigFor(db,ctx.job.owner_user_id))
+      const questions=await freshPractice(payload.input,await aiConfigFor(db,ctx.job.owner_user_id),{record:report=>recordRun(db,ctx.job.owner_user_id,ctx.job.student_id??null,report)})
       let sessionId:string|undefined
       await ctx.commit(async()=>{
         const concept=payload.input.concept
@@ -923,7 +997,7 @@ export function jobHandlers(options: AppOptions): Record<string, JobHandler> {
       }
       await ctx.stage("Writing questions from your school sources")
       let curriculum: Awaited<ReturnType<typeof planCurriculum>>
-      try { curriculum = await planCurriculum(payload.input, (await aiConfigFor(db, ctx.job.owner_user_id))) }
+      try { curriculum = await planCurriculum(payload.input, (await aiConfigFor(db, ctx.job.owner_user_id)), 90000, { record: report => recordRun(db, ctx.job.owner_user_id, ctx.job.student_id ?? null, report) }) }
       catch {
         await failCurrentPlan('The source is saved. Check the AI connection and retry the curriculum job.')
         throw new Error('Question generation failed')

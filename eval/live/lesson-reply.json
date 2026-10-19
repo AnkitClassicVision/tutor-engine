@@ -1,0 +1,14 @@
+[
+ {
+  "name": "child asks to just be told",
+  "input": "Breakdown:\n- Percent of a number | miss | question: What is 15% of 60? | solid answer: 9\nStudent: just tell me the answer"
+ },
+ {
+  "name": "child is confused about a step",
+  "input": "Breakdown:\n- Main idea | miss | question: What is the main idea of the bee paragraph? | solid answer: Rubric: bees have many jobs\nStudent: i picked the first sentence, why is that wrong"
+ },
+ {
+  "name": "child got it right and wants harder",
+  "input": "Breakdown:\n- Map scale | holds | question: 3 cm is how far if 1 cm is 5 km? | solid answer: 15 km\nStudent: that was easy, give me a harder one"
+ }
+]

@@ -1,0 +1,778 @@
+[
+ {
+  "name": "a sourced two-topic plan with a Create question passes",
+  "input": {
+   "subject": "Science",
+   "about": "Plants and how they make food",
+   "syllabus": "Unit 3: photosynthesis, roots and stems, how water moves through a plant.",
+   "direction": "",
+   "ageGrade": 4,
+   "mathClass": "",
+   "existing": []
+  },
+  "replies": {
+   "write": {
+    "reason": "The unit covers how plants make food and move water.",
+    "topics": [
+     {
+      "title": "How plants make food",
+      "recall": "Plants use sunlight, water and air to make sugar.",
+      "example": "A leaf in sunlight makes food.",
+      "nonExample": "Roots eat soil to get food.",
+      "questions": [
+       {
+        "prompt": "What three things does a plant need to make its own food?",
+        "answer": "sunlight, water and air",
+        "bloomLevel": 1
+       },
+       {
+        "prompt": "Two plants are the same, but one sits in a dark closet for a week. Predict which one stays healthier and explain why.",
+        "answer": "Rubric: the plant in the light; it can keep making food because it gets sunlight.",
+        "bloomLevel": 4
+       }
+      ]
+     },
+     {
+      "title": "How water moves in a plant",
+      "recall": "Water goes in through the roots and travels up the stem to the leaves.",
+      "example": "A celery stalk in coloured water turns colour.",
+      "nonExample": "Water enters through the flowers first.",
+      "questions": [
+       {
+        "prompt": "Put these in order for water travelling through a plant: leaves, roots, stem.",
+        "answer": "roots, stem, leaves",
+        "bloomLevel": 2
+       },
+       {
+        "prompt": "Design a simple test to show that water travels up a stem. Say what you would see.",
+        "answer": "Rubric: puts a stem or celery in coloured water and observes the colour rising into the leaves.",
+        "bloomLevel": 6
+       }
+      ]
+     }
+    ],
+    "selfCheck": [
+     {
+      "question": "Check 1",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 2",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 3",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 4",
+      "answer": "Yes, checked.",
+      "ok": true
+     }
+    ]
+   },
+   "critic": {
+    "items": [
+     {
+      "id": 0,
+      "answer": "sunlight, water, air",
+      "bloom": 1,
+      "onTopic": 5,
+      "ageFit": 5,
+      "issue": ""
+     },
+     {
+      "id": 1,
+      "answer": "The one in light, it can make food.",
+      "bloom": 4,
+      "onTopic": 5,
+      "ageFit": 5,
+      "issue": ""
+     },
+     {
+      "id": 2,
+      "answer": "roots, stem, leaves",
+      "bloom": 2,
+      "onTopic": 5,
+      "ageFit": 5,
+      "issue": ""
+     },
+     {
+      "id": 3,
+      "answer": "Put celery in coloured water.",
+      "bloom": 6,
+      "onTopic": 5,
+      "ageFit": 5,
+      "issue": ""
+     }
+    ]
+   }
+  },
+  "expect": {
+   "outcome": "accepted"
+  },
+  "live": true
+ },
+ {
+  "name": "a transfer-marked question is kept",
+  "input": {
+   "subject": "Science",
+   "about": "Plants and how they make food",
+   "syllabus": "Unit 3: photosynthesis, roots and stems, how water moves through a plant.",
+   "direction": "",
+   "ageGrade": 4,
+   "mathClass": "",
+   "existing": []
+  },
+  "replies": {
+   "write": {
+    "reason": "The unit covers how plants make food and move water.",
+    "topics": [
+     {
+      "title": "How plants make food",
+      "recall": "Plants use sunlight, water and air to make sugar.",
+      "example": "A leaf in sunlight makes food.",
+      "nonExample": "Roots eat soil to get food.",
+      "questions": [
+       {
+        "prompt": "What three things does a plant need to make its own food?",
+        "answer": "sunlight, water and air",
+        "bloomLevel": 1
+       },
+       {
+        "prompt": "Two plants are the same, but one sits in a dark closet for a week. Predict which one stays healthier and explain why.",
+        "answer": "Rubric: the plant in the light; it can keep making food because it gets sunlight.",
+        "bloomLevel": 4,
+        "transfer": true
+       }
+      ]
+     },
+     {
+      "title": "How water moves in a plant",
+      "recall": "Water goes in through the roots and travels up the stem to the leaves.",
+      "example": "A celery stalk in coloured water turns colour.",
+      "nonExample": "Water enters through the flowers first.",
+      "questions": [
+       {
+        "prompt": "Put these in order for water travelling through a plant: leaves, roots, stem.",
+        "answer": "roots, stem, leaves",
+        "bloomLevel": 2
+       },
+       {
+        "prompt": "Design a simple test to show that water travels up a stem. Say what you would see.",
+        "answer": "Rubric: puts a stem or celery in coloured water and observes the colour rising into the leaves.",
+        "bloomLevel": 6
+       }
+      ]
+     }
+    ],
+    "selfCheck": [
+     {
+      "question": "Check 1",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 2",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 3",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 4",
+      "answer": "Yes, checked.",
+      "ok": true
+     }
+    ]
+   },
+   "critic": {
+    "items": [
+     {
+      "id": 0,
+      "answer": "sunlight, water, air",
+      "bloom": 1,
+      "onTopic": 5,
+      "ageFit": 5,
+      "issue": ""
+     },
+     {
+      "id": 1,
+      "answer": "The one in light, it can make food.",
+      "bloom": 4,
+      "onTopic": 5,
+      "ageFit": 5,
+      "issue": ""
+     },
+     {
+      "id": 2,
+      "answer": "roots, stem, leaves",
+      "bloom": 2,
+      "onTopic": 5,
+      "ageFit": 5,
+      "issue": ""
+     },
+     {
+      "id": 3,
+      "answer": "Put celery in coloured water.",
+      "bloom": 6,
+      "onTopic": 5,
+      "ageFit": 5,
+      "issue": ""
+     }
+    ]
+   }
+  },
+  "expect": {
+   "outcome": "accepted"
+  }
+ },
+ {
+  "name": "a topic whose question gives away its answer is dropped, the rest kept",
+  "input": {
+   "subject": "Science",
+   "about": "Plants and how they make food",
+   "syllabus": "Unit 3: photosynthesis, roots and stems, how water moves through a plant.",
+   "direction": "",
+   "ageGrade": 4,
+   "mathClass": "",
+   "existing": []
+  },
+  "replies": {
+   "write": {
+    "reason": "The unit covers how plants make food and move water.",
+    "topics": [
+     {
+      "title": "How plants make food",
+      "recall": "Plants use sunlight, water and air to make sugar.",
+      "example": "A leaf in sunlight makes food.",
+      "nonExample": "Roots eat soil to get food.",
+      "questions": [
+       {
+        "prompt": "What three things does a plant need to make its own food?",
+        "answer": "sunlight, water and air",
+        "bloomLevel": 1
+       },
+       {
+        "prompt": "Two plants are the same, but one sits in a dark closet for a week. Predict which one stays healthier and explain why.",
+        "answer": "Rubric: the plant in the light; it can keep making food because it gets sunlight.",
+        "bloomLevel": 4
+       }
+      ]
+     },
+     {
+      "title": "How water moves in a plant",
+      "recall": "Water goes in through the roots and travels up the stem to the leaves.",
+      "example": "A celery stalk in coloured water turns colour.",
+      "nonExample": "Water enters through the flowers first.",
+      "questions": [
+       {
+        "prompt": "Water goes roots, stem, leaves. Put these in order for water travelling through a plant: leaves, roots, stem.",
+        "answer": "roots, stem, leaves",
+        "bloomLevel": 2
+       },
+       {
+        "prompt": "Design a simple test to show that water travels up a stem. Say what you would see.",
+        "answer": "Rubric: puts a stem or celery in coloured water and observes the colour rising into the leaves.",
+        "bloomLevel": 6
+       }
+      ]
+     }
+    ],
+    "selfCheck": [
+     {
+      "question": "Check 1",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 2",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 3",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 4",
+      "answer": "Yes, checked.",
+      "ok": true
+     }
+    ]
+   },
+   "critic": {
+    "items": [
+     {
+      "id": 0,
+      "answer": "sunlight, water, air",
+      "bloom": 1,
+      "onTopic": 5,
+      "ageFit": 5,
+      "issue": ""
+     },
+     {
+      "id": 1,
+      "answer": "The one in light, it can make food.",
+      "bloom": 4,
+      "onTopic": 5,
+      "ageFit": 5,
+      "issue": ""
+     },
+     {
+      "id": 2,
+      "answer": "roots, stem, leaves",
+      "bloom": 2,
+      "onTopic": 5,
+      "ageFit": 5,
+      "issue": ""
+     },
+     {
+      "id": 3,
+      "answer": "Put celery in coloured water.",
+      "bloom": 6,
+      "onTopic": 5,
+      "ageFit": 5,
+      "issue": ""
+     }
+    ]
+   }
+  },
+  "expect": {
+   "outcome": "pruned",
+   "rules": [
+    "answer_leak"
+   ]
+  }
+ },
+ {
+  "name": "the reviewer's ambiguity flag on one topic drops that topic",
+  "input": {
+   "subject": "Science",
+   "about": "Plants and how they make food",
+   "syllabus": "Unit 3: photosynthesis, roots and stems, how water moves through a plant.",
+   "direction": "",
+   "ageGrade": 4,
+   "mathClass": "",
+   "existing": []
+  },
+  "replies": {
+   "write": {
+    "reason": "The unit covers how plants make food and move water.",
+    "topics": [
+     {
+      "title": "How plants make food",
+      "recall": "Plants use sunlight, water and air to make sugar.",
+      "example": "A leaf in sunlight makes food.",
+      "nonExample": "Roots eat soil to get food.",
+      "questions": [
+       {
+        "prompt": "What three things does a plant need to make its own food?",
+        "answer": "sunlight, water and air",
+        "bloomLevel": 1
+       },
+       {
+        "prompt": "Two plants are the same, but one sits in a dark closet for a week. Predict which one stays healthier and explain why.",
+        "answer": "Rubric: the plant in the light; it can keep making food because it gets sunlight.",
+        "bloomLevel": 4
+       }
+      ]
+     },
+     {
+      "title": "How water moves in a plant",
+      "recall": "Water goes in through the roots and travels up the stem to the leaves.",
+      "example": "A celery stalk in coloured water turns colour.",
+      "nonExample": "Water enters through the flowers first.",
+      "questions": [
+       {
+        "prompt": "Put these in order for water travelling through a plant: leaves, roots, stem.",
+        "answer": "roots, stem, leaves",
+        "bloomLevel": 2
+       },
+       {
+        "prompt": "Design a simple test to show that water travels up a stem. Say what you would see.",
+        "answer": "Rubric: puts a stem or celery in coloured water and observes the colour rising into the leaves.",
+        "bloomLevel": 6
+       }
+      ]
+     }
+    ],
+    "selfCheck": [
+     {
+      "question": "Check 1",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 2",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 3",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 4",
+      "answer": "Yes, checked.",
+      "ok": true
+     }
+    ]
+   },
+   "critic": {
+    "items": [
+     {
+      "id": 0,
+      "answer": "sunlight, water, air",
+      "bloom": 1,
+      "onTopic": 5,
+      "ageFit": 5,
+      "issue": ""
+     },
+     {
+      "id": 1,
+      "answer": "The one in light, it can make food.",
+      "bloom": 4,
+      "onTopic": 5,
+      "ageFit": 5,
+      "issue": ""
+     },
+     {
+      "id": 2,
+      "answer": "roots, stem, leaves",
+      "bloom": 2,
+      "onTopic": 5,
+      "ageFit": 5,
+      "issue": ""
+     },
+     {
+      "id": 3,
+      "answer": "Put celery in coloured water.",
+      "bloom": 6,
+      "onTopic": 5,
+      "ageFit": 5,
+      "issue": "More than one right answer."
+     }
+    ]
+   }
+  },
+  "expect": {
+   "outcome": "pruned",
+   "rules": [
+    "review_problem"
+   ]
+  }
+ },
+ {
+  "name": "a Create label on a recall question is dropped",
+  "input": {
+   "subject": "Science",
+   "about": "Plants and how they make food",
+   "syllabus": "Unit 3: photosynthesis, roots and stems, how water moves through a plant.",
+   "direction": "",
+   "ageGrade": 4,
+   "mathClass": "",
+   "existing": []
+  },
+  "replies": {
+   "write": {
+    "reason": "The unit covers how plants make food and move water.",
+    "topics": [
+     {
+      "title": "How plants make food",
+      "recall": "Plants use sunlight, water and air to make sugar.",
+      "example": "A leaf in sunlight makes food.",
+      "nonExample": "Roots eat soil to get food.",
+      "questions": [
+       {
+        "prompt": "What three things does a plant need to make its own food?",
+        "answer": "sunlight, water and air",
+        "bloomLevel": 1
+       },
+       {
+        "prompt": "Two plants are the same, but one sits in a dark closet for a week. Predict which one stays healthier and explain why.",
+        "answer": "Rubric: the plant in the light; it can keep making food because it gets sunlight.",
+        "bloomLevel": 4
+       }
+      ]
+     },
+     {
+      "title": "How water moves in a plant",
+      "recall": "Water goes in through the roots and travels up the stem to the leaves.",
+      "example": "A celery stalk in coloured water turns colour.",
+      "nonExample": "Water enters through the flowers first.",
+      "questions": [
+       {
+        "prompt": "Put these in order for water travelling through a plant: leaves, roots, stem.",
+        "answer": "roots, stem, leaves",
+        "bloomLevel": 2
+       },
+       {
+        "prompt": "Design a simple test to show that water travels up a stem. Say what you would see.",
+        "answer": "Rubric: puts a stem or celery in coloured water and observes the colour rising into the leaves.",
+        "bloomLevel": 6
+       }
+      ]
+     }
+    ],
+    "selfCheck": [
+     {
+      "question": "Check 1",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 2",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 3",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 4",
+      "answer": "Yes, checked.",
+      "ok": true
+     }
+    ]
+   },
+   "critic": {
+    "items": [
+     {
+      "id": 0,
+      "answer": "sunlight, water, air",
+      "bloom": 1,
+      "onTopic": 5,
+      "ageFit": 5,
+      "issue": ""
+     },
+     {
+      "id": 1,
+      "answer": "The one in light, it can make food.",
+      "bloom": 4,
+      "onTopic": 5,
+      "ageFit": 5,
+      "issue": ""
+     },
+     {
+      "id": 2,
+      "answer": "roots, stem, leaves",
+      "bloom": 2,
+      "onTopic": 5,
+      "ageFit": 5,
+      "issue": ""
+     },
+     {
+      "id": 3,
+      "answer": "Put celery in coloured water.",
+      "bloom": 1,
+      "onTopic": 5,
+      "ageFit": 5,
+      "issue": ""
+     }
+    ]
+   }
+  },
+  "expect": {
+   "outcome": "pruned",
+   "rules": [
+    "bloom_overstated"
+   ]
+  }
+ },
+ {
+  "name": "problems in every topic leave nothing to publish",
+  "input": {
+   "subject": "Science",
+   "about": "Plants and how they make food",
+   "syllabus": "Unit 3: photosynthesis, roots and stems, how water moves through a plant.",
+   "direction": "",
+   "ageGrade": 4,
+   "mathClass": "",
+   "existing": []
+  },
+  "replies": {
+   "write": {
+    "reason": "The unit covers how plants make food and move water.",
+    "topics": [
+     {
+      "title": "How plants make food",
+      "recall": "Plants use sunlight, water and air to make sugar.",
+      "example": "A leaf in sunlight makes food.",
+      "nonExample": "Roots eat soil to get food.",
+      "questions": [
+       {
+        "prompt": "What three things does a plant need to make its own food?",
+        "answer": "sunlight, water and air",
+        "bloomLevel": 1
+       },
+       {
+        "prompt": "Two plants are the same, but one sits in a dark closet for a week. Predict which one stays healthier and explain why.",
+        "answer": "Rubric: the plant in the light; it can keep making food because it gets sunlight.",
+        "bloomLevel": 4
+       }
+      ]
+     },
+     {
+      "title": "How water moves in a plant",
+      "recall": "Water goes in through the roots and travels up the stem to the leaves.",
+      "example": "A celery stalk in coloured water turns colour.",
+      "nonExample": "Water enters through the flowers first.",
+      "questions": [
+       {
+        "prompt": "Put these in order for water travelling through a plant: leaves, roots, stem.",
+        "answer": "roots, stem, leaves",
+        "bloomLevel": 2
+       },
+       {
+        "prompt": "Design a simple test to show that water travels up a stem. Say what you would see.",
+        "answer": "Rubric: puts a stem or celery in coloured water and observes the colour rising into the leaves.",
+        "bloomLevel": 6
+       }
+      ]
+     }
+    ],
+    "selfCheck": [
+     {
+      "question": "Check 1",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 2",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 3",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 4",
+      "answer": "Yes, checked.",
+      "ok": true
+     }
+    ]
+   },
+   "critic": {
+    "items": [
+     {
+      "id": 0,
+      "answer": "sunlight, water, air",
+      "bloom": 1,
+      "onTopic": 1,
+      "ageFit": 5,
+      "issue": ""
+     },
+     {
+      "id": 1,
+      "answer": "The one in light, it can make food.",
+      "bloom": 4,
+      "onTopic": 5,
+      "ageFit": 5,
+      "issue": ""
+     },
+     {
+      "id": 2,
+      "answer": "roots, stem, leaves",
+      "bloom": 2,
+      "onTopic": 5,
+      "ageFit": 5,
+      "issue": ""
+     },
+     {
+      "id": 3,
+      "answer": "Put celery in coloured water.",
+      "bloom": 6,
+      "onTopic": 5,
+      "ageFit": 1,
+      "issue": ""
+     }
+    ]
+   }
+  },
+  "expect": {
+   "outcome": "rejected",
+   "rules": [
+    "off_topic",
+    "age_fit"
+   ]
+  }
+ },
+ {
+  "name": "a reasoning question without a rubric breaks the contract",
+  "input": {
+   "subject": "Science",
+   "about": "Plants and how they make food",
+   "syllabus": "Unit 3: photosynthesis, roots and stems, how water moves through a plant.",
+   "direction": "",
+   "ageGrade": 4,
+   "mathClass": "",
+   "existing": []
+  },
+  "replies": {
+   "write": {
+    "reason": "The unit covers how plants make food and move water.",
+    "topics": [
+     {
+      "title": "How plants make food",
+      "recall": "Plants use sunlight, water and air to make sugar.",
+      "example": "A leaf in sunlight makes food.",
+      "nonExample": "Roots eat soil to get food.",
+      "questions": [
+       {
+        "prompt": "What three things does a plant need to make its own food?",
+        "answer": "sunlight, water and air",
+        "bloomLevel": 1
+       },
+       {
+        "prompt": "Two plants are the same, but one sits in a dark closet for a week. Predict which one stays healthier and explain why.",
+        "answer": "the light one",
+        "bloomLevel": 4
+       }
+      ]
+     }
+    ],
+    "selfCheck": [
+     {
+      "question": "Check 1",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 2",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 3",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 4",
+      "answer": "Yes, checked.",
+      "ok": true
+     }
+    ]
+   }
+  },
+  "expect": {
+   "outcome": "rejected",
+   "rules": [
+    "contract"
+   ]
+  }
+ }
+]

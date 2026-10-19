@@ -1,0 +1,194 @@
+[
+ {
+  "name": "every visible question is read with its number",
+  "input": {
+   "input": {
+    "transcription": "1. 12 + 9 = 21\n2. 30 - 14 = ___",
+    "kind": "homework",
+    "workState": "partial",
+    "concepts": [
+     {
+      "id": "math.2.add",
+      "title": "Add within 100"
+     }
+    ]
+   },
+   "presentationGrade": 2,
+   "history": "",
+   "concepts": [
+    "math.2.add"
+   ]
+  },
+  "replies": {
+   "write": {
+    "questions": [
+     {
+      "number": "1",
+      "prompt": "12 + 9 =",
+      "figure": "",
+      "visibleWork": "21",
+      "answerKey": "21",
+      "teacherMark": "",
+      "conceptId": "math.2.add",
+      "readable": true,
+      "confidence": 0.97
+     },
+     {
+      "number": "2",
+      "prompt": "30 - 14 =",
+      "figure": "",
+      "visibleWork": "",
+      "answerKey": "16",
+      "teacherMark": "",
+      "conceptId": null,
+      "readable": true,
+      "confidence": 0.95
+     }
+    ],
+    "selfCheck": [
+     {
+      "question": "Check 1",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 2",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 3",
+      "answer": "Yes, checked.",
+      "ok": true
+     }
+    ]
+   }
+  },
+  "expect": {
+   "outcome": "accepted"
+  },
+  "live": true
+ },
+ {
+  "name": "a confidence outside 0-1 is refused",
+  "input": {
+   "input": {
+    "transcription": "1. 12 + 9 = 21\n2. 30 - 14 = ___",
+    "kind": "homework",
+    "workState": "partial",
+    "concepts": [
+     {
+      "id": "math.2.add",
+      "title": "Add within 100"
+     }
+    ]
+   },
+   "presentationGrade": 2,
+   "history": "",
+   "concepts": [
+    "math.2.add"
+   ]
+  },
+  "replies": {
+   "write": {
+    "questions": [
+     {
+      "number": "1",
+      "prompt": "12 + 9 =",
+      "figure": "",
+      "visibleWork": "21",
+      "answerKey": "21",
+      "teacherMark": "",
+      "conceptId": "math.2.add",
+      "readable": true,
+      "confidence": 1.4
+     }
+    ],
+    "selfCheck": [
+     {
+      "question": "Check 1",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 2",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 3",
+      "answer": "Yes, checked.",
+      "ok": true
+     }
+    ]
+   }
+  },
+  "expect": {
+   "outcome": "rejected",
+   "rules": [
+    "schema"
+   ]
+  }
+ },
+ {
+  "name": "the model's own check that it skipped a question blocks",
+  "input": {
+   "input": {
+    "transcription": "1. 12 + 9 = 21\n2. 30 - 14 = ___",
+    "kind": "homework",
+    "workState": "partial",
+    "concepts": [
+     {
+      "id": "math.2.add",
+      "title": "Add within 100"
+     }
+    ]
+   },
+   "presentationGrade": 2,
+   "history": "",
+   "concepts": [
+    "math.2.add"
+   ]
+  },
+  "replies": {
+   "write": {
+    "questions": [
+     {
+      "number": "1",
+      "prompt": "12 + 9 =",
+      "figure": "",
+      "visibleWork": "21",
+      "answerKey": "21",
+      "teacherMark": "",
+      "conceptId": "math.2.add",
+      "readable": true,
+      "confidence": 0.97
+     }
+    ],
+    "selfCheck": [
+     {
+      "question": "Check 1",
+      "answer": "Yes, checked.",
+      "ok": false
+     },
+     {
+      "question": "Check 1",
+      "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 2",
+      "answer": "Yes, checked.",
+      "ok": true
+     }
+    ]
+   }
+  },
+  "expect": {
+   "outcome": "rejected",
+   "rules": [
+    "self_check"
+   ]
+  }
+ }
+]

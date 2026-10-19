@@ -1,0 +1,46 @@
+{
+ "fresh-practice": {
+  "version": 3,
+  "fingerprint": "05a78deb5b6ec987"
+ },
+ "grade-response": {
+  "version": 4,
+  "fingerprint": "ff0a12a5884ec544"
+ },
+ "guide-school-homework": {
+  "version": 2,
+  "fingerprint": "eb02e3ab5749f53d"
+ },
+ "lesson-reply": {
+  "version": 2,
+  "fingerprint": "59c85524da8c701e"
+ },
+ "parent-planner": {
+  "version": 2,
+  "fingerprint": "9c2218241315bf77"
+ },
+ "plan-class-talk": {
+  "version": 2,
+  "fingerprint": "c259f31c836baff9"
+ },
+ "plan-curriculum": {
+  "version": 4,
+  "fingerprint": "695c9fd45d80a4d2"
+ },
+ "read-school-material": {
+  "version": 2,
+  "fingerprint": "af6e71ede4b91fcf"
+ },
+ "research-subject": {
+  "version": 5,
+  "fingerprint": "2b8f8d9ebb18db0d"
+ },
+ "review-school-homework": {
+  "version": 2,
+  "fingerprint": "70defb34df010e94"
+ },
+ "verify-judgment": {
+  "version": 3,
+  "fingerprint": "bd67fd81912df0b1"
+ }
+}

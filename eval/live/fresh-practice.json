@@ -1,0 +1,114 @@
+[
+ {
+  "name": "science, understand level, grade 4",
+  "input": {
+   "concept": {
+    "conceptId": "c1",
+    "subject": "Science",
+    "grade": 4,
+    "title": "How plants make food",
+    "prereqs": [],
+    "recall": "Plants use sunlight, water and air to make sugar in their leaves.",
+    "example": "A leaf in sunlight makes food.",
+    "nonExample": "Roots eat soil for food."
+   },
+   "demand": 2,
+   "asked": [],
+   "evidence": ""
+  }
+ },
+ {
+  "name": "history, analyse level, grade 7",
+  "input": {
+   "concept": {
+    "conceptId": "c2",
+    "subject": "History",
+    "grade": 7,
+    "title": "Causes of the First World War",
+    "prereqs": [],
+    "recall": "Alliances, militarism, imperialism and nationalism turned a local crisis into a world war.",
+    "example": "The assassination in Sarajevo pulled allies into war.",
+    "nonExample": "The war started because of one speech."
+   },
+   "demand": 4,
+   "asked": [
+    "List the four main causes of the First World War."
+   ],
+   "evidence": "Recalls the causes but mixes up which alliance each country was in."
+  }
+ },
+ {
+  "name": "vocabulary, prefixes, grade 3",
+  "input": {
+   "concept": {
+    "conceptId": "c3",
+    "subject": "Reading",
+    "grade": 3,
+    "title": "The prefix un-",
+    "prereqs": [],
+    "recall": "Un- at the start of a word means not or the opposite.",
+    "example": "Unhappy means not happy.",
+    "nonExample": "Under is not un- plus der."
+   },
+   "demand": 2,
+   "asked": [],
+   "evidence": ""
+  }
+ },
+ {
+  "name": "math, percentages, apply, grade 6",
+  "input": {
+   "concept": {
+    "conceptId": "c4",
+    "subject": "Math",
+    "grade": 6,
+    "title": "Percent of a number",
+    "prereqs": [],
+    "recall": "To find a percent of a number, write the percent as a fraction of 100 and multiply.",
+    "example": "25% of 40 is 10.",
+    "nonExample": "25% of 40 is 25."
+   },
+   "demand": 3,
+   "asked": [
+    "What is 10% of 50?"
+   ],
+   "evidence": "Gets 10% right, slips on 15% and 35%."
+  }
+ },
+ {
+  "name": "geography, evaluate level, grade 5",
+  "input": {
+   "concept": {
+    "conceptId": "c5",
+    "subject": "Geography",
+    "grade": 5,
+    "title": "Reading a map scale",
+    "prereqs": [],
+    "recall": "A map scale tells how far a distance on the map is in real life.",
+    "example": "1 cm on the map is 10 km.",
+    "nonExample": "Bigger maps always show bigger places."
+   },
+   "demand": 5,
+   "asked": [],
+   "evidence": "Solid at measuring with the scale."
+  }
+ },
+ {
+  "name": "reading, main idea, apply, grade 4",
+  "input": {
+   "concept": {
+    "conceptId": "c6",
+    "subject": "Reading",
+    "grade": 4,
+    "title": "Finding the main idea",
+    "prereqs": [],
+    "recall": "The main idea is what most of the paragraph is about, not one detail.",
+    "example": "A paragraph about bee jobs: bees have many jobs in a hive.",
+    "nonExample": "The main idea is the first sentence, always."
+   },
+   "demand": 3,
+   "asked": [],
+   "evidence": ""
+  }
+ }
+]

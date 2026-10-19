@@ -1,3 +1,4 @@
+import { noteChangedMind } from "./museum.ts"
 import { sealFor, sealForStudent } from "./family-crypto.ts"
 import { WORLDS } from './worlds.ts'
 import { validateImage, stripImageMetadata } from "./image-validation.ts"
@@ -61,6 +62,7 @@ interface StudentRow {
   grade_hold: number
   math_course: MathCourse
   subjects: string
+  experiments?: string
 }
 
 export async function createStudent(
@@ -404,6 +406,8 @@ export async function startTutorSession(
         selectedExplanation,
       )
       if (repeated) await db.prepare("UPDATE session_items SET skipped = 1, skip_reason = 'repeated_prompt' WHERE id = ?").run(item.itemId)
+      // A question written to use the idea somewhere new is transfer evidence when answered unaided.
+      if (fresh && practice.kind === "transfer" && selectedPrompt === practice.prompt) await db.prepare("UPDATE session_items SET evidence_kind = 'transfer' WHERE id = ?").run(item.itemId)
       // Guided work starts with the fuller hint showing and faded work with the first one; both count as help.
       if (slot.beat === "guided" || slot.beat === "faded") {
         const shown = slot.beat === "guided" ? selectedHints[1] ?? selectedHints[0] : selectedHints[0]
@@ -528,7 +532,7 @@ export async function submitAnswer(
   db: DatabaseSync,
   ownerUserId: string,
   sessionId: string,
-  input: { itemId: string; answer: string; timeMs?: number; errorType?: ErrorType; frustrated?: boolean },
+  input: { itemId: string; answer: string; timeMs?: number; errorType?: ErrorType; frustrated?: boolean; confidence?: string },
   now = new Date(),
 ) {
   return withWrite(db, async () => {
@@ -556,6 +560,8 @@ export async function submitAnswer(
     if (feedbackState(String(session.mode), items, Number(session.feedback_cursor ?? 0)).checkpoint) throw new UserError("Review your feedback before the next question.")
     if (!current || current.id !== input.itemId) throw new UserError("That item is not the current one.")
     const raw = input.answer ?? ""
+    // How sure the child said they were. Optional; stored beside the answer to compare with the result.
+    if (["sure", "think", "guess"].includes(String(input.confidence))) await db.prepare("UPDATE session_items SET confidence = ? WHERE id = ?").run(input.confidence!, current.id)
     const expected = String(current.answer)
     const gradable = itemGradable(current)
     const scored = scoreItem(gradable, raw)
@@ -627,6 +633,7 @@ export async function submitAnswer(
     await db.prepare(
       "UPDATE session_items SET answered = 1, correct = ?, error_type = ?, time_ms = ?, given_answer = ?, submitted_at = ? WHERE id = ?",
     ).run(scored.correct ? 1 : 0, errorType, timeMs, await sealForStudent(db, String(session.student_id), raw), now.toISOString(), current.id)
+    if (scored.correct) await noteChangedMind(db, sessionId, String(current.id), now)
     const teachingConcept = (await studentGraph(db, String(session.student_id))).nodes.get(String(current.concept_id))
     const recovery = scored.correct ? null : childCorrection(errorType ? corrective(errorType).label : "Let’s check the idea", current, teachingConcept)
     const flags = (await rollingSix(db, String(session.student_id), String(current.concept_id), Number(current.bloom_level)))
@@ -661,6 +668,7 @@ export async function submitAnswer(
           itemId: current.id,
           corrective: recovery,
           action: action.type,
+          confidence: ["sure", "think", "guess"].includes(String(input.confidence)) ? input.confidence : null,
         }),
         sessionId,
       )
@@ -746,6 +754,7 @@ export async function reviewAnswer(
       if (action.type === "change_modality" && next.concept_id === item.concept_id && next.bloom_level === item.bloom_level) await db.prepare("UPDATE session_items SET surface = ? WHERE id = ?").run(action.to, next.id)
     }
     await recordTeachingOutcome(db, session, item, input.correct, input.reason ?? 'Reviewed against the stored key or rubric.', now)
+    if (input.correct) await noteChangedMind(db, sessionId, String(item.id), now)
     if (!next) await completeFollowup(db, String(session.student_id), sessionId, dayStamp(now))
     if (!next && (session.mode === "homework" || session.mode === "assessment")) {
       await reviseAgenda(db, String(session.student_id), String(session.subject), sessionId)
@@ -1272,8 +1281,11 @@ export async function loadAttempts(db: DatabaseSync, studentId: string): Promise
     return ({
     fresh: item ? firstByPrompt.get(String(item.prompt).trim().toLowerCase().replace(/\s+/g, " ")) === String(item.id) : false,
     promptKey: item ? String(item.prompt).trim().toLowerCase().replace(/\s+/g, " ") : undefined,
-    evidenceCertainty: item ? (!String(item.given_answer ?? "").trim() || /^(?:\?|unreadable|unclear|illegible)$/i.test(String(item.given_answer).trim()) ? "unresolved" as const : "confirmed" as const) : "legacy" as const,
+    // A grade a parent disputed counts neither way.
+    evidenceCertainty: item ? (Number(item.disputed) === 1 || !String(item.given_answer ?? "").trim() || /^(?:\?|unreadable|unclear|illegible)$/i.test(String(item.given_answer).trim()) ? "unresolved" as const : "confirmed" as const) : "legacy" as const,
     supportUsed: item?.mode === "homework" ? "homework" as const : Number(row.hints_used) > 0 ? "hint" as const : "none" as const,
+    kind: item?.evidence_kind === "transfer" ? "transfer" as const : "practice" as const,
+    confidence: ["sure", "think", "guess"].includes(String(item?.confidence)) ? String(item!.confidence) as "sure" | "think" | "guess" : undefined,
     decisionReason: item ? "Stored key or reviewed rubric; support and prompt provenance retained." : "Historical evidence lacks linked prompt provenance; retained without a verified claim.",
     attemptId: String(row.id),
     createdAt: String(row.created_at),
@@ -1376,7 +1388,7 @@ export async function applyCurriculum(
   ownerUserId: string,
   studentId: string,
   subject: string,
-  topics: Array<{ title: string; recall: string; example: string; nonExample: string; questions: Array<{ prompt: string; answer: string; bloomLevel?: BloomLevel }> }>,
+  topics: Array<{ title: string; recall: string; example: string; nonExample: string; questions: Array<{ prompt: string; answer: string; bloomLevel?: BloomLevel; transfer?: boolean }> }>,
   now = new Date(),
 ) {
   await assertStudent(db, ownerUserId, studentId, now)
@@ -1411,7 +1423,7 @@ export async function applyCurriculum(
         .prepare("SELECT id FROM practice_items WHERE student_id = ? AND concept_id = ? AND prompt = ?")
         .get(studentId, conceptId, question.prompt))
       if (duplicate) continue
-      await insertPractice(db, studentId, conceptId, question.prompt, question.answer, question.bloomLevel ?? 3, now)
+      await insertPractice(db, studentId, conceptId, question.prompt, question.answer, question.bloomLevel ?? 3, now, question.transfer ? "transfer" : "practice")
       questions += 1
     }
   }
@@ -1672,6 +1684,14 @@ export async function acceptPlan(db: DatabaseSync, ownerUserId: string, studentI
   if (plan.mathCourse && plan.mathCourse !== student.math_course && subject.toLowerCase() === "math") {
     await setPlacement(db, ownerUserId, studentId, { mathCourse: plan.mathCourse, subjects: parseSubjects(student.subjects) })
   }
+  // A subject with no built-in course and nothing taught yet is researched before topics are posted.
+  // The conversation, with its suggested topics, is saved above as the research's source.
+  const known = (await db.prepare("SELECT count(*) AS n FROM custom_concepts WHERE student_id = ? AND lower(subject) = lower(?)").get(studentId, subject)) as { n: number }
+  const mapped = await db.prepare("SELECT id FROM subject_maps WHERE student_id = ? AND lower(subject) = lower(?) AND status = 'approved'").get(studentId, subject)
+  if (!/^maths?$/i.test(subject) && !Number(known.n) && !mapped) {
+    await addTalk(db, ownerUserId, studentId, { subject, role: "tutor", body: `${subject} is new, so I will research it first. You will see its subject map to approve before anything is taught.` })
+    return { subject, about: plan.about }
+  }
   const posted = (await applyCurriculum(
     db,
     ownerUserId,
@@ -1708,6 +1728,10 @@ export async function settleStuckPlans(db: DatabaseSync) {
     // A generic plan recovery must not bypass its source or claim it is ready.
     const latest = await db.prepare("SELECT payload FROM jobs WHERE student_id = ? AND kind = 'curriculum' AND json_extract(payload, '$.subject') = ? ORDER BY created_at DESC, rowid DESC LIMIT 1").get(row.student_id, row.subject)
     if (latest && JSON.parse(String(latest.payload)).schoolSource) continue
+    // A subject waiting on research, on the parent's approval of its map, or whose map failed or was set aside
+    // is not stuck; restarting it here would teach without an approved map.
+    const map = await db.prepare("SELECT status FROM subject_maps WHERE student_id = ? AND lower(subject) = lower(?) AND status != 'superseded' ORDER BY version DESC LIMIT 1").get(row.student_id, row.subject) as { status: string } | undefined
+    if (map && map.status !== "approved") continue
     const proposal = (await latestProposal(db, row.student_id, row.subject))
     if (proposal) {
       await applyCurriculum(
@@ -1970,7 +1994,7 @@ async function studentGraph(db: DatabaseSync, studentId: string) {
     subject: String(row.subject),
     grade: Number(row.grade),
     title: String(row.title),
-    prereqs: [],
+    prereqs: (() => { try { const list = JSON.parse(String(row.prereqs ?? "[]")); return Array.isArray(list) ? list.map(String) : [] } catch { return [] } })(),
     recall: String(row.recall),
     example: String(row.example),
     nonExample: String(row.non_example),
@@ -2035,10 +2059,11 @@ async function insertPractice(
   answer: string,
   bloom: number,
   now: Date,
+  kind: "practice" | "transfer" = "practice",
 ) {
   await db.prepare(
-    "INSERT INTO practice_items (id, student_id, concept_id, prompt, answer, bloom_level, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-  ).run(crypto.randomUUID(), studentId, conceptId, prompt, answer, bloom, now.toISOString())
+    "INSERT INTO practice_items (id, student_id, concept_id, prompt, answer, bloom_level, created_at, evidence_kind) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+  ).run(crypto.randomUUID(), studentId, conceptId, prompt, answer, bloom, now.toISOString(), kind)
 }
 
 /** A session item as the marker sees it: its key, its format and, for multiple choice, its options. */
@@ -2065,13 +2090,13 @@ export function childCorrection(label: string, item: Record<string, SQLInputValu
   return { label, why: reason, ask, explain, answer, reset, move: `${reason ? `${reason} ` : ""}${explain} The answer: ${sentence(answer)} ${next}`.trim() }
 }
 
-export interface ClaimedPractice { prompt: string; answer: string; bloom: BloomLevel; format: string; choices: string[] | null; hints: string[] | null; explanation: string; packId: string | null }
+export interface ClaimedPractice { prompt: string; answer: string; bloom: BloomLevel; format: string; choices: string[] | null; hints: string[] | null; explanation: string; packId: string | null; kind?: "practice" | "transfer" }
 
 /** Takes the best unused stored question: learning-pack questions first, then the closest demand, then the oldest. Seen prompts are spent and skipped. */
 async function claimPractice(db: DatabaseSync, studentId: string, conceptId: string, now: Date, bloom: number, seen: Set<string>, packOnly = false): Promise<ClaimedPractice | null> {
   const rows = (await db
     .prepare(
-      `SELECT id, prompt, answer, bloom_level, pack_id, format, choices_json, hints_json, explanation FROM practice_items
+      `SELECT id, prompt, answer, bloom_level, pack_id, format, choices_json, hints_json, explanation, evidence_kind FROM practice_items
        WHERE student_id = ? AND concept_id = ? AND used_at IS NULL ${packOnly ? "AND pack_id IS NOT NULL" : ""}
        ORDER BY CASE WHEN pack_id IS NULL THEN 1 ELSE 0 END, abs(bloom_level - ?), created_at LIMIT 12`,
     )
@@ -2084,6 +2109,7 @@ async function claimPractice(db: DatabaseSync, studentId: string, conceptId: str
       prompt: String(row.prompt), answer: String(row.answer), bloom: Number(row.bloom_level) as BloomLevel,
       format: String(row.format ?? "text"), choices: list(row.choices_json), hints: list(row.hints_json), explanation: String(row.explanation ?? ""),
       packId: row.pack_id ? String(row.pack_id) : null,
+      kind: row.evidence_kind === "transfer" ? "transfer" as const : "practice" as const,
     }
   }
   return null
