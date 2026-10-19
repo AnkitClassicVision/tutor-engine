@@ -64,6 +64,8 @@ test('the parent overview fits one phone screen and every section has its own pa
   // The planner drawer remembers it was open on this tab; close it before using the page.
   if (await page.locator('#planner-drawer').isVisible()) await page.keyboard.press('Escape')
   await page.getByRole('button', { name: 'Lock and return to student mode' }).click()
+  // The lock is a form post; let it finish before opening the next page, or WebKit can cancel it.
+  await page.waitForURL(u => !u.pathname.endsWith('/parent'))
   await page.goto(`/students/${student}/scoreboard`)
   await expect(page.getByRole('heading', { name: 'How learning is going', exact: true })).toHaveCount(0)
 })

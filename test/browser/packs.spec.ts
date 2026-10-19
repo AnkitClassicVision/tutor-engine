@@ -33,6 +33,8 @@ test('a child asks in their own words, watches it being made, gets a short lesso
   const student = await onboard(page)
   await page.goto(`/students/${student}/parent`)
   await page.getByRole('button', { name: 'Lock and return to student mode' }).click()
+  // The lock is a form post; let it finish before opening the next page, or WebKit can cancel it.
+  await page.waitForURL(u => !u.pathname.endsWith('/parent'))
   await page.goto(`/students/${student}`)
   const card = page.locator('[data-pack-ask]')
   await expect(card.getByRole('heading', { name: 'What do you want to practise?' })).toBeVisible()
@@ -93,6 +95,8 @@ test('a child can see the plan first, change how many, and then make it', async 
   const student = await onboard(page)
   await page.goto(`/students/${student}/parent`)
   await page.getByRole('button', { name: 'Lock and return to student mode' }).click()
+  // The lock is a form post; let it finish before opening the next page, or WebKit can cancel it.
+  await page.waitForURL(u => !u.pathname.endsWith('/parent'))
   await page.goto(`/students/${student}`)
   const card = page.locator('[data-pack-ask]')
   await card.getByLabel('What do you want to practise?').fill('times tables for 7')

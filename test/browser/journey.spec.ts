@@ -63,6 +63,8 @@ test('sample-test photos become dated learning practice and remain separate from
   await expect(page.getByText('Practice plan ready', { exact: true })).toBeVisible()
   await page.goto(`/students/${student}/parent`)
   await page.getByRole('button', { name: 'Lock and return to student mode' }).click()
+  // The lock is a form post; let it finish before opening the next page, or WebKit can cancel it.
+  await page.waitForURL(u => !u.pathname.endsWith('/parent'))
   await page.goto(materialUrl)
   await expect(page.locator('[data-learning-source]')).toHaveCount(0)
   await expect(page.getByRole('img', { name: 'Original school page 1' })).toBeVisible()
@@ -147,6 +149,8 @@ test('parent lock is enforced after refresh and keyboard unlock restores setting
   const student = await onboard(page)
   await page.goto(`/students/${student}/parent`)
   await page.getByRole('button', { name: 'Lock and return to student mode' }).click()
+  // The lock is a form post; let it finish before opening the next page, or WebKit can cancel it.
+  await page.waitForURL(u => !u.pathname.endsWith('/parent'))
   await page.goto('/settings')
   await expect(page.getByRole('heading', { name: 'Unlock the parent area' })).toBeVisible()
   await page.getByLabel('Parent password', { exact: true }).fill('long-browser-password')
