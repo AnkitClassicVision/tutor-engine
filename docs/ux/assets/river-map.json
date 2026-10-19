@@ -1,0 +1,485 @@
+{
+  "title": "Tutor UX river map",
+  "base_commit": "97b0295982f0925abce49d54065309ae453a3487",
+  "status": "Proposed framework; no human validation performed",
+  "nodes": [
+    {
+      "id": "L",
+      "word": "Independent learning",
+      "parent": null,
+      "quick": "The logical goal: capability the child can use without solution help.",
+      "why": "Keeps usability, learning and healthy return aligned.",
+      "relates": "Receives the learner, experience and evidence branches.",
+      "deep": "Measure interface independence and learning independence separately; preserve a voluntary stopping point.",
+      "example": "Solve a fresh task next week.",
+      "eli5": "You can do it yourself."
+    },
+    {
+      "id": "A",
+      "word": "Know the learner",
+      "parent": "L",
+      "quick": "Understand the people and conditions the tutor must serve.",
+      "why": "Prevents a polished experience for the wrong user.",
+      "relates": "Groups learner fit, motivation and trust.",
+      "deep": "Use observed needs and explicit preferences; age alone cannot define reading or subject ability.",
+      "example": "A strong reader who needs larger controls.",
+      "eli5": "Learn who needs what."
+    },
+    {
+      "id": "A1",
+      "word": "Learner fit",
+      "parent": "A",
+      "quick": "Match presentation and tasks to the actual learner.",
+      "why": "Reduces avoidable effort before teaching starts.",
+      "relates": "Combines age bands, access needs and contexts.",
+      "deep": "Separate interface complexity, reading support and subject readiness.",
+      "example": "Advanced math with spoken instructions.",
+      "eli5": "Make the tool fit you."
+    },
+    {
+      "id": "A11",
+      "word": "Age bands",
+      "parent": "A1",
+      "quick": "Initial presentation defaults for 5–7, 8–10 and 11–14.",
+      "why": "A five-year-old and teenager need different presentation.",
+      "relates": "Informs learner fit and the shared design system.",
+      "deep": "Use the repo's bands, then permit support overrides without changing mastery rules.",
+      "example": "Large tiles and Hear this for 5–7.",
+      "eli5": "Start with a suitable size."
+    },
+    {
+      "id": "A12",
+      "word": "Access needs",
+      "parent": "A1",
+      "quick": "Supports for seeing, hearing, reading, moving and communicating.",
+      "why": "Allows a child to show knowledge through a usable interface.",
+      "relates": "Directly informs multimodal input and usability tests.",
+      "deep": "Keep motion, speech and reading support independent; verify the assessed skill survives the accommodation.",
+      "example": "Read a math prompt aloud.",
+      "eli5": "Give everyone a usable way."
+    },
+    {
+      "id": "A13",
+      "word": "Contexts",
+      "parent": "A1",
+      "quick": "The setting, device, connectivity and adult availability.",
+      "why": "An interface must work where learning actually occurs.",
+      "relates": "Constrains setup, resume, input and recovery.",
+      "deep": "Test phone, tablet, laptop, shared devices and interrupted use separately.",
+      "example": "Homework on an iPad at the kitchen table.",
+      "eli5": "Where and how you learn."
+    },
+    {
+      "id": "A2",
+      "word": "Motivation",
+      "parent": "A",
+      "quick": "Reasons to begin, persist and return to learning.",
+      "why": "Engagement should support growing capability.",
+      "relates": "Combines agency, competence and belonging.",
+      "deep": "Look for voluntary return and meaningful work; minutes alone are ambiguous.",
+      "example": "Return to finish a personally chosen build.",
+      "eli5": "Have a reason to try."
+    },
+    {
+      "id": "A21",
+      "word": "Agency",
+      "parent": "A2",
+      "quick": "Meaningful control over choices, help and stopping.",
+      "why": "Protects ownership and prevents pressure to continue.",
+      "relates": "Guides workflow contracts and the finish screen.",
+      "deep": "Offer bounded choices; keep pause and stop available without lost progress.",
+      "example": "Choose an example or finish for today.",
+      "eli5": "You get a real choice."
+    },
+    {
+      "id": "A22",
+      "word": "Competence",
+      "parent": "A2",
+      "quick": "A visible sense of growing ability.",
+      "why": "Makes progress satisfying for a useful reason.",
+      "relates": "Connects motivation with feedback and independent mastery.",
+      "deep": "Celebrate an observed strategy or demonstrated skill; avoid empty praise and automatic mastery rewards.",
+      "example": "You checked the pieces were equal.",
+      "eli5": "See what you can do."
+    },
+    {
+      "id": "A23",
+      "word": "Belonging",
+      "parent": "A2",
+      "quick": "Feeling welcomed, respected and able to ask for help.",
+      "why": "Supports participation without shame or comparison.",
+      "relates": "Shapes feedback, adult handoff and child protection.",
+      "deep": "Use an inclusive tone and warm character without demanding loyalty or pretending emotional dependence.",
+      "example": "Let's try a different way.",
+      "eli5": "You are welcome here."
+    },
+    {
+      "id": "A3",
+      "word": "Trust",
+      "parent": "A",
+      "quick": "Understandable protection, control and truthful claims.",
+      "why": "Families need confidence that matches actual behavior.",
+      "relates": "Groups child protection, adult control and honest AI.",
+      "deep": "Show who can see work, what is saved and how errors are challenged.",
+      "example": "A parent can inspect an uncertain grade.",
+      "eli5": "Know what you can rely on."
+    },
+    {
+      "id": "A31",
+      "word": "Child protection",
+      "parent": "A3",
+      "quick": "Boundaries for content, privacy, data use and wellbeing.",
+      "why": "Avoids harm within ordinary learning workflows.",
+      "relates": "Constrains setup, input, release gates and retention of data.",
+      "deep": "Use age-appropriate notices, limited data and a reachable human help route; verify actual deployment duties.",
+      "example": "Camera permission appears only when needed.",
+      "eli5": "Keep learning safe."
+    },
+    {
+      "id": "A32",
+      "word": "Adult control",
+      "parent": "A3",
+      "quick": "Appropriate authority over setup, plans and private settings.",
+      "why": "Lets adults guide learning while the child works independently.",
+      "relates": "Connects setup, parent review, workflow contracts and trust.",
+      "deep": "Require explicit Apply for proposed plan changes; maintain locking, review, export, deletion and undo.",
+      "example": "Preview the revised plan before Apply.",
+      "eli5": "A grown-up manages the important settings."
+    },
+    {
+      "id": "A33",
+      "word": "Honest AI",
+      "parent": "A3",
+      "quick": "AI identity, limits and uncertainty are understandable.",
+      "why": "Prevents overtrust and misleading learning claims.",
+      "relates": "Sets conditions for release gates and calibrated feedback.",
+      "deep": "A model's confidence is not validated accuracy; preserve pending and disputed judgments.",
+      "example": "I'm still checking this answer.",
+      "eli5": "The tutor can be wrong."
+    },
+    {
+      "id": "B",
+      "word": "Guide the experience",
+      "parent": "L",
+      "quick": "Turn learning goals into a clear usable journey.",
+      "why": "Connects the interface to the teaching process.",
+      "relates": "Groups entry, the learning loop and interface behavior.",
+      "deep": "Design state transitions and recovery, not only attractive screenshots.",
+      "example": "Continue a mission after an interruption.",
+      "eli5": "Show the next useful step."
+    },
+    {
+      "id": "B1",
+      "word": "Entry",
+      "parent": "B",
+      "quick": "A clear path from arriving to useful work.",
+      "why": "A difficult start can prevent any learning.",
+      "relates": "Combines setup, next action and resume.",
+      "deep": "Give adults progressive setup and children an immediately understandable mission.",
+      "example": "Start the saved fractions mission.",
+      "eli5": "Get going easily."
+    },
+    {
+      "id": "B11",
+      "word": "Setup",
+      "parent": "B1",
+      "quick": "Prepare access, consent, preferences and usable capabilities.",
+      "why": "Avoids asking children to solve account or provider problems.",
+      "relates": "Depends on adult control and current capability state.",
+      "deep": "Keep AI-optional behavior truthful; provide a working path after Skip for now.",
+      "example": "Show verified available activities, or ask the parent to finish setup.",
+      "eli5": "Get the tools ready."
+    },
+    {
+      "id": "B12",
+      "word": "Next action",
+      "parent": "B1",
+      "quick": "The single most useful action for the current state.",
+      "why": "Reduces navigation decisions and makes progress clear.",
+      "relates": "Uses learner evidence, contexts and workflow contracts.",
+      "deep": "Promote Continue or one mission; keep homework and exploration available as secondary routes.",
+      "example": "Let's go: compare two fractions.",
+      "eli5": "Here is what to do next."
+    },
+    {
+      "id": "B13",
+      "word": "Resume",
+      "parent": "B1",
+      "quick": "Return to saved work with enough context to continue.",
+      "why": "Makes interruption a recoverable event.",
+      "relates": "Connects entry, recovery, saved drafts and retention.",
+      "deep": "Preserve the exact step and relevant draft; show what was saved and what is still pending.",
+      "example": "You're on step three; your question is saved.",
+      "eli5": "Pick up where you stopped."
+    },
+    {
+      "id": "B2",
+      "word": "Learning loop",
+      "parent": "B",
+      "quick": "Attempt, receive teaching, and demonstrate what holds.",
+      "why": "Organizes interactions around capability growth.",
+      "relates": "Combines scaffold, feedback and independent mastery.",
+      "deep": "Adapt to evidence; a short session may save a later check instead of rushing every stage.",
+      "example": "Example, partial problem, fresh problem.",
+      "eli5": "Try, learn, then try yourself."
+    },
+    {
+      "id": "B21",
+      "word": "Scaffold",
+      "parent": "B2",
+      "quick": "Temporary support that helps a learner make the next step.",
+      "why": "Teaches a principle while allowing later independence.",
+      "relates": "Works with feedback and fades before independent evidence.",
+      "deep": "Change representation or prerequisite when needed; repeated confusion does not prove useful effort.",
+      "example": "A partly completed worked example.",
+      "eli5": "Training wheels you can remove."
+    },
+    {
+      "id": "B22",
+      "word": "Feedback",
+      "parent": "B2",
+      "quick": "A specific response that helps the child understand their attempt.",
+      "why": "Turns an answer into information for the next move.",
+      "relates": "Feeds calibration and selects appropriate scaffolding.",
+      "deep": "Distinguish input repair, genuine mistakes and uncertain grading; keep wording kind and concrete.",
+      "example": "Check whether both pieces use the same whole.",
+      "eli5": "A clue about your next move."
+    },
+    {
+      "id": "B23",
+      "word": "Independent mastery",
+      "parent": "B2",
+      "quick": "Evidence under the engine's rules of unaided skill use.",
+      "why": "Prevents coached completion from becoming a false learning claim.",
+      "relates": "Must be checked later through retention and transfer.",
+      "deep": "Preserve current eligibility, freshness, interleaving and across-session rules; one success is not broad mastery.",
+      "example": "Several eligible fresh successes across days.",
+      "eli5": "Show that the skill is yours."
+    },
+    {
+      "id": "B3",
+      "word": "Interface",
+      "parent": "B",
+      "quick": "The controls, words, media and states people use.",
+      "why": "Determines whether intentions become successful actions.",
+      "relates": "Combines design system, multimodal input and recovery.",
+      "deep": "Make one stable interaction structure work across ages, devices and worlds.",
+      "example": "Same help control in every visual world.",
+      "eli5": "The things you see and use."
+    },
+    {
+      "id": "B31",
+      "word": "Design system",
+      "parent": "B3",
+      "quick": "Reusable rules for components, words, layout and behavior.",
+      "why": "Improves consistency and lets one fix help many screens.",
+      "relates": "Expresses age, access, trust and workflow requirements.",
+      "deep": "Specify focus, loading, errors, audio, motion and reading variants as well as colors.",
+      "example": "One accessible answer component in six worlds.",
+      "eli5": "The product's shared building blocks."
+    },
+    {
+      "id": "B32",
+      "word": "Multimodal input",
+      "parent": "B3",
+      "quick": "Appropriate ways to respond by tap, type, voice or paper.",
+      "why": "Removes input barriers without changing the learning goal.",
+      "relates": "Implements access needs and relies on recovery.",
+      "deep": "Confirm uncertain capture; supply alternatives when the objective permits them; record construct-changing assistance.",
+      "example": "Tap instead of dragging a fraction piece.",
+      "eli5": "Choose a way to show your answer."
+    },
+    {
+      "id": "B33",
+      "word": "Recovery",
+      "parent": "B3",
+      "quick": "Preserve work and explain a useful path after failure.",
+      "why": "Protects trust and prevents technical errors becoming learning errors.",
+      "relates": "Supports resume, input, feedback and workflow contracts.",
+      "deep": "Keep drafts until acknowledgement; retries must not duplicate evidence or leak between learners.",
+      "example": "Restore a question after a failed submission.",
+      "eli5": "Fix the problem without starting over."
+    },
+    {
+      "id": "C",
+      "word": "Prove and improve",
+      "parent": "L",
+      "quick": "Use evidence to decide what to keep or change.",
+      "why": "Turns 'world class' into accountable work.",
+      "relates": "Groups learning evidence, research and delivery.",
+      "deep": "Keep implementation checks, child observations and efficacy evidence distinct.",
+      "example": "Revise a confusing exit based on observed use.",
+      "eli5": "Check it works and make it better."
+    },
+    {
+      "id": "C1",
+      "word": "Learning evidence",
+      "parent": "C",
+      "quick": "Records showing what the child can do and what remains uncertain.",
+      "why": "Makes progress claims meaningful.",
+      "relates": "Combines retention, transfer and calibration.",
+      "deep": "Record objective, assistance, task demand, date and validity; untested is unknown.",
+      "example": "A dated independent explanation with its task.",
+      "eli5": "Proof of what you learned."
+    },
+    {
+      "id": "C11",
+      "word": "Retention",
+      "parent": "C1",
+      "quick": "Demonstrating a skill after a recorded delay.",
+      "why": "Tests whether learning lasts beyond the session.",
+      "relates": "Checks independent mastery and informs future review.",
+      "deep": "Use reviewed fresh items at planned intervals; 7/28-day reporting is a product convention, not a universal optimum.",
+      "example": "Solve an equivalent task seven days later.",
+      "eli5": "Remember it after a break."
+    },
+    {
+      "id": "C12",
+      "word": "Transfer",
+      "parent": "C1",
+      "quick": "Using an idea in a meaningfully different situation.",
+      "why": "Distinguishes flexible understanding from copying a pattern.",
+      "relates": "Extends independent mastery and learning evidence.",
+      "deep": "Specify near versus farther transfer and match the rubric to the actual objective.",
+      "example": "Apply fractions to a new fair-sharing problem.",
+      "eli5": "Use the idea somewhere new."
+    },
+    {
+      "id": "C13",
+      "word": "Calibration",
+      "parent": "C1",
+      "quick": "How accurately a learner or system judges what is known.",
+      "why": "Makes help and confidence more appropriate.",
+      "relates": "Uses feedback and supports honest reporting.",
+      "deep": "Track child confidence against comparable work and AI verdicts against independent human review separately.",
+      "example": "Flag a confident but incorrect explanation.",
+      "eli5": "Know when to check again."
+    },
+    {
+      "id": "C2",
+      "word": "Research",
+      "parent": "C",
+      "quick": "Direct inquiry into people, workflows and learning outcomes.",
+      "why": "Challenges assumptions before scaling a design.",
+      "relates": "Combines co-design, usability tests and field pilots.",
+      "deep": "Recruit relevant groups; record consent/assent and separate observations from interpretations.",
+      "example": "Watch a child recover from a wrong answer.",
+      "eli5": "Learn from the people using it."
+    },
+    {
+      "id": "C21",
+      "word": "Co-design",
+      "parent": "C2",
+      "quick": "Children and adults help explore and shape alternatives.",
+      "why": "Finds needs adults designing alone may miss.",
+      "relates": "Informs learner fit, motivation and prototypes.",
+      "deep": "Use concrete activities and understandable choices; do not ask children to invent the whole system.",
+      "example": "Children compare two ways to ask for help.",
+      "eli5": "Build ideas together."
+    },
+    {
+      "id": "C22",
+      "word": "Usability tests",
+      "parent": "C2",
+      "quick": "Observe whether intended users complete realistic tasks.",
+      "why": "Finds navigation, wording and recovery problems.",
+      "relates": "Checks interface independence and informs iteration.",
+      "deep": "Observe before prompting; count navigation help separately from teaching help and access support.",
+      "example": "Start, miss, get help, save, return, finish.",
+      "eli5": "Watch whether it makes sense."
+    },
+    {
+      "id": "C23",
+      "word": "Field pilots",
+      "parent": "C2",
+      "quick": "Repeated use in real homes with planned outcome checks.",
+      "why": "Reveals novelty effects, context failures and learning gaps.",
+      "relates": "Supplies evidence for iteration and controlled release.",
+      "deep": "Use comparable tasks, later checks and a stated study plan; small pilots cannot prove universal effectiveness.",
+      "example": "Several weeks of family use plus delayed checks.",
+      "eli5": "Try it in real life."
+    },
+    {
+      "id": "C3",
+      "word": "Delivery",
+      "parent": "C",
+      "quick": "The repeatable process that carries a design into operation.",
+      "why": "Keeps teams and agents aligned through release.",
+      "relates": "Combines workflow contracts, release gates and iteration.",
+      "deep": "Use one accountable owner, concrete artifacts and an independent evidence review per change.",
+      "example": "One complete workflow improved in a small release.",
+      "eli5": "Turn the plan into reliable work."
+    },
+    {
+      "id": "C31",
+      "word": "Workflow contracts",
+      "parent": "C3",
+      "quick": "Explicit rules for states, actions, evidence and failure paths.",
+      "why": "Prevents happy-path screens with undefined behavior.",
+      "relates": "Expresses agency and connects design to implementation.",
+      "deep": "Specify entry, primary action, ownership, help, save, timeout, retry, exit and evidence effects.",
+      "example": "A pending grade cannot become a failure.",
+      "eli5": "Write down what happens next."
+    },
+    {
+      "id": "C32",
+      "word": "Release gates",
+      "parent": "C3",
+      "quick": "Evidence conditions that must hold before wider release.",
+      "why": "Stops severe failures from being hidden by an average score.",
+      "relates": "Enforces honest AI, access, recovery and learning rules.",
+      "deep": "Use pass, fail, conditional or unknown with evidence; blocking defects cannot be averaged away.",
+      "example": "Pause release for false mastery or lost work.",
+      "eli5": "Check the important things first."
+    },
+    {
+      "id": "C33",
+      "word": "Iteration",
+      "parent": "C3",
+      "quick": "A repeated, measured decision to keep, revise or stop a change.",
+      "why": "Improves the product without endless feature sprawl.",
+      "relates": "Uses field pilots, usability findings and release gates.",
+      "deep": "Fix one important failure; define success beforehand; compare at the same learning objective.",
+      "example": "Keep a clearer hint only if use and learning hold.",
+      "eli5": "Make one useful improvement at a time."
+    }
+  ],
+  "cross_links": [
+    {
+      "from": "A12",
+      "to": "B32",
+      "label": "informs",
+      "why": "Access needs determine which input alternatives and accommodations must be usable."
+    },
+    {
+      "from": "A21",
+      "to": "C31",
+      "label": "constrains",
+      "why": "Agency requires workflow contracts to preserve choice, help, pause and stopping."
+    },
+    {
+      "from": "B22",
+      "to": "C13",
+      "label": "informs",
+      "why": "Feedback helps the child judge understanding and exposes uncertain judgments for review."
+    },
+    {
+      "from": "B23",
+      "to": "C11",
+      "label": "checked later",
+      "why": "Independent mastery claims need later evidence of retention at an appropriate objective and demand."
+    },
+    {
+      "from": "A33",
+      "to": "C32",
+      "label": "sets gates",
+      "why": "Honest AI requires release gates for truthful claims, uncertain judgments and usable challenge paths."
+    },
+    {
+      "from": "C23",
+      "to": "C33",
+      "label": "guides",
+      "why": "Field pilots provide repeated-use evidence for decisions to keep, revise or stop a change."
+    }
+  ]
+}

@@ -1,0 +1,154 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1900" height="1820" viewBox="0 0 1900 1820" role="img" aria-labelledby="title desc">
+<title id="title">Tutor UX river mind map</title>
+<desc id="desc">Independent learning divides into Know the learner, Guide the experience, and Prove and improve. Every branch has three children. Six dashed lateral links connect design needs and evidence. All forty nodes have definitions in RIVER-MAP.md.</desc>
+<defs><marker id="arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0 L7 3.5 L0 7" fill="#53657d"/></marker></defs>
+<rect width="1900" height="1820" fill="#f6f8fc"/>
+<g font-family="sans-serif">
+<text x="64" y="68" font-size="36" font-weight="700" fill="#15243e">Tutor UX · The river map</text>
+<text x="64" y="111" font-size="22" fill="#41536b">Make the next step clear. Build capability. Prove what lasts.</text>
+<text x="64" y="150" font-size="17" fill="#41536b">40 nodes · 39 hierarchy links · 6 lateral links · 3 levels below Logical</text>
+<path d="M324 898.0 C350.0 898.0 350.0 430.0 376 430.0" fill="none" stroke="#0f766e" stroke-width="9" opacity="0.65"/>
+<path d="M662 430.0 C689.0 430.0 689.0 274.0 716 274.0" fill="none" stroke="#0f766e" stroke-width="5" opacity="0.65"/>
+<path d="M996 274.0 C1028.0 274.0 1028.0 222 1060 222" fill="none" stroke="#0f766e" stroke-width="2.5" opacity="0.65"/>
+<path d="M996 274.0 C1028.0 274.0 1028.0 274 1060 274" fill="none" stroke="#0f766e" stroke-width="2.5" opacity="0.65"/>
+<path d="M996 274.0 C1028.0 274.0 1028.0 326 1060 326" fill="none" stroke="#0f766e" stroke-width="2.5" opacity="0.65"/>
+<path d="M662 430.0 C689.0 430.0 689.0 430.0 716 430.0" fill="none" stroke="#0f766e" stroke-width="5" opacity="0.65"/>
+<path d="M996 430.0 C1028.0 430.0 1028.0 378 1060 378" fill="none" stroke="#0f766e" stroke-width="2.5" opacity="0.65"/>
+<path d="M996 430.0 C1028.0 430.0 1028.0 430 1060 430" fill="none" stroke="#0f766e" stroke-width="2.5" opacity="0.65"/>
+<path d="M996 430.0 C1028.0 430.0 1028.0 482 1060 482" fill="none" stroke="#0f766e" stroke-width="2.5" opacity="0.65"/>
+<path d="M662 430.0 C689.0 430.0 689.0 586.0 716 586.0" fill="none" stroke="#0f766e" stroke-width="5" opacity="0.65"/>
+<path d="M996 586.0 C1028.0 586.0 1028.0 534 1060 534" fill="none" stroke="#0f766e" stroke-width="2.5" opacity="0.65"/>
+<path d="M996 586.0 C1028.0 586.0 1028.0 586 1060 586" fill="none" stroke="#0f766e" stroke-width="2.5" opacity="0.65"/>
+<path d="M996 586.0 C1028.0 586.0 1028.0 638 1060 638" fill="none" stroke="#0f766e" stroke-width="2.5" opacity="0.65"/>
+<path d="M324 898.0 C350.0 898.0 350.0 898.0 376 898.0" fill="none" stroke="#1d4ed8" stroke-width="9" opacity="0.65"/>
+<path d="M662 898.0 C689.0 898.0 689.0 742.0 716 742.0" fill="none" stroke="#1d4ed8" stroke-width="5" opacity="0.65"/>
+<path d="M996 742.0 C1028.0 742.0 1028.0 690 1060 690" fill="none" stroke="#1d4ed8" stroke-width="2.5" opacity="0.65"/>
+<path d="M996 742.0 C1028.0 742.0 1028.0 742 1060 742" fill="none" stroke="#1d4ed8" stroke-width="2.5" opacity="0.65"/>
+<path d="M996 742.0 C1028.0 742.0 1028.0 794 1060 794" fill="none" stroke="#1d4ed8" stroke-width="2.5" opacity="0.65"/>
+<path d="M662 898.0 C689.0 898.0 689.0 898.0 716 898.0" fill="none" stroke="#1d4ed8" stroke-width="5" opacity="0.65"/>
+<path d="M996 898.0 C1028.0 898.0 1028.0 846 1060 846" fill="none" stroke="#1d4ed8" stroke-width="2.5" opacity="0.65"/>
+<path d="M996 898.0 C1028.0 898.0 1028.0 898 1060 898" fill="none" stroke="#1d4ed8" stroke-width="2.5" opacity="0.65"/>
+<path d="M996 898.0 C1028.0 898.0 1028.0 950 1060 950" fill="none" stroke="#1d4ed8" stroke-width="2.5" opacity="0.65"/>
+<path d="M662 898.0 C689.0 898.0 689.0 1054.0 716 1054.0" fill="none" stroke="#1d4ed8" stroke-width="5" opacity="0.65"/>
+<path d="M996 1054.0 C1028.0 1054.0 1028.0 1002 1060 1002" fill="none" stroke="#1d4ed8" stroke-width="2.5" opacity="0.65"/>
+<path d="M996 1054.0 C1028.0 1054.0 1028.0 1054 1060 1054" fill="none" stroke="#1d4ed8" stroke-width="2.5" opacity="0.65"/>
+<path d="M996 1054.0 C1028.0 1054.0 1028.0 1106 1060 1106" fill="none" stroke="#1d4ed8" stroke-width="2.5" opacity="0.65"/>
+<path d="M324 898.0 C350.0 898.0 350.0 1366.0 376 1366.0" fill="none" stroke="#7c3aed" stroke-width="9" opacity="0.65"/>
+<path d="M662 1366.0 C689.0 1366.0 689.0 1210.0 716 1210.0" fill="none" stroke="#7c3aed" stroke-width="5" opacity="0.65"/>
+<path d="M996 1210.0 C1028.0 1210.0 1028.0 1158 1060 1158" fill="none" stroke="#7c3aed" stroke-width="2.5" opacity="0.65"/>
+<path d="M996 1210.0 C1028.0 1210.0 1028.0 1210 1060 1210" fill="none" stroke="#7c3aed" stroke-width="2.5" opacity="0.65"/>
+<path d="M996 1210.0 C1028.0 1210.0 1028.0 1262 1060 1262" fill="none" stroke="#7c3aed" stroke-width="2.5" opacity="0.65"/>
+<path d="M662 1366.0 C689.0 1366.0 689.0 1366.0 716 1366.0" fill="none" stroke="#7c3aed" stroke-width="5" opacity="0.65"/>
+<path d="M996 1366.0 C1028.0 1366.0 1028.0 1314 1060 1314" fill="none" stroke="#7c3aed" stroke-width="2.5" opacity="0.65"/>
+<path d="M996 1366.0 C1028.0 1366.0 1028.0 1366 1060 1366" fill="none" stroke="#7c3aed" stroke-width="2.5" opacity="0.65"/>
+<path d="M996 1366.0 C1028.0 1366.0 1028.0 1418 1060 1418" fill="none" stroke="#7c3aed" stroke-width="2.5" opacity="0.65"/>
+<path d="M662 1366.0 C689.0 1366.0 689.0 1522.0 716 1522.0" fill="none" stroke="#7c3aed" stroke-width="5" opacity="0.65"/>
+<path d="M996 1522.0 C1028.0 1522.0 1028.0 1470 1060 1470" fill="none" stroke="#7c3aed" stroke-width="2.5" opacity="0.65"/>
+<path d="M996 1522.0 C1028.0 1522.0 1028.0 1522 1060 1522" fill="none" stroke="#7c3aed" stroke-width="2.5" opacity="0.65"/>
+<path d="M996 1522.0 C1028.0 1522.0 1028.0 1574 1060 1574" fill="none" stroke="#7c3aed" stroke-width="2.5" opacity="0.65"/>
+<path d="M1488 274 H1578 V1054 H1493" fill="none" stroke="#53657d" stroke-width="1.7" stroke-dasharray="7 6" opacity="0.7" marker-end="url(#arrow)"/>
+<circle cx="1578" cy="274" r="12" fill="#ffffff" stroke="#53657d"/><text x="1578" y="279" text-anchor="middle" font-size="13" font-weight="700" fill="#15243e">1</text>
+<circle cx="1578" cy="1054" r="12" fill="#ffffff" stroke="#53657d"/><text x="1578" y="1059" text-anchor="middle" font-size="13" font-weight="700" fill="#15243e">1</text>
+<path d="M1488 378 H1621 V1470 H1493" fill="none" stroke="#53657d" stroke-width="1.7" stroke-dasharray="7 6" opacity="0.7" marker-end="url(#arrow)"/>
+<circle cx="1621" cy="378" r="12" fill="#ffffff" stroke="#53657d"/><text x="1621" y="383" text-anchor="middle" font-size="13" font-weight="700" fill="#15243e">2</text>
+<circle cx="1621" cy="1470" r="12" fill="#ffffff" stroke="#53657d"/><text x="1621" y="1475" text-anchor="middle" font-size="13" font-weight="700" fill="#15243e">2</text>
+<path d="M1488 898 H1664 V1262 H1493" fill="none" stroke="#53657d" stroke-width="1.7" stroke-dasharray="7 6" opacity="0.7" marker-end="url(#arrow)"/>
+<circle cx="1664" cy="898" r="12" fill="#ffffff" stroke="#53657d"/><text x="1664" y="903" text-anchor="middle" font-size="13" font-weight="700" fill="#15243e">3</text>
+<circle cx="1664" cy="1262" r="12" fill="#ffffff" stroke="#53657d"/><text x="1664" y="1267" text-anchor="middle" font-size="13" font-weight="700" fill="#15243e">3</text>
+<path d="M1488 950 H1707 V1158 H1493" fill="none" stroke="#53657d" stroke-width="1.7" stroke-dasharray="7 6" opacity="0.7" marker-end="url(#arrow)"/>
+<circle cx="1707" cy="950" r="12" fill="#ffffff" stroke="#53657d"/><text x="1707" y="955" text-anchor="middle" font-size="13" font-weight="700" fill="#15243e">4</text>
+<circle cx="1707" cy="1158" r="12" fill="#ffffff" stroke="#53657d"/><text x="1707" y="1163" text-anchor="middle" font-size="13" font-weight="700" fill="#15243e">4</text>
+<path d="M1488 638 H1750 V1522 H1493" fill="none" stroke="#53657d" stroke-width="1.7" stroke-dasharray="7 6" opacity="0.7" marker-end="url(#arrow)"/>
+<circle cx="1750" cy="638" r="12" fill="#ffffff" stroke="#53657d"/><text x="1750" y="643" text-anchor="middle" font-size="13" font-weight="700" fill="#15243e">5</text>
+<circle cx="1750" cy="1522" r="12" fill="#ffffff" stroke="#53657d"/><text x="1750" y="1527" text-anchor="middle" font-size="13" font-weight="700" fill="#15243e">5</text>
+<path d="M1488 1418 H1793 V1574 H1493" fill="none" stroke="#53657d" stroke-width="1.7" stroke-dasharray="7 6" opacity="0.7" marker-end="url(#arrow)"/>
+<circle cx="1793" cy="1418" r="12" fill="#ffffff" stroke="#53657d"/><text x="1793" y="1423" text-anchor="middle" font-size="13" font-weight="700" fill="#15243e">6</text>
+<circle cx="1793" cy="1574" r="12" fill="#ffffff" stroke="#53657d"/><text x="1793" y="1579" text-anchor="middle" font-size="13" font-weight="700" fill="#15243e">6</text>
+<rect x="64" y="844.0" width="260" height="108" rx="12" fill="#15243e" stroke="#15243e" stroke-width="1.5"/>
+<text x="86" y="875.0" font-size="16" fill="#c8d5ea">Logical</text><text x="86" y="905.0" font-size="25" font-weight="700" fill="white">Independent</text><text x="86" y="935.0" font-size="25" font-weight="700" fill="white">learning</text>
+<rect x="376" y="400.0" width="286" height="60" rx="12" fill="#0f766e" stroke="#0f766e" stroke-width="1.5"/>
+<text x="394" y="437.0" font-size="22" font-weight="700" fill="#ffffff">Know the learner</text>
+<rect x="716" y="250.0" width="280" height="48" rx="12" fill="#e9f7f2" stroke="#0f766e" stroke-width="1.5"/>
+<text x="734" y="281.0" font-size="22" font-weight="700" fill="#15243e">Learner fit</text>
+<rect x="1060" y="202.0" width="428" height="40" rx="12" fill="#ffffff" stroke="#0f766e" stroke-width="1.5"/>
+<text x="1078" y="229" font-size="21" font-weight="500" fill="#15243e">Age bands</text>
+<rect x="1060" y="254.0" width="428" height="40" rx="12" fill="#ffffff" stroke="#0f766e" stroke-width="1.5"/>
+<text x="1078" y="281" font-size="21" font-weight="500" fill="#15243e">Access needs</text>
+<rect x="1060" y="306.0" width="428" height="40" rx="12" fill="#ffffff" stroke="#0f766e" stroke-width="1.5"/>
+<text x="1078" y="333" font-size="21" font-weight="500" fill="#15243e">Contexts</text>
+<rect x="716" y="406.0" width="280" height="48" rx="12" fill="#e9f7f2" stroke="#0f766e" stroke-width="1.5"/>
+<text x="734" y="437.0" font-size="22" font-weight="700" fill="#15243e">Motivation</text>
+<rect x="1060" y="358.0" width="428" height="40" rx="12" fill="#ffffff" stroke="#0f766e" stroke-width="1.5"/>
+<text x="1078" y="385" font-size="21" font-weight="500" fill="#15243e">Agency</text>
+<rect x="1060" y="410.0" width="428" height="40" rx="12" fill="#ffffff" stroke="#0f766e" stroke-width="1.5"/>
+<text x="1078" y="437" font-size="21" font-weight="500" fill="#15243e">Competence</text>
+<rect x="1060" y="462.0" width="428" height="40" rx="12" fill="#ffffff" stroke="#0f766e" stroke-width="1.5"/>
+<text x="1078" y="489" font-size="21" font-weight="500" fill="#15243e">Belonging</text>
+<rect x="716" y="562.0" width="280" height="48" rx="12" fill="#e9f7f2" stroke="#0f766e" stroke-width="1.5"/>
+<text x="734" y="593.0" font-size="22" font-weight="700" fill="#15243e">Trust</text>
+<rect x="1060" y="514.0" width="428" height="40" rx="12" fill="#ffffff" stroke="#0f766e" stroke-width="1.5"/>
+<text x="1078" y="541" font-size="21" font-weight="500" fill="#15243e">Child protection</text>
+<rect x="1060" y="566.0" width="428" height="40" rx="12" fill="#ffffff" stroke="#0f766e" stroke-width="1.5"/>
+<text x="1078" y="593" font-size="21" font-weight="500" fill="#15243e">Adult control</text>
+<rect x="1060" y="618.0" width="428" height="40" rx="12" fill="#ffffff" stroke="#0f766e" stroke-width="1.5"/>
+<text x="1078" y="645" font-size="21" font-weight="500" fill="#15243e">Honest AI</text>
+<rect x="376" y="868.0" width="286" height="60" rx="12" fill="#1d4ed8" stroke="#1d4ed8" stroke-width="1.5"/>
+<text x="394" y="905.0" font-size="22" font-weight="700" fill="#ffffff">Guide the experience</text>
+<rect x="716" y="718.0" width="280" height="48" rx="12" fill="#edf3ff" stroke="#1d4ed8" stroke-width="1.5"/>
+<text x="734" y="749.0" font-size="22" font-weight="700" fill="#15243e">Entry</text>
+<rect x="1060" y="670.0" width="428" height="40" rx="12" fill="#ffffff" stroke="#1d4ed8" stroke-width="1.5"/>
+<text x="1078" y="697" font-size="21" font-weight="500" fill="#15243e">Setup</text>
+<rect x="1060" y="722.0" width="428" height="40" rx="12" fill="#ffffff" stroke="#1d4ed8" stroke-width="1.5"/>
+<text x="1078" y="749" font-size="21" font-weight="500" fill="#15243e">Next action</text>
+<rect x="1060" y="774.0" width="428" height="40" rx="12" fill="#ffffff" stroke="#1d4ed8" stroke-width="1.5"/>
+<text x="1078" y="801" font-size="21" font-weight="500" fill="#15243e">Resume</text>
+<rect x="716" y="874.0" width="280" height="48" rx="12" fill="#edf3ff" stroke="#1d4ed8" stroke-width="1.5"/>
+<text x="734" y="905.0" font-size="22" font-weight="700" fill="#15243e">Learning loop</text>
+<rect x="1060" y="826.0" width="428" height="40" rx="12" fill="#ffffff" stroke="#1d4ed8" stroke-width="1.5"/>
+<text x="1078" y="853" font-size="21" font-weight="500" fill="#15243e">Scaffold</text>
+<rect x="1060" y="878.0" width="428" height="40" rx="12" fill="#ffffff" stroke="#1d4ed8" stroke-width="1.5"/>
+<text x="1078" y="905" font-size="21" font-weight="500" fill="#15243e">Feedback</text>
+<rect x="1060" y="930.0" width="428" height="40" rx="12" fill="#ffffff" stroke="#1d4ed8" stroke-width="1.5"/>
+<text x="1078" y="957" font-size="21" font-weight="500" fill="#15243e">Independent mastery</text>
+<rect x="716" y="1030.0" width="280" height="48" rx="12" fill="#edf3ff" stroke="#1d4ed8" stroke-width="1.5"/>
+<text x="734" y="1061.0" font-size="22" font-weight="700" fill="#15243e">Interface</text>
+<rect x="1060" y="982.0" width="428" height="40" rx="12" fill="#ffffff" stroke="#1d4ed8" stroke-width="1.5"/>
+<text x="1078" y="1009" font-size="21" font-weight="500" fill="#15243e">Design system</text>
+<rect x="1060" y="1034.0" width="428" height="40" rx="12" fill="#ffffff" stroke="#1d4ed8" stroke-width="1.5"/>
+<text x="1078" y="1061" font-size="21" font-weight="500" fill="#15243e">Multimodal input</text>
+<rect x="1060" y="1086.0" width="428" height="40" rx="12" fill="#ffffff" stroke="#1d4ed8" stroke-width="1.5"/>
+<text x="1078" y="1113" font-size="21" font-weight="500" fill="#15243e">Recovery</text>
+<rect x="376" y="1336.0" width="286" height="60" rx="12" fill="#7c3aed" stroke="#7c3aed" stroke-width="1.5"/>
+<text x="394" y="1373.0" font-size="22" font-weight="700" fill="#ffffff">Prove and improve</text>
+<rect x="716" y="1186.0" width="280" height="48" rx="12" fill="#f3edff" stroke="#7c3aed" stroke-width="1.5"/>
+<text x="734" y="1217.0" font-size="22" font-weight="700" fill="#15243e">Learning evidence</text>
+<rect x="1060" y="1138.0" width="428" height="40" rx="12" fill="#ffffff" stroke="#7c3aed" stroke-width="1.5"/>
+<text x="1078" y="1165" font-size="21" font-weight="500" fill="#15243e">Retention</text>
+<rect x="1060" y="1190.0" width="428" height="40" rx="12" fill="#ffffff" stroke="#7c3aed" stroke-width="1.5"/>
+<text x="1078" y="1217" font-size="21" font-weight="500" fill="#15243e">Transfer</text>
+<rect x="1060" y="1242.0" width="428" height="40" rx="12" fill="#ffffff" stroke="#7c3aed" stroke-width="1.5"/>
+<text x="1078" y="1269" font-size="21" font-weight="500" fill="#15243e">Calibration</text>
+<rect x="716" y="1342.0" width="280" height="48" rx="12" fill="#f3edff" stroke="#7c3aed" stroke-width="1.5"/>
+<text x="734" y="1373.0" font-size="22" font-weight="700" fill="#15243e">Research</text>
+<rect x="1060" y="1294.0" width="428" height="40" rx="12" fill="#ffffff" stroke="#7c3aed" stroke-width="1.5"/>
+<text x="1078" y="1321" font-size="21" font-weight="500" fill="#15243e">Co-design</text>
+<rect x="1060" y="1346.0" width="428" height="40" rx="12" fill="#ffffff" stroke="#7c3aed" stroke-width="1.5"/>
+<text x="1078" y="1373" font-size="21" font-weight="500" fill="#15243e">Usability tests</text>
+<rect x="1060" y="1398.0" width="428" height="40" rx="12" fill="#ffffff" stroke="#7c3aed" stroke-width="1.5"/>
+<text x="1078" y="1425" font-size="21" font-weight="500" fill="#15243e">Field pilots</text>
+<rect x="716" y="1498.0" width="280" height="48" rx="12" fill="#f3edff" stroke="#7c3aed" stroke-width="1.5"/>
+<text x="734" y="1529.0" font-size="22" font-weight="700" fill="#15243e">Delivery</text>
+<rect x="1060" y="1450.0" width="428" height="40" rx="12" fill="#ffffff" stroke="#7c3aed" stroke-width="1.5"/>
+<text x="1078" y="1477" font-size="21" font-weight="500" fill="#15243e">Workflow contracts</text>
+<rect x="1060" y="1502.0" width="428" height="40" rx="12" fill="#ffffff" stroke="#7c3aed" stroke-width="1.5"/>
+<text x="1078" y="1529" font-size="21" font-weight="500" fill="#15243e">Release gates</text>
+<rect x="1060" y="1554.0" width="428" height="40" rx="12" fill="#ffffff" stroke="#7c3aed" stroke-width="1.5"/>
+<text x="1078" y="1581" font-size="21" font-weight="500" fill="#15243e">Iteration</text>
+<text x="64" y="1652" font-size="21" font-weight="700" fill="#15243e">Lateral relationships · dashed links do not create child branches</text>
+<text x="64" y="1695" font-size="18" fill="#41536b">1. Access needs → Multimodal input: informs</text>
+<text x="964" y="1695" font-size="18" fill="#41536b">2. Agency → Workflow contracts: constrains</text>
+<text x="64" y="1734" font-size="18" fill="#41536b">3. Feedback → Calibration: informs</text>
+<text x="964" y="1734" font-size="18" fill="#41536b">4. Independent mastery → Retention: checked later</text>
+<text x="64" y="1773" font-size="18" fill="#41536b">5. Honest AI → Release gates: sets gates</text>
+<text x="964" y="1773" font-size="18" fill="#41536b">6. Field pilots → Iteration: guides</text>
+</g></svg>

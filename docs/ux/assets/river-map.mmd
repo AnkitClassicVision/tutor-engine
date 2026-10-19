@@ -1,0 +1,60 @@
+graph LR
+  L["Logical: Independent learning"]
+  A["Know the learner"]
+  A1["Learner fit"]
+  A11["Age bands"]
+  A12["Access needs"]
+  A13["Contexts"]
+  A2["Motivation"]
+  A21["Agency"]
+  A22["Competence"]
+  A23["Belonging"]
+  A3["Trust"]
+  A31["Child protection"]
+  A32["Adult control"]
+  A33["Honest AI"]
+  B["Guide the experience"]
+  B1["Entry"]
+  B11["Setup"]
+  B12["Next action"]
+  B13["Resume"]
+  B2["Learning loop"]
+  B21["Scaffold"]
+  B22["Feedback"]
+  B23["Independent mastery"]
+  B3["Interface"]
+  B31["Design system"]
+  B32["Multimodal input"]
+  B33["Recovery"]
+  C["Prove and improve"]
+  C1["Learning evidence"]
+  C11["Retention"]
+  C12["Transfer"]
+  C13["Calibration"]
+  C2["Research"]
+  C21["Co-design"]
+  C22["Usability tests"]
+  C23["Field pilots"]
+  C3["Delivery"]
+  C31["Workflow contracts"]
+  C32["Release gates"]
+  C33["Iteration"]
+  L --> A & B & C
+  A --> A1 & A2 & A3
+  A1 --> A11 & A12 & A13
+  A2 --> A21 & A22 & A23
+  A3 --> A31 & A32 & A33
+  B --> B1 & B2 & B3
+  B1 --> B11 & B12 & B13
+  B2 --> B21 & B22 & B23
+  B3 --> B31 & B32 & B33
+  C --> C1 & C2 & C3
+  C1 --> C11 & C12 & C13
+  C2 --> C21 & C22 & C23
+  C3 --> C31 & C32 & C33
+  A12 -. "informs" .-> B32
+  A21 -. "constrains" .-> C31
+  B22 -. "informs" .-> C13
+  B23 -. "checked later" .-> C11
+  A33 -. "sets gates" .-> C32
+  C23 -. "guides" .-> C33
