@@ -75,3 +75,10 @@ Status: in progress, started 2026-10-19. One step at a time; each step uses the 
   - Tests: an HTTP acceptance test covers cases 1–7 and 10; the homework browser flow passed 36/36 across four browsers; unit tests passed 356/356.
   - Not covered by a browser test: the fix path and the low-confidence warning (both are covered by the HTTP test).
 - 2026-10-19, M6 (prompt 6, independent QA judge): [QA-ROUND-2.md](QA-ROUND-2.md). Three passes: REVISE, then REVISE (narrow), then LIMITED PILOT for WF-05 within our own family once the owner says yes. Every defect found was fixed, apart from the accepted limits listed there. Full four-browser suite 196/196 at 7c8b7f8; affected specs 56/56 and 20/20 after the last fixes.
+- 2026-10-19, release: the owner approved in chat ("yes approced"). Rounds 1 and 2 deployed (kids-tutor-idn75n7ji, migrations 1–22), published (public a9bd27a), and PR #1 closed as incorporated. M0–M6 accepted.
+- 2026-10-19, M8 (owner policy decisions, "yes it should"):
+  - A question read aloud makes a reading-subject check supported, and a spoken answer makes a spelling check supported. Maths is unchanged.
+  - Reading subjects are not auto-read for ages 5–7.
+  - The ladder labels a memory step shown at a lower level.
+  - Scope and implementation: `src/engine/access.ts`; no historical reclassification.
+- 2026-10-19, M8 review: independent QA REVISE (narrow), then LIMITED PILOT once the owner says yes. Fixes: the rule uses each question's own subject (reviews from other subjects inside a mission); read-aloud help counts as supported on the strengths map and the overview. Accepted lows: the answer-time log does not write "access"; a late read-aloud note is dropped. Unit 360/360; affected four-browser specs 32/32. Commit 09a6a0c, not yet deployed or pushed.

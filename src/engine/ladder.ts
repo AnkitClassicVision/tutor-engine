@@ -30,6 +30,8 @@ export interface ConceptLadder {
   goalMet: boolean
   /** The next step worth aiming at. */
   next: string
+  /** The highest level a later independent success reached, for each memory step; shown when below the topic's band. */
+  memoryLevel: Partial<Record<"retained7" | "retained28", BloomLevel>>
 }
 
 const confirmed = (attempt: AttemptRecord) => attempt.evidenceCertainty !== "unresolved"
@@ -47,6 +49,11 @@ export function conceptLadder(conceptId: string, attempts: AttemptRecord[]): Con
     if (own.some(a => a.day >= addDays(first.day, 7))) reached.add("retained7")
     if (own.some(a => a.day >= addDays(first.day, 28))) reached.add("retained28")
   }
+  const memoryLevel: ConceptLadder["memoryLevel"] = {}
+  for (const [step, days] of [["retained7", 7], ["retained28", 28]] as const) {
+    const later = first ? own.filter(a => a.day >= addDays(first.day, days)) : []
+    if (later.length) memoryLevel[step] = Math.max(...later.map(a => a.bloomLevel)) as BloomLevel
+  }
   if (own.some(a => a.kind === "transfer")) reached.add("transferred")
   const highestLevel = (own.length ? Math.max(...own.map(a => a.bloomLevel)) : 0) as BloomLevel | 0
   const band = bandOf(highestLevel)
@@ -57,7 +64,7 @@ export function conceptLadder(conceptId: string, attempts: AttemptRecord[]): Con
     : !reached.has("transferred") ? "Use it in a new situation."
     : !reached.has("retained28") ? `Check it again after ${first ? addDays(first.day, 28) : "a month"}.`
     : "Goal reached. Keep it fresh with an occasional review."
-  return { conceptId, band, highestLevel, reached: OWNERSHIP.filter(step => reached.has(step)), since: first?.day ?? null, goalMet, next }
+  return { conceptId, band, highestLevel, reached: OWNERSHIP.filter(step => reached.has(step)), since: first?.day ?? null, goalMet, next, memoryLevel }
 }
 
 export function ladders(attempts: AttemptRecord[]): ConceptLadder[] {

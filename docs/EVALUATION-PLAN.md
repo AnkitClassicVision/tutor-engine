@@ -12,7 +12,13 @@ Three groups of evidence, kept apart:
 | Independence | Hint rate on the child's own questions, supported versus independent successes, "Knows what they know" (sure answers that were right). | Numbers page: How learning is going |
 | Engagement | Missions started per week, missions finished, time to the first question. | Numbers page |
 
-A topic meets the full goal when it is solved on their own at the judging-and-creating band, remembered after a month and used somewhere new.
+A topic meets the full goal when it is solved on their own at the judging-and-creating band, remembered after a month and used somewhere new. When a memory step was shown only at a lower thinking level, the parent ladder says so, for example "Remembered after a week (at the basics level)".
+
+**Access support versus the measured skill** (owner decision, 2026-10-19). Reading a question aloud and speaking an answer are recorded as access support. They leave a check independent unless they supply the skill being measured:
+- in a reading subject (reading, phonics, decoding, literacy, English language arts), a question read aloud makes the attempt supported;
+- in a spelling subject, a spoken answer makes the attempt supported.
+
+Reading subjects are not read aloud automatically for ages 5–7; the Read aloud button stays. The skill is taken from the question's own subject name (`src/engine/access.ts`), not the mission's. Known limits: "Map reading" counts as reading, and plain "English" as reasoning. The rule is applied when attempts are read, so it covers every attempt with recorded access support: those since migration 022 (2026-10-19), including the few recorded that day before the rule. Earlier attempts have no access record and are unchanged.
 
 ## Before and after
 

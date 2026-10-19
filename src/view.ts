@@ -1,4 +1,5 @@
-import { BAND_LABEL, OWNERSHIP, OWNERSHIP_LABEL, ladderSummary, type Band, type ConceptLadder } from "./engine/ladder.ts"
+import { BAND_LABEL, OWNERSHIP, bandOf, OWNERSHIP_LABEL, ladderSummary, type Band, type ConceptLadder } from "./engine/ladder.ts"
+import { measuredSkill } from "./engine/access.ts"
 import type { Gain } from "./engine/gain.ts"
 import { siteFooter } from "./legal.ts"
 import { manipulative } from "./manipulatives.ts"
@@ -538,6 +539,8 @@ export function sessionPage(input: {
   results?: Array<{ title: string; prompt: string; answer: string; correct: boolean }>
   pendingReviews?: Array<Record<string, unknown>>
   band?: string
+  /** The current question's own subject, when it differs from the mission's (reviews from other subjects). */
+  itemSubject?: string
   /** No AI is connected: talking it through cannot work, so it is not offered. */
   aiMissing?: boolean
   /** Off in the weeks a parent's comparison turns the confidence choice off. */
@@ -647,9 +650,9 @@ export function sessionPage(input: {
   ${reaskLine}
   ${feedbackReview?.timing === "waiting" ? '<p class="fine">Try this small batch independently. We will pause after three questions to look for patterns.</p>' : ""}
   ${breakBlock}
-  <article class="prompt" ${input.band === "5-7" ? "data-autoread" : ""}>
+  <article class="prompt" ${input.band === "5-7" && measuredSkill(input.itemSubject ?? input.subject) !== "reading" ? "data-autoread" : ""}>
     <div class="step-head"><span class="step-number" aria-hidden="true">${input.position}</span><div><p class="step-tag" data-beat="${beat.key}">${beat.label}</p><h1>${esc(conceptTitle(String(input.item.concept_id), input.titles))}</h1></div></div>
-    <p class="question-text">${esc(String(input.item.prompt))}</p><button type="button" class="ghost" data-hear>Read aloud</button>${input.band === "5-7" ? `<label class="check autoread-toggle"><input type="checkbox" data-autoread-toggle checked> Read questions to me</label>` : ""}
+    <p class="question-text">${esc(String(input.item.prompt))}</p><button type="button" class="ghost" data-hear>Read aloud</button>${input.band === "5-7" && measuredSkill(input.itemSubject ?? input.subject) !== "reading" ? `<label class="check autoread-toggle"><input type="checkbox" data-autoread-toggle checked> Read questions to me</label>` : ""}
   </article>
   ${hint}
   <form method="post" action="/session/${esc(input.sessionId)}/answer" class="answer" data-started="${Date.now()}">
@@ -760,7 +763,7 @@ function progressSection(progress: { ladders: ConceptLadder[]; gain: Gain; audit
   const summary = ladderSummary(rows)
   const order: Band[] = ["judge", "use", "foundations", "none"]
   const sorted = [...rows].sort((a, b) => order.indexOf(a.band) - order.indexOf(b.band) || b.reached.length - a.reached.length)
-  const ladderTable = rows.length ? `<div class="table-scroll"><table class="ladder"><caption class="fine">One row per topic. Thinking is the highest level solved on their own; the steps show how much of it they own.</caption><thead><tr><th scope="col">Topic</th><th scope="col">Thinking</th><th scope="col">Owns it</th><th scope="col">Next</th></tr></thead><tbody>${sorted.map(row => `<tr${row.goalMet ? ' class="goal-met"' : ""}><th scope="row">${esc(conceptTitle(row.conceptId, titles))}</th><td>${esc(BAND_LABEL[row.band])}${row.highestLevel ? ` <span class="fine">(${esc(BLOOM_NAME[row.highestLevel])})</span>` : ""}</td><td><ol class="steps">${OWNERSHIP.map(step => `<li data-done="${row.reached.includes(step)}">${row.reached.includes(step) ? "" : '<span class="visually-hidden">Not yet: </span>'}${esc(OWNERSHIP_LABEL[step])}</li>`).join("")}</ol></td><td>${esc(row.next)}</td></tr>`).join("")}</tbody></table></div>` : "<p>No topics practised yet.</p>"
+  const ladderTable = rows.length ? `<div class="table-scroll"><table class="ladder"><caption class="fine">One row per topic. Thinking is the highest level solved on their own; the steps show how much of it they own.</caption><thead><tr><th scope="col">Topic</th><th scope="col">Thinking</th><th scope="col">Owns it</th><th scope="col">Next</th></tr></thead><tbody>${sorted.map(row => `<tr${row.goalMet ? ' class="goal-met"' : ""}><th scope="row">${esc(conceptTitle(row.conceptId, titles))}</th><td>${esc(BAND_LABEL[row.band])}${row.highestLevel ? ` <span class="fine">(${esc(BLOOM_NAME[row.highestLevel])})</span>` : ""}</td><td><ol class="steps">${OWNERSHIP.map(step => { const kept = (step === "retained7" || step === "retained28") ? row.memoryLevel?.[step] : undefined; const lower = kept && bandOf(kept) !== row.band ? ` (at the ${({ none: "", foundations: "basics", use: "using-it", judge: "judging-and-creating" } as Record<Band, string>)[bandOf(kept)]} level)` : ""; return `<li data-done="${row.reached.includes(step)}">${row.reached.includes(step) ? "" : '<span class="visually-hidden">Not yet: </span>'}${esc(OWNERSHIP_LABEL[step] + lower)}</li>` }).join("")}</ol></td><td>${esc(row.next)}</td></tr>`).join("")}</tbody></table></div>` : "<p>No topics practised yet.</p>"
   const before = gain.before, after = gain.after
   const gainBody = gain.enough && before && after
     ? `<p class="metric">${pct(before.accuracy)} → ${pct(after.accuracy)}</p>

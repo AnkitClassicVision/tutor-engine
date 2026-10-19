@@ -43,7 +43,7 @@ How this was done: web search on 2026-10-19, reading abstracts, publisher pages 
   - Most retention evidence comes from adults (5a, 5b).
   - 4b is unread.
 
-## Proposed rule for the open access-support decision (owner decision, not applied)
+## Access-support rule (owner approved 2026-10-19; implemented in `src/engine/access.ts`)
 
 | Task's measured skill | Reading the question aloud | Spoken answer |
 |---|---|---|
@@ -51,7 +51,7 @@ How this was done: web search on 2026-10-19, reading abstracts, publisher pages 
 | Reading comprehension or decoding | Reading the instructions is access. Reading the tested text supplies the skill, so the attempt counts as supported. | Access support. |
 | Spelling | Access support. | Supplies the skill (the speech engine spells it), so the attempt counts as supported. |
 
-To apply this, each concept needs a "measured skill" tag. Built-in maths is unaffected; it would matter for custom reading and spelling subjects. It is recorded here for the owner's decision. No code changes until the owner agrees.
+To apply this, each concept needs a "measured skill" tag. Built-in maths is unaffected; it would matter for custom reading and spelling subjects. The owner approved it on 2026-10-19.
 
 ## Next study (proposal; not run)
 

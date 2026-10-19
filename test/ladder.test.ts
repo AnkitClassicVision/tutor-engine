@@ -93,3 +93,13 @@ test("the numbers page shows the ladder and the fair-check comparison to parents
   assert.match(gained, /asked for more kinds of thinking \(up 1\.5 of a level\)\. That is a different kind of question, not proof of a harder one/)
   assert.doesNotMatch(gained, /got harder/)
 })
+
+test("a memory step shown at a lower thinking level says so on the parent ladder (owner decision 2026-10-19)", () => {
+  const row = conceptLadder("c", [attempt("2026-09-01", 5, true), attempt("2026-09-09", 2, true), attempt("2026-09-30", 5, true)])
+  assert.deepEqual(row.memoryLevel, { retained7: 5, retained28: 5 }, "the highest later success counts")
+  const lower = conceptLadder("c", [attempt("2026-09-01", 5, true), attempt("2026-09-09", 2, true)])
+  assert.equal(lower.band, "judge"); assert.equal(lower.memoryLevel.retained7, 2)
+  const html = scoreboardPage("Synthetic", "00000000-0000-0000-0000-000000000000", { conceptsMasteredThisWeek: [], frontier: [], stuck: [], errorTrend: [], justRightRatio: null, retention7: { checked: 0, held: 0 }, retention30: { checked: 0, held: 0 } } as any, { c: "Fractions" }, [], { ladders: [lower, conceptLadder("d", [attempt("2026-09-01", 3, true, { conceptId: "d" }), attempt("2026-09-09", 3, true, { conceptId: "d" })])], gain: gainOnFairChecks([]) })
+  assert.match(html, /Remembered after a week \(at the basics level\)/)
+  assert.equal((html.match(/\(at the [a-z-]+ level\)/g) ?? []).length, 1, "a memory at the topic's own level gets no extra label")
+})

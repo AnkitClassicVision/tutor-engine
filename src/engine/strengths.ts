@@ -39,7 +39,7 @@ export function strengthGraph(concepts: ConceptNode[], attempts: AttemptRecord[]
     })
     const demonstrated = levels.filter(l => l.demonstrated).map(l => l.level)
     const state = reduceState(concept.conceptId, attempts, today, 'screen')
-    const supported = rows.filter(a => a.evidenceCertainty === 'confirmed' && a.correct && (a.hintsUsed > 0 || a.supportUsed === 'homework' || a.supportUsed === 'hint')).length
+    const supported = rows.filter(a => a.evidenceCertainty === 'confirmed' && a.correct && (a.hintsUsed > 0 || a.supportUsed === 'homework' || a.supportUsed === 'hint' || a.supportUsed === 'access')).length
     const unresolved = rows.filter(a => a.evidenceCertainty === 'unresolved').length + (pending[concept.conceptId] ?? 0)
     const due = checks.length > 0 && (state.nextDue <= today || state.status === 'review_due')
     const status: StrengthStatus = due ? 'review' : demonstrated.length ? 'demonstrated' : checks.length ? 'growing' : supported ? 'supported' : unresolved ? 'pending' : 'unseen'

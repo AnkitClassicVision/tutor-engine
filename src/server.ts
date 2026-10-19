@@ -1,4 +1,5 @@
 import { sealFor, sealForStudent } from "./family-crypto.ts"
+import { conceptSubject } from "./engine/access.ts"
 import { sweepPrivateFiles } from "./file-erasures.ts"
 import { UserError, userMessage } from "./errors.ts"
 import { learningMeasures, type Measure } from "./learning-metrics.ts"
@@ -444,6 +445,7 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse, options:
           pendingReviews: auth!.parentUnlocked ? items.filter((item) => item.answered === 1 && item.correct == null) : [],
           band: ageBand(learner),
           aiMissing: Boolean(aiConnectionProblem(await aiSettings(options.db, auth!.userId))),
+          itemSubject: current ? conceptSubject(current.concept_id, new Map(((await options.db.prepare('SELECT concept_id, subject FROM custom_concepts WHERE student_id = ?').all(String(session.student_id))) as Array<{ concept_id: string; subject: string }>).map(row => [String(row.concept_id), String(row.subject)])), session.subject) : undefined,
           askSure: armFor(learner.experiments, "confidence-check") === "on",
           feedbackConceptId: feedback?.itemId ? String(items.find((item) => item.id === feedback.itemId)?.concept_id ?? "") || undefined : undefined,
         }) + "</div>",

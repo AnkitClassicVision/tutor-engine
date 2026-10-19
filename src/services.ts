@@ -1,4 +1,5 @@
 import { noteChangedMind } from "./museum.ts"
+import { conceptSubject, measuredSkill, supportSuppliesSkill } from "./engine/access.ts"
 import type { Rubric } from "./rubric.ts"
 import { sealFor, sealForStudent } from "./family-crypto.ts"
 import { WORLDS } from './worlds.ts'
@@ -1261,7 +1262,8 @@ export async function loadAttempts(db: DatabaseSync, studentId: string): Promise
   const rows = (await db.prepare("SELECT * FROM attempts WHERE student_id = ? ORDER BY created_at").all(studentId)) as Array<
     Record<string, SQLInputValue>
   >
-  const items = await db.prepare(`SELECT i.*, s.mode FROM session_items i JOIN tutor_sessions s ON s.id = i.session_id WHERE s.student_id = ? ORDER BY coalesce(i.submitted_at, s.started_at), s.rowid, i.position`).all(studentId)
+  const customSubjects = new Map(((await db.prepare('SELECT concept_id, subject FROM custom_concepts WHERE student_id = ?').all(studentId)) as Array<{ concept_id: string; subject: string }>).map(row => [String(row.concept_id), String(row.subject)]))
+  const items = await db.prepare(`SELECT i.*, s.mode, s.subject FROM session_items i JOIN tutor_sessions s ON s.id = i.session_id WHERE s.student_id = ? ORDER BY coalesce(i.submitted_at, s.started_at), s.rowid, i.position`).all(studentId)
   const firstByPrompt = new Map<string, string>()
   const byItemId = new Map(items.map(i => [String(i.id), i]))
   const bySubmission = new Map<string, typeof items>()
@@ -1288,7 +1290,8 @@ export async function loadAttempts(db: DatabaseSync, studentId: string): Promise
     promptKey: item ? String(item.prompt).trim().toLowerCase().replace(/\s+/g, " ") : undefined,
     // A grade a parent disputed counts neither way.
     evidenceCertainty: item ? (Number(item.disputed) === 1 || !String(item.given_answer ?? "").trim() || /^(?:\?|unreadable|unclear|illegible)$/i.test(String(item.given_answer).trim()) ? "unresolved" as const : "confirmed" as const) : "legacy" as const,
-    supportUsed: item?.mode === "homework" ? "homework" as const : Number(row.hints_used) > 0 ? "hint" as const : "none" as const,
+    supportUsed: item?.mode === "homework" ? "homework" as const : Number(row.hints_used) > 0 ? "hint" as const
+      : supportSuppliesSkill(measuredSkill(conceptSubject(item?.concept_id, customSubjects, item?.subject)), item?.access_support ? String(item.access_support).split(",") : undefined) ? "access" as const : "none" as const,
     accessSupport: item?.access_support ? String(item.access_support).split(",").filter(Boolean) : undefined,
     kind: item?.evidence_kind === "transfer" ? "transfer" as const : "practice" as const,
     confidence: ["sure", "think", "guess"].includes(String(item?.confidence)) ? String(item!.confidence) as "sure" | "think" | "guess" : undefined,
@@ -2346,7 +2349,7 @@ export async function learningOverview(db: DatabaseSync, owner: string, studentI
   const due = known.filter(s => s.nextDue <= dayStamp(new Date()))
   const gaps = known.filter(s => s.status === 'stuck' || evidence.filter(a => a.conceptId === s.conceptId).at(-1)?.correct === false)
   const strong = known.filter(s => s.bloomLevel >= 2)
-  return { student, next, titles, independent: evidence.length, supported: attempts.filter(a => a.correct && (a.hintsUsed > 0 || a.supportUsed === 'homework')).length, days: new Set(evidence.map(a => a.day)).size, pending, due, gaps, strong, challenge, comparableCount: comparable.length, demand, successPercent: comparable.length >= 6 ? Math.round(rate! * 100) : null, lastScore: scores[0] ?? null }
+  return { student, next, titles, independent: evidence.length, supported: attempts.filter(a => a.correct && (a.hintsUsed > 0 || a.supportUsed === 'homework' || a.supportUsed === 'access')).length, days: new Set(evidence.map(a => a.day)).size, pending, due, gaps, strong, challenge, comparableCount: comparable.length, demand, successPercent: comparable.length >= 6 ? Math.round(rate! * 100) : null, lastScore: scores[0] ?? null }
 }
 
 
