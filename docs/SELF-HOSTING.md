@@ -24,6 +24,7 @@ Before you invite anyone else's family, read [OPERATING.md](OPERATING.md).
    | `CRON_SECRET` | any long random string |
    | `TUTOR_MAIL_PROVIDER`, `TUTOR_MAIL_FROM`, `RESEND_API_KEY` or `TUTOR_SMTP_URL` | your email setup |
    | `TUTOR_OPERATOR_NAME`, `TUTOR_CONTACT_EMAIL` | shown on `/privacy` and `/terms` |
+   | `TUTOR_ALERT_EMAIL` | optional: your address for operations alerts |
    | `TUTOR_SOURCE_URL` | your fork's URL, if you changed the code |
 
    Public mode refuses to start if security, storage, encryption or email settings are missing.

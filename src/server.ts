@@ -1,3 +1,4 @@
+import { runOpsCheck, ownerAlertMail } from "./ops-check.ts"
 import { sealFor, sealForStudent } from "./family-crypto.ts"
 import { conceptSubject } from "./engine/access.ts"
 import { sweepPrivateFiles } from "./file-erasures.ts"
@@ -194,6 +195,20 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse, options:
     for (; ran < 10; ran++) if (!(await runNextJob(options.db, jobHandlers(options)))) break
     await flushMail(options.db, 10)
     return send(res, 200, "application/json", JSON.stringify({ queued, ran }))
+  }
+  if (method === "GET" && url.pathname === "/cron/ops-check") {
+    // Owner alerts (counts only). Same bearer secret as the other cron routes; absent secret, absent route.
+    const secret = process.env.CRON_SECRET
+    if (!secret) return send(res, 404, "text/plain", "Not found.")
+    if (req.headers.authorization !== `Bearer ${secret}`) return send(res, 401, "text/plain", "Unauthorized.")
+    const mail = await ownerAlertMail()
+    if (url.searchParams.get("test") === "1") {
+      if (!mail) return send(res, 409, "application/json", JSON.stringify({ alertsConfigured: false }))
+      await mail({ id: `ops-test-${new Date().toISOString().slice(0, 16)}`, subject: "Tutor site: test alert", text: "Alerts for this site reach this address. Nothing is wrong." })
+      return send(res, 200, "application/json", JSON.stringify({ alertsConfigured: true, testSent: true }))
+    }
+    const result = await runOpsCheck(options.db, mail)
+    return send(res, 200, "application/json", JSON.stringify({ alertsConfigured: Boolean(mail), ...result }))
   }
   if (method === "GET" && url.pathname === "/health") {
     return send(res, 200, "application/json", JSON.stringify({ ok: true }))

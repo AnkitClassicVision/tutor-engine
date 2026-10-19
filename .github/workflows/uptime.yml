@@ -1,0 +1,30 @@
+name: Uptime
+# Checks the public demo from outside its host every 15 minutes. A failed run is the alert:
+# GitHub emails the account that owns the schedule. Runs only in the upstream public repository.
+on:
+  schedule:
+    - cron: '7,22,37,52 * * * *'
+  workflow_dispatch:
+    inputs:
+      site:
+        description: Address to check instead of the demo (to prove a failing run alerts)
+        required: false
+permissions:
+  contents: read
+jobs:
+  check:
+    if: github.repository == 'AnkitClassicVision/tutor-engine'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      SITE: ${{ inputs.site || 'https://kids-tutor-iota.vercel.app' }}
+    steps:
+      - name: Health endpoint answers
+        run: curl --fail --silent --show-error --max-time 20 --retry 3 --retry-delay 20 --retry-all-errors "$SITE/health" | grep -q '"ok":true'
+      - name: Home page and stylesheet load
+        run: |
+          for path in / /app.css; do
+            code=$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 20 --retry 3 --retry-delay 20 --retry-all-errors "$SITE$path")
+            echo "$path $code"
+            case "$code" in 200|303) ;; *) exit 1 ;; esac
+          done

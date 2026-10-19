@@ -28,6 +28,9 @@ CREATE TABLE IF NOT EXISTS file_erasures (
   UNIQUE(owner_user_id, stored_path)
 );
 CREATE INDEX IF NOT EXISTS file_erasures_retry ON file_erasures(retry_after);
+CREATE TABLE IF NOT EXISTS ops_alerts (
+  code TEXT PRIMARY KEY, first_seen_at TEXT NOT NULL, last_sent_at TEXT, last_count INTEGER NOT NULL DEFAULT 0, resolved_at TEXT
+);
     CREATE TABLE IF NOT EXISTS jobs (
       id TEXT PRIMARY KEY, owner_user_id TEXT NOT NULL REFERENCES users(id), student_id TEXT,
       kind TEXT NOT NULL, payload TEXT NOT NULL, idempotency_key TEXT NOT NULL,

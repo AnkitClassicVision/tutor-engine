@@ -37,6 +37,10 @@
     {
       "path": "/cron/weekly-digest",
       "schedule": "0 12 * * 0"
+    },
+    {
+      "path": "/cron/ops-check",
+      "schedule": "*/15 * * * *"
     }
   ]
 }

@@ -1,9 +1,12 @@
 name: Verify tutor
-on: [push, pull_request]
+# Runs on every push and pull request in the public repository. The private upstream runs it only on demand
+# (Actions minutes are billed there, and every release is verified again when it is exported).
+on: [push, pull_request, workflow_dispatch]
 permissions:
   contents: read
 jobs:
   checks:
+    if: github.repository == 'AnkitClassicVision/tutor-engine' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:

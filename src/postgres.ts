@@ -1,4 +1,5 @@
 import { openRowsAsync, STILL_SEALED } from './family-crypto.ts'
+import { POSTGRES_MIGRATIONS } from './migrations.ts'
 import { Pool, types, type PoolClient } from 'pg'
 import { readFile } from 'node:fs/promises'
 import type { AsyncDatabase, Row } from './database.ts'
@@ -107,7 +108,7 @@ export async function withPostgres<T>(fn: (db: PostgresDatabase) => Promise<T>, 
   }
 }
 export async function migratePostgres() {
-  const migrations = ['001-postgres.sql', '002-upload-intents.sql', '003-school-learning.sql', '004-school-result-requests.sql', '005-student-access.sql', '006-feedback-flow.sql', '007-parent-planner.sql', '008-learning-packs.sql', '009-chatgpt-plan.sql', '010-panel-round-2.sql', '011-hardening.sql', '012-worlds.sql', '013-student-link-hash.sql', '014-family-keys.sql', '015-runbook-runs.sql', '016-evidence-ladder.sql', '017-subject-maps.sql', '018-changed-minds.sql', '019-grading-audits.sql', '020-grading-doubt.sql', '021-rubrics.sql', '022-ux-workflows.sql', '023-ai-health.sql']
+  const migrations = POSTGRES_MIGRATIONS
   await withPostgres(async db => {
     await db.exec('BEGIN')
     try {
