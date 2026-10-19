@@ -9,7 +9,7 @@ import { emptyState, estimatedRetention, reduceState, workingBloom } from "../sr
 import { weeklyScoreboard } from "../src/engine/scoreboard.ts"
 import { decisionContext, decisionHistory } from "../src/decisions.ts"
 import { requiresJudgment } from "../src/engine/score.ts"
-import { gradeResponse, parseRubricVerdict } from "../src/grade-response.ts"
+import { gradeResponse, judgeAnswer, parseRubricVerdict } from "../src/grade-response.ts"
 import { gradePendingResponses } from "../src/server.ts"
 import { curriculumPrompt, curriculumSystemPrompt, parseCurriculum, planCurriculum } from "../src/plan-subject.ts"
 import { planningBrief } from "../src/talk.ts"
@@ -26,7 +26,7 @@ const valid = {
     example: "1/2 + 1/3 = 5/6", nonExample: "1/2 + 1/3 = 2/5",
     questions: [
       { prompt: "Add 1/4 and 1/3.", answer: "7/12", bloomLevel: 3 },
-      { prompt: "Write and solve a new fraction problem. Explain your check.", answer: "Rubric: produce an original problem, use a common denominator, and check the sum.", bloomLevel: 6 },
+      { prompt: "Write and solve a new fraction problem. Explain your check.", answer: "Rubric: produce an original problem, use a common denominator, and check the sum.", bloomLevel: 6, rubric: { mustShow: [{ point: "An original fraction problem solved with a common denominator and checked", acceptable: ["makes a new problem and solves it", "uses a common denominator", "checks the sum"] }], doesNotMeet: ["copies a problem from the lesson"], notRequired: ["spelling"], examples: { meets: "1/3 + 1/6 = 2/6 + 1/6 = 3/6; check: 3/6 is 1/2.", almost: "1/3 + 1/6 = 3/6", notYet: "1/3 + 1/6 = 2/9" } } },
     ],
   }],
 }
@@ -75,7 +75,7 @@ test("API providers receive the same course instructions and share result valida
     // The writer must answer its self-check; a separate blind reviewer then solves each question.
     const reviewing = system.includes("You independently review questions")
     if (!reviewing) captured.push(system)
-    const selfCheck = Array.from({ length: 4 }, (_, i) => ({ question: `Check ${i + 1}`, answer: "Yes, checked.", ok: true }))
+    const selfCheck = Array.from({ length: 5 }, (_, i) => ({ question: `Check ${i + 1}`, answer: "Yes, checked.", ok: true }))
     const review = { items: [{ id: 0, answer: "7/12", bloom: 3, onTopic: 5, ageFit: 5, issue: "" }, { id: 1, answer: "1/2 + 1/4 = 3/4, checked by drawing", bloom: 6, onTopic: 5, ageFit: 5, issue: "" }] }
     const content = JSON.stringify(reviewing ? review : malformed ? { ...valid, topics: [], selfCheck } : { ...valid, selfCheck })
     return new Response(JSON.stringify(body.system ? { content: [{ text: content }] } : { choices: [{ message: { content } }] }), { status: 200 })
@@ -184,10 +184,14 @@ test("automatic rubric grading persists a real model verdict while uncertain out
   let confidence = 0.95
   try {
     await saveAiSettings(db, ownerId, { provider: "openai", model: "test-grader", apiKey: "test-only" })
-    let secondChecks = 0
+    let secondChecks = 0, grounding = 0
     t.mock.method(globalThis, "fetch", async (_url: unknown, options: RequestInit) => {
       const body = JSON.parse(String(options.body))
       // A create-level grade gets an independent second judgment that never sees the first verdict.
+      if (body.messages[0].content.includes("# Ground a judgment")) {
+        grounding++
+        return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ rubricPoints: [{ point: "Original problem with a check", met: false, quote: "" }], reasoningSound: false, groundedOn: ["own working"], doubts: ["The answer describes a problem but does not show it."], doubtAbout: "answer", correct: false, reason: "Show the problem you made.", confidence: 0.6, errorType: null }) } }] }), { status: 200 })
+      }
       if (body.messages[0].content.includes("# Verify a judgment")) {
         secondChecks++
         assert.doesNotMatch(body.messages[1].content, /independent check/)
@@ -195,7 +199,7 @@ test("automatic rubric grading persists a real model verdict while uncertain out
       }
       assert.match(body.messages[0].content, /keyword overlap/)
       assert.match(body.messages[1].content, /original fraction problem/)
-      const verdict = { rubricPoints: [{ point: "Original problem with a check", met: true, quote: "complete solution and check" }], reasoningSound: true, correct: true, reason: "The original problem has a correct common-denominator solution and an independent check.", confidence, errorType: null }
+      const verdict = { rubricPoints: [{ point: "Original problem with a check", met: true, quote: "complete solution and check" }], reasoningSound: true, doubts: confidence < 0.85 ? ["The answer describes a problem but does not show it."] : [], correct: true, reason: "The original problem has a correct common-denominator solution and an independent check.", confidence, errorType: null }
       return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(verdict) } }] }), { status: 200 })
     })
     const sessionId = (await startTutorSession(db, ownerId, studentId, now))
@@ -203,17 +207,22 @@ test("automatic rubric grading persists a real model verdict while uncertain out
       const item = (await sessionItems(db, sessionId))[index]
       await db.prepare("UPDATE session_items SET bloom_level = 6, answer = ?, answered = 1, given_answer = ?, submitted_at = ? WHERE id = ?")
         .run("Rubric: create an original fraction problem and check it.", "An original fraction problem with a complete solution and check.", now.toISOString(), item.id)
-      await gradePendingResponses(db, ownerId, sessionId, gradeResponse, [String(item.id)])
+      await gradePendingResponses(db, ownerId, sessionId, judgeAnswer, [String(item.id)])
       const graded = (await sessionItems(db, sessionId))[index]
       if (index === 0) {
         assert.equal(graded.correct, 1)
         assert.equal(graded.grader, "model:openai")
         assert.match(String(graded.grading_reason), /independent check/)
         confidence = 0.5
-      } else assert.equal(graded.correct, null)
+      } else {
+        // Under 85% confidence: grounded, still unsure, so it waits for a parent with the reason.
+        assert.equal(graded.correct, null)
+        assert.match(String(graded.grading_doubt), /does not show it/)
+      }
     }
     assert.equal((await db.prepare("SELECT count(*) AS n FROM attempts WHERE session_id = ?").get(sessionId))?.n, 1)
-    assert.equal(secondChecks, 1, "the confident first verdict was checked independently; the uncertain one stayed pending")
+    assert.equal(secondChecks, 1, "the confident first verdict was checked independently")
+    assert.equal(grounding, 2, "the uncertain one was grounded twice before it went to a parent")
     assert.equal(parseRubricVerdict(JSON.stringify({ correct: true, confidence: 0.99, reason: "Looks good", errorType: "misconception" })), null)
     assert.equal(parseRubricVerdict(JSON.stringify({ correct: "yes", confidence: 1, reason: "Good", errorType: null })), null)
   } finally { db.close() }

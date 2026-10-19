@@ -1,0 +1,372 @@
+[
+ {
+  "name": "a grounded, confident verdict citing its sources passes",
+  "input": {
+   "concept": "Equivalent fractions",
+   "bloomLevel": 2,
+   "prompt": "Explain why 2/4 and 1/2 are the same amount.",
+   "key": "Rubric: both are one half; multiplying the top and bottom of 1/2 by 2 gives 2/4.",
+   "response": "if you split each half into 2 you get 2 quarters, its the same bit of the pizza",
+   "grounding": {
+    "idea": "Multiplying the top and bottom by the same number gives an equal fraction.",
+    "example": "1/2 = 2/4",
+    "nonExample": "1/2 = 2/3"
+   },
+   "doubts": [
+    "The first grader was only 70% confident."
+   ]
+  },
+  "replies": {
+   "write": {
+    "rubricPoints": [
+     {
+      "point": "Says they are the same amount",
+      "met": true,
+      "quote": "the same bit of the pizza"
+     },
+     {
+      "point": "Explains splitting each half into two",
+      "met": true,
+      "quote": "split each half into 2"
+     }
+    ],
+    "reasoningSound": true,
+    "groundedOn": [
+     "idea",
+     "own working"
+    ],
+    "doubts": [],
+    "correct": true,
+    "reason": "You showed that splitting each half into two quarters keeps the same amount.",
+    "confidence": 0.9,
+    "errorType": null,
+    "doubtAbout": "none"
+   }
+  },
+  "expect": {
+   "outcome": "accepted"
+  },
+  "live": true
+ },
+ {
+  "name": "a grounded verdict that is still unsure is kept, so the answer goes to a parent",
+  "input": {
+   "concept": "Equivalent fractions",
+   "bloomLevel": 2,
+   "prompt": "Explain why 2/4 and 1/2 are the same amount.",
+   "key": "Rubric: both are one half; multiplying the top and bottom of 1/2 by 2 gives 2/4.",
+   "response": "if you split each half into 2 you get 2 quarters, its the same bit of the pizza",
+   "grounding": {
+    "idea": "Multiplying the top and bottom by the same number gives an equal fraction.",
+    "example": "1/2 = 2/4",
+    "nonExample": "1/2 = 2/3"
+   },
+   "doubts": [
+    "The first grader was only 70% confident."
+   ]
+  },
+  "replies": {
+   "write": {
+    "rubricPoints": [
+     {
+      "point": "Says they are the same amount",
+      "met": true,
+      "quote": "the same bit of the pizza"
+     },
+     {
+      "point": "Explains splitting each half into two",
+      "met": true,
+      "quote": "split each half into 2"
+     }
+    ],
+    "reasoningSound": true,
+    "groundedOn": [
+     "idea",
+     "own working"
+    ],
+    "doubts": [
+     "The answer mixes up pieces and amounts."
+    ],
+    "correct": true,
+    "reason": "You showed that splitting each half into two quarters keeps the same amount.",
+    "confidence": 0.6,
+    "errorType": null,
+    "doubtAbout": "answer"
+   }
+  },
+  "expect": {
+   "outcome": "accepted"
+  }
+ },
+ {
+  "name": "a grounding pass that cites no source is refused",
+  "input": {
+   "concept": "Equivalent fractions",
+   "bloomLevel": 2,
+   "prompt": "Explain why 2/4 and 1/2 are the same amount.",
+   "key": "Rubric: both are one half; multiplying the top and bottom of 1/2 by 2 gives 2/4.",
+   "response": "if you split each half into 2 you get 2 quarters, its the same bit of the pizza",
+   "grounding": {
+    "idea": "Multiplying the top and bottom by the same number gives an equal fraction.",
+    "example": "1/2 = 2/4",
+    "nonExample": "1/2 = 2/3"
+   },
+   "doubts": [
+    "The first grader was only 70% confident."
+   ]
+  },
+  "replies": {
+   "write": {
+    "rubricPoints": [
+     {
+      "point": "Says they are the same amount",
+      "met": true,
+      "quote": "the same bit of the pizza"
+     },
+     {
+      "point": "Explains splitting each half into two",
+      "met": true,
+      "quote": "split each half into 2"
+     }
+    ],
+    "reasoningSound": true,
+    "groundedOn": [],
+    "doubts": [],
+    "correct": true,
+    "reason": "You showed that splitting each half into two quarters keeps the same amount.",
+    "confidence": 0.9,
+    "errorType": null,
+    "doubtAbout": "none"
+   }
+  },
+  "expect": {
+   "outcome": "rejected",
+   "rules": [
+    "schema"
+   ]
+  }
+ },
+ {
+  "name": "a grounding pass that invents the child's words is refused",
+  "input": {
+   "concept": "Equivalent fractions",
+   "bloomLevel": 2,
+   "prompt": "Explain why 2/4 and 1/2 are the same amount.",
+   "key": "Rubric: both are one half; multiplying the top and bottom of 1/2 by 2 gives 2/4.",
+   "response": "if you split each half into 2 you get 2 quarters, its the same bit of the pizza",
+   "grounding": {
+    "idea": "Multiplying the top and bottom by the same number gives an equal fraction.",
+    "example": "1/2 = 2/4",
+    "nonExample": "1/2 = 2/3"
+   },
+   "doubts": [
+    "The first grader was only 70% confident."
+   ]
+  },
+  "replies": {
+   "write": {
+    "rubricPoints": [
+     {
+      "point": "Says they are the same amount",
+      "met": true,
+      "quote": "they are equivalent"
+     },
+     {
+      "point": "Explains splitting",
+      "met": true,
+      "quote": "split each half into 2"
+     }
+    ],
+    "reasoningSound": true,
+    "groundedOn": [
+     "idea",
+     "own working"
+    ],
+    "doubts": [],
+    "correct": true,
+    "reason": "You showed that splitting each half into two quarters keeps the same amount.",
+    "confidence": 0.9,
+    "errorType": null,
+    "doubtAbout": "none"
+   }
+  },
+  "expect": {
+   "outcome": "rejected",
+   "rules": [
+    "invented_quote"
+   ]
+  }
+ },
+ {
+  "name": "a grounding pass naming a source that does not exist is refused",
+  "input": {
+   "concept": "Equivalent fractions",
+   "bloomLevel": 2,
+   "prompt": "Explain why 2/4 and 1/2 are the same amount.",
+   "key": "Rubric: both are one half; multiplying the top and bottom of 1/2 by 2 gives 2/4.",
+   "response": "if you split each half into 2 you get 2 quarters, its the same bit of the pizza",
+   "grounding": {
+    "idea": "Multiplying the top and bottom by the same number gives an equal fraction.",
+    "example": "1/2 = 2/4",
+    "nonExample": "1/2 = 2/3"
+   },
+   "doubts": [
+    "The first grader was only 70% confident."
+   ]
+  },
+  "replies": {
+   "write": {
+    "rubricPoints": [
+     {
+      "point": "Says they are the same amount",
+      "met": true,
+      "quote": "the same bit of the pizza"
+     },
+     {
+      "point": "Explains splitting each half into two",
+      "met": true,
+      "quote": "split each half into 2"
+     }
+    ],
+    "reasoningSound": true,
+    "groundedOn": [
+     "textbook page 4"
+    ],
+    "doubts": [],
+    "correct": true,
+    "reason": "You showed that splitting each half into two quarters keeps the same amount.",
+    "confidence": 0.9,
+    "errorType": null,
+    "doubtAbout": "none"
+   }
+  },
+  "expect": {
+   "outcome": "rejected",
+   "rules": [
+    "schema"
+   ]
+  }
+ },
+ {
+  "name": "a doubt about the question itself is kept and marked as the question's",
+  "input": {
+   "concept": "Equivalent fractions",
+   "bloomLevel": 2,
+   "prompt": "Explain why 2/4 and 1/2 are the same amount.",
+   "key": "Rubric: both are one half; multiplying the top and bottom of 1/2 by 2 gives 2/4.",
+   "response": "if you split each half into 2 you get 2 quarters, its the same bit of the pizza",
+   "grounding": {
+    "idea": "Multiplying the top and bottom by the same number gives an equal fraction.",
+    "example": "1/2 = 2/4",
+    "nonExample": "1/2 = 2/3"
+   },
+   "doubts": [
+    "The first grader was only 70% confident."
+   ]
+  },
+  "replies": {
+   "write": {
+    "rubricPoints": [
+     {
+      "point": "Says they are the same amount",
+      "met": true,
+      "quote": "the same bit of the pizza"
+     },
+     {
+      "point": "Explains splitting each half into two",
+      "met": true,
+      "quote": "split each half into 2"
+     }
+    ],
+    "reasoningSound": true,
+    "groundedOn": [
+     "idea",
+     "own working"
+    ],
+    "doubts": [
+     "The expected answer says 18, but 9 + 8 is 17."
+    ],
+    "correct": true,
+    "reason": "You showed that splitting each half into two quarters keeps the same amount.",
+    "confidence": 0.5,
+    "errorType": null,
+    "doubtAbout": "question"
+   }
+  },
+  "expect": {
+   "outcome": "accepted"
+  }
+ },
+ {
+  "name": "a grounding with the question's rubric settles at 80% confidence",
+  "input": {
+   "concept": "Equivalent fractions",
+   "bloomLevel": 2,
+   "prompt": "Explain why 2/4 and 1/2 are the same amount.",
+   "key": "Rubric: both are one half; multiplying the top and bottom of 1/2 by 2 gives 2/4.",
+   "response": "if you split each half into 2 you get 2 quarters, its the same bit of the pizza",
+   "grounding": {
+    "idea": "Multiplying the top and bottom by the same number gives an equal fraction.",
+    "example": "1/2 = 2/4",
+    "nonExample": "1/2 = 2/3"
+   },
+   "doubts": [
+    "The first grader was only 70% confident."
+   ],
+   "rubric": {
+    "mustShow": [
+     {
+      "point": "Both name one half",
+      "acceptable": [
+       "both are a half",
+       "same as 1/2",
+       "they are equal"
+      ]
+     }
+    ],
+    "doesNotMeet": [
+     "adding the tops and bottoms"
+    ],
+    "notRequired": [
+     "spelling",
+     "full sentences"
+    ],
+    "examples": {
+     "meets": "Both are one half because doubling top and bottom keeps the amount.",
+     "almost": "They are the same.",
+     "notYet": "2+2=4 so they match."
+    }
+   }
+  },
+  "replies": {
+   "write": {
+    "rubricPoints": [
+     {
+      "point": "Says they are the same amount",
+      "met": true,
+      "quote": "the same bit of the pizza"
+     },
+     {
+      "point": "Explains splitting each half into two",
+      "met": true,
+      "quote": "split each half into 2"
+     }
+    ],
+    "reasoningSound": true,
+    "groundedOn": [
+     "rubric",
+     "own working"
+    ],
+    "doubts": [],
+    "correct": true,
+    "reason": "You showed that splitting each half into two quarters keeps the same amount.",
+    "confidence": 0.82,
+    "errorType": null,
+    "doubtAbout": "none"
+   }
+  },
+  "expect": {
+   "outcome": "accepted"
+  }
+ }
+]

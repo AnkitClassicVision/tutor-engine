@@ -29,15 +29,39 @@ export async function recordAudit(db: DatabaseSync, studentId: string, itemId: s
   }
 }
 
-export async function auditSummary(db: DatabaseSync, studentId: string) {
-  const row = (await db.prepare("SELECT count(*) AS checked, coalesce(sum(parent_agrees), 0) AS agreed FROM grading_audits WHERE student_id = ?").get(studentId)) as { checked: number; agreed: number }
-  return { checked: Number(row.checked), agreed: Number(row.agreed), waiting: (await auditSample(db, studentId, 20)).length }
+export interface EscalatedItem { id: string; session_id: string; concept_id: string; bloom_level: number; prompt: string; answer: string; given_answer: string; grading_doubt: string }
+
+/** Answers the tutor was still not fully confident about after grounding. They wait for a parent and count neither way. */
+export async function escalatedItems(db: DatabaseSync, studentId: string): Promise<EscalatedItem[]> {
+  return (await db.prepare(`SELECT i.id, i.session_id, i.concept_id, i.bloom_level, i.prompt, i.answer, i.given_answer, i.grading_doubt
+    FROM session_items i JOIN tutor_sessions s ON s.id = i.session_id
+    WHERE s.student_id = ? AND i.answered = 1 AND i.correct IS NULL AND i.grading_doubt IS NOT NULL ORDER BY i.submitted_at`).all(studentId)) as unknown as EscalatedItem[]
 }
 
-export function auditPage(studentId: string, name: string, items: AuditItem[], summary: { checked: number; agreed: number }, titles: Record<string, string>) {
+export async function auditSummary(db: DatabaseSync, studentId: string) {
+  const row = (await db.prepare("SELECT count(*) AS checked, coalesce(sum(parent_agrees), 0) AS agreed FROM grading_audits WHERE student_id = ?").get(studentId)) as { checked: number; agreed: number }
+  return { checked: Number(row.checked), agreed: Number(row.agreed), waiting: (await auditSample(db, studentId, 20)).length, unsure: (await escalatedItems(db, studentId)).length }
+}
+
+export function auditPage(studentId: string, name: string, items: AuditItem[], summary: { checked: number; agreed: number }, titles: Record<string, string>, unsure: EscalatedItem[] = []) {
   const rate = summary.checked ? `You agreed with ${summary.agreed} of ${summary.checked} grades you checked (${Math.round((summary.agreed / summary.checked) * 100)}%).` : "You have not checked any grades yet."
+  const unsureSection = unsure.length ? `<section class="panel unsure" aria-labelledby="unsure-title"><h2 id="unsure-title">The tutor isn’t fully sure about ${unsure.length === 1 ? "this answer" : `these ${unsure.length} answers`}</h2>
+    <p>Two graders and a check against the topic’s own material still left some doubt, so you decide. Until you do, ${unsure.length === 1 ? "it counts" : "they count"} neither way.</p>
+    ${unsure.map(item => `<article class="audit-item">
+      <p class="fine">${esc(titles[item.concept_id] ?? item.concept_id)} · ${esc(BLOOM_NAME[item.bloom_level] ?? "")}</p>
+      <p><strong>Question:</strong> ${esc(item.prompt)}</p>
+      <p><strong>${esc(name)} answered:</strong> ${esc(item.given_answer)}</p>
+      <p><strong>What a good answer needs:</strong> ${esc(item.answer.replace(/^rubric:\s*/i, ""))}</p>
+      <p class="doubt"><strong>Why the tutor isn’t sure:</strong> ${esc(item.grading_doubt)}</p>
+      <div class="audit-actions">
+        <form method="post" action="/students/${esc(studentId)}/grading/${esc(item.id)}/decide">${csrfField()}<input type="hidden" name="correct" value="1"><button type="submit">It meets it</button></form>
+        <form method="post" action="/students/${esc(studentId)}/grading/${esc(item.id)}/decide">${csrfField()}<input type="hidden" name="correct" value="0"><button type="submit" class="ghost">Not yet</button></form>
+      </div>
+    </article>`).join("")}
+  </section>` : ""
   return `<p class="links"><a href="/students/${esc(studentId)}/scoreboard">${esc(name)}’s numbers</a></p>
   <h1>Check the tutor’s grading</h1>
+  ${unsureSection}
   <p>The AI grades written answers. Checking a few keeps it honest: if you disagree, that answer stops counting either way. ${esc(rate)}</p>
   ${items.length ? items.map(item => `<article class="panel audit-item">
     <p class="fine">${esc(titles[item.concept_id] ?? item.concept_id)} · ${esc(BLOOM_NAME[item.bloom_level] ?? "")}</p>

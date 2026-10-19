@@ -26,7 +26,8 @@
     "correct": true,
     "reason": "You explained that doubling the top and bottom keeps the same amount.",
     "confidence": 0.93,
-    "errorType": null
+    "errorType": null,
+    "doubts": []
    }
   },
   "expect": {
@@ -61,7 +62,8 @@
     "correct": false,
     "reason": "You said they match, but adding the tops and bottoms is not why. What do you multiply 1/2 by to get 2/4?",
     "confidence": 0.9,
-    "errorType": "misconception"
+    "errorType": "misconception",
+    "doubts": []
    }
   },
   "expect": {
@@ -95,7 +97,8 @@
     "correct": true,
     "reason": "You showed they match.",
     "confidence": 0.92,
-    "errorType": null
+    "errorType": null,
+    "doubts": []
    }
   },
   "expect": {
@@ -132,7 +135,8 @@
     "correct": true,
     "reason": "You explained that doubling the top and bottom keeps the same amount.",
     "confidence": 0.93,
-    "errorType": null
+    "errorType": null,
+    "doubts": []
    }
   },
   "expect": {
@@ -169,7 +173,8 @@
     "correct": true,
     "reason": "You explained that doubling the top and bottom keeps the same amount.",
     "confidence": 0.93,
-    "errorType": null
+    "errorType": null,
+    "doubts": []
    }
   },
   "expect": {
@@ -208,7 +213,8 @@
       "correct": true,
       "reason": "You explained that doubling the top and bottom keeps the same amount.",
       "confidence": 0.93,
-      "errorType": null
+      "errorType": null,
+      "doubts": []
      },
      {
       "rubricPoints": [
@@ -227,7 +233,8 @@
       "correct": true,
       "reason": "You explained that doubling the top and bottom keeps the same amount.",
       "confidence": 0.93,
-      "errorType": null
+      "errorType": null,
+      "doubts": []
      }
     ]
    }
@@ -266,7 +273,10 @@
     "correct": false,
     "reason": "You explained that doubling the top and bottom keeps the same amount.",
     "confidence": 0.6,
-    "errorType": "misconception"
+    "errorType": "misconception",
+    "doubts": [
+     "The answer could be read as either explanation."
+    ]
    }
   },
   "expect": {
@@ -300,7 +310,8 @@
     "correct": true,
     "reason": "Your answer matches the rubric.",
     "confidence": 0.93,
-    "errorType": null
+    "errorType": null,
+    "doubts": []
    }
   },
   "expect": {
@@ -337,7 +348,8 @@
     "correct": true,
     "reason": "You explained that doubling the top and bottom keeps the same amount.",
     "confidence": 0.93,
-    "errorType": "misconception"
+    "errorType": "misconception",
+    "doubts": []
    }
   },
   "expect": {
@@ -368,6 +380,44 @@
    "outcome": "rejected",
    "rules": [
     "schema"
+   ]
+  }
+ },
+ {
+  "name": "an unsure grade that gives no reason is refused",
+  "input": {
+   "concept": "Equivalent fractions",
+   "bloomLevel": 2,
+   "prompt": "Explain why 2/4 and 1/2 are the same amount.",
+   "key": "Rubric: both are one half; multiplying the top and bottom of 1/2 by 2 gives 2/4.",
+   "response": "because if you double the top and bottom of one half you get two fourths, same size"
+  },
+  "replies": {
+   "write": {
+    "rubricPoints": [
+     {
+      "point": "Says they are the same amount",
+      "met": true,
+      "quote": "same size"
+     },
+     {
+      "point": "Explains doubling top and bottom",
+      "met": true,
+      "quote": "double the top and bottom"
+     }
+    ],
+    "reasoningSound": true,
+    "correct": true,
+    "reason": "You explained that doubling the top and bottom keeps the same amount.",
+    "confidence": 0.6,
+    "errorType": null,
+    "doubts": []
+   }
+  },
+  "expect": {
+   "outcome": "rejected",
+   "rules": [
+    "doubt_missing"
    ]
   }
  }

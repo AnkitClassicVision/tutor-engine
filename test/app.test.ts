@@ -12,7 +12,7 @@ async function boot() {
   const dir = mkdtempSync(join(tmpdir(), "tutor-"))
   const db = openDb(join(dir, "tutor.sqlite"))
   const server = createServer(async (req, res) => {
-    handle(req, res, { db, uploadsDir: join(dir, "uploads"), judgeResponse: async () => null }).catch((error) => {
+    handle(req, res, { db, uploadsDir: join(dir, "uploads"), judgeResponse: async () => ({ kind: "failed" as const }) }).catch((error) => {
       console.error(error)
       res.writeHead(500)
       res.end(error instanceof Error ? error.message : "error")

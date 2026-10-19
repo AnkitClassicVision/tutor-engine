@@ -6,7 +6,7 @@ keywords: word problem, word problems, story problem, story problems, real life,
 formats: number, choice, written
 bloom: 2-5
 require_work: true
-version: 2
+version: 3
 role: coach
 ---
 

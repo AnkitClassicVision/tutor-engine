@@ -22,7 +22,7 @@ import { canSearch } from "../src/research-web.ts"
 import { briefFromWords, checkAndRepair, defaultPackAsk, PACK_SCHEMA, parsePackDraft, qaRules, writerBrief, type PackBrief } from "../src/pack.ts"
 import { runbook } from "../src/pack-runbooks.ts"
 import { gradeLabel } from "../src/engine/grade.ts"
-import { gradeResponse } from "../src/grade-response.ts"
+import { judgeAnswer, type Judgment } from "../src/grade-response.ts"
 
 const args = process.argv.slice(2)
 if (!args.includes("--confirm-spend")) { console.error("This calls a real model and spends credit or plan usage. Re-run with --confirm-spend."); process.exit(2) }
@@ -104,16 +104,19 @@ if (only === "grading") {
   const pack = readFileSync(new URL("../eval/review-pack/cases.jsonl", import.meta.url), "utf8").trim().split("\n").map(line => JSON.parse(line)).filter(row => row.kind === "grading" || row.kind === "higher_bloom")
   for (const row of pack) {
     const started = Date.now()
-    let verdict: Awaited<ReturnType<typeof gradeResponse>> = null, error = ""
-    try { verdict = await gradeResponse(row.input, await fresh(), 25000) } catch (failure) { error = String(failure) }
-    const got = verdict ? verdict.correct : null, expected = row.expectedCorrect ?? null
-    // Leaving an answer for a parent is never a wrong grade, but it is counted separately.
-    const outcome = got === expected ? "right" : got === null ? "left for a parent" : "wrong"
-    results.push({ kind: "grading", case: row.id, subject: row.subject, bloom: row.input.bloomLevel, tags: row.tags, expected, got, outcome, error, ms: Date.now() - started })
-    say(`${outcome === "right" ? "RIGHT" : outcome === "wrong" ? "WRONG" : "OPEN "} ${row.id} (${row.subject}, Bloom ${row.input.bloomLevel}${row.tags?.length ? `, ${row.tags.join(" ")}` : ""}): expected ${String(expected)}, got ${String(got)} (${Math.round((Date.now() - started) / 1000)} s)`)
+    let judgment: Judgment = { kind: "failed" }, error = ""
+    try { judgment = await judgeAnswer(row.input, await fresh(), { timeoutMs: 25000 }) } catch (failure) { error = String(failure) }
+    const got = judgment.kind === "graded" ? judgment.verdict.correct : null, expected = row.expectedCorrect ?? null
+    // Leaving an answer for a parent is never a wrong grade, but it is counted separately; an AI failure is neither.
+    // A retired question counts neither way and never reaches the parent; it is right when the case expected no grade.
+    const outcome = judgment.kind === "failed" ? "AI failed" : got === expected ? "right" : judgment.kind === "question_problem" ? "retired question" : got === null ? "left for a parent" : "wrong"
+    const path = judgment.kind === "graded" ? judgment.path : judgment.kind
+    const doubt = judgment.kind === "escalated" || judgment.kind === "question_problem" ? judgment.doubt : ""
+    results.push({ kind: "grading", case: row.id, subject: row.subject, bloom: row.input.bloomLevel, tags: row.tags, expected, got, outcome, path, doubt, error, ms: Date.now() - started })
+    say(`${outcome === "right" ? "RIGHT" : outcome === "wrong" ? "WRONG" : outcome === "AI failed" ? "FAIL " : "OPEN "} ${row.id} (${row.subject}, Bloom ${row.input.bloomLevel}${row.tags?.length ? `, ${row.tags.join(" ")}` : ""}): expected ${String(expected)}, got ${String(got)} via ${path} (${Math.round((Date.now() - started) / 1000)} s)${doubt ? `\n    doubt: ${doubt}` : ""}`)
   }
   const graded = results.filter(r => r.kind === "grading")
-  say(`\nGrading on ${graded.length} review-pack cases: ${graded.filter(r => r.outcome === "right").length} right, ${graded.filter(r => r.outcome === "wrong").length} wrong, ${graded.filter(r => r.outcome === "left for a parent").length} left for a parent.`)
+  say(`\nGrading on ${graded.length} review-pack cases: ${graded.filter(r => r.outcome === "right").length} right, ${graded.filter(r => r.outcome === "wrong").length} wrong, ${graded.filter(r => r.outcome === "left for a parent").length} left for a parent, ${graded.filter(r => r.outcome === "retired question").length} retired as faulty questions, ${graded.filter(r => r.outcome === "AI failed").length} AI failures; ${graded.filter(r => r.path === "grounded").length} settled by grounding.`)
 }
 
 const steps = results.filter(r => r.kind === "step"), packs = results.filter(r => r.kind === "pack")

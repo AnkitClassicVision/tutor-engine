@@ -6,7 +6,7 @@ keywords: mission, challenge, detective, mystery, clue, clues, debate, argue, pa
 formats: written, number, choice
 bloom: 3-6
 require_work: false
-version: 1
+version: 2
 role: coach
 ---
 

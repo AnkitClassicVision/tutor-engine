@@ -1,4 +1,5 @@
 import { noteChangedMind } from "./museum.ts"
+import type { Rubric } from "./rubric.ts"
 import { sealFor, sealForStudent } from "./family-crypto.ts"
 import { WORLDS } from './worlds.ts'
 import { validateImage, stripImageMetadata } from "./image-validation.ts"
@@ -408,6 +409,8 @@ export async function startTutorSession(
       if (repeated) await db.prepare("UPDATE session_items SET skipped = 1, skip_reason = 'repeated_prompt' WHERE id = ?").run(item.itemId)
       // A question written to use the idea somewhere new is transfer evidence when answered unaided.
       if (fresh && practice.kind === "transfer" && selectedPrompt === practice.prompt) await db.prepare("UPDATE session_items SET evidence_kind = 'transfer' WHERE id = ?").run(item.itemId)
+      // The rubric written with the question travels with it, so grading marks against it.
+      if (fresh && practice.rubric && selectedPrompt === practice.prompt) await db.prepare("UPDATE session_items SET rubric_json = ? WHERE id = ?").run(practice.rubric, item.itemId)
       // Guided work starts with the fuller hint showing and faded work with the first one; both count as help.
       if (slot.beat === "guided" || slot.beat === "faded") {
         const shown = slot.beat === "guided" ? selectedHints[1] ?? selectedHints[0] : selectedHints[0]
@@ -503,10 +506,10 @@ export async function addPackConcept(db: DatabaseSync, studentId: string, input:
 
 /** Stores one checked learning-pack question with its format, options, hints and explanation. */
 export async function insertPackItem(db: DatabaseSync, studentId: string, packId: string, conceptId: string,
-  item: { prompt: string; answer: string; bloom: number; format: string; choices: string[] | null; hints: string[]; explanation: string }, now = new Date()) {
+  item: { prompt: string; answer: string; bloom: number; format: string; choices: string[] | null; hints: string[]; explanation: string; rubric?: Rubric | null }, now = new Date()) {
   await db.prepare(
-    "INSERT INTO practice_items (id, student_id, concept_id, prompt, answer, bloom_level, created_at, pack_id, format, choices_json, hints_json, explanation) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-  ).run(crypto.randomUUID(), studentId, conceptId, item.prompt, item.answer, item.bloom, now.toISOString(), packId, item.format, item.choices ? JSON.stringify(item.choices) : null, JSON.stringify(item.hints), item.explanation)
+    "INSERT INTO practice_items (id, student_id, concept_id, prompt, answer, bloom_level, created_at, pack_id, format, choices_json, hints_json, explanation, rubric_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+  ).run(crypto.randomUUID(), studentId, conceptId, item.prompt, item.answer, item.bloom, now.toISOString(), packId, item.format, item.choices ? JSON.stringify(item.choices) : null, JSON.stringify(item.hints), item.explanation, item.rubric ? JSON.stringify(item.rubric) : null)
 }
 
 export async function getOwnedSession(db: DatabaseSync, ownerUserId: string, sessionId: string) {
@@ -1388,7 +1391,7 @@ export async function applyCurriculum(
   ownerUserId: string,
   studentId: string,
   subject: string,
-  topics: Array<{ title: string; recall: string; example: string; nonExample: string; questions: Array<{ prompt: string; answer: string; bloomLevel?: BloomLevel; transfer?: boolean }> }>,
+  topics: Array<{ title: string; recall: string; example: string; nonExample: string; questions: Array<{ prompt: string; answer: string; bloomLevel?: BloomLevel; transfer?: boolean; rubric?: Rubric }> }>,
   now = new Date(),
 ) {
   await assertStudent(db, ownerUserId, studentId, now)
@@ -1423,7 +1426,7 @@ export async function applyCurriculum(
         .prepare("SELECT id FROM practice_items WHERE student_id = ? AND concept_id = ? AND prompt = ?")
         .get(studentId, conceptId, question.prompt))
       if (duplicate) continue
-      await insertPractice(db, studentId, conceptId, question.prompt, question.answer, question.bloomLevel ?? 3, now, question.transfer ? "transfer" : "practice")
+      await insertPractice(db, studentId, conceptId, question.prompt, question.answer, question.bloomLevel ?? 3, now, question.transfer ? "transfer" : "practice", question.rubric)
       questions += 1
     }
   }
@@ -2060,10 +2063,11 @@ async function insertPractice(
   bloom: number,
   now: Date,
   kind: "practice" | "transfer" = "practice",
+  rubric?: Rubric,
 ) {
   await db.prepare(
-    "INSERT INTO practice_items (id, student_id, concept_id, prompt, answer, bloom_level, created_at, evidence_kind) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-  ).run(crypto.randomUUID(), studentId, conceptId, prompt, answer, bloom, now.toISOString(), kind)
+    "INSERT INTO practice_items (id, student_id, concept_id, prompt, answer, bloom_level, created_at, evidence_kind, rubric_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+  ).run(crypto.randomUUID(), studentId, conceptId, prompt, answer, bloom, now.toISOString(), kind, rubric ? JSON.stringify(rubric) : null)
 }
 
 /** A session item as the marker sees it: its key, its format and, for multiple choice, its options. */
@@ -2090,13 +2094,13 @@ export function childCorrection(label: string, item: Record<string, SQLInputValu
   return { label, why: reason, ask, explain, answer, reset, move: `${reason ? `${reason} ` : ""}${explain} The answer: ${sentence(answer)} ${next}`.trim() }
 }
 
-export interface ClaimedPractice { prompt: string; answer: string; bloom: BloomLevel; format: string; choices: string[] | null; hints: string[] | null; explanation: string; packId: string | null; kind?: "practice" | "transfer" }
+export interface ClaimedPractice { prompt: string; answer: string; bloom: BloomLevel; format: string; choices: string[] | null; hints: string[] | null; explanation: string; packId: string | null; kind?: "practice" | "transfer"; rubric?: string | null }
 
 /** Takes the best unused stored question: learning-pack questions first, then the closest demand, then the oldest. Seen prompts are spent and skipped. */
 async function claimPractice(db: DatabaseSync, studentId: string, conceptId: string, now: Date, bloom: number, seen: Set<string>, packOnly = false): Promise<ClaimedPractice | null> {
   const rows = (await db
     .prepare(
-      `SELECT id, prompt, answer, bloom_level, pack_id, format, choices_json, hints_json, explanation, evidence_kind FROM practice_items
+      `SELECT id, prompt, answer, bloom_level, pack_id, format, choices_json, hints_json, explanation, evidence_kind, rubric_json FROM practice_items
        WHERE student_id = ? AND concept_id = ? AND used_at IS NULL ${packOnly ? "AND pack_id IS NOT NULL" : ""}
        ORDER BY CASE WHEN pack_id IS NULL THEN 1 ELSE 0 END, abs(bloom_level - ?), created_at LIMIT 12`,
     )
@@ -2110,6 +2114,7 @@ async function claimPractice(db: DatabaseSync, studentId: string, conceptId: str
       format: String(row.format ?? "text"), choices: list(row.choices_json), hints: list(row.hints_json), explanation: String(row.explanation ?? ""),
       packId: row.pack_id ? String(row.pack_id) : null,
       kind: row.evidence_kind === "transfer" ? "transfer" as const : "practice" as const,
+      rubric: row.rubric_json ? String(row.rubric_json) : null,
     }
   }
   return null

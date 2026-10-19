@@ -741,7 +741,7 @@ function measuresSection(measures: Array<{ label: string; value: string; detail:
 const pct = (value: number) => `${Math.round(value * 100)}%`
 
 /** The two-scale ladder and the before/after gain. Parents only. */
-function progressSection(progress: { ladders: ConceptLadder[]; gain: Gain; audit?: { checked: number; agreed: number; waiting: number } } | undefined, titles: Record<string, string>, studentId = "") {
+function progressSection(progress: { ladders: ConceptLadder[]; gain: Gain; audit?: { checked: number; agreed: number; waiting: number; unsure?: number } } | undefined, titles: Record<string, string>, studentId = "") {
   if (!progress) return ""
   const { ladders: rows, gain, audit } = progress
   const summary = ladderSummary(rows)
@@ -760,7 +760,7 @@ function progressSection(progress: { ladders: ConceptLadder[]; gain: Gain; audit
   </section>
   <section class="panel gain" aria-labelledby="gain-title"><h2 id="gain-title">Progress on fair checks</h2>
     ${gainBody}
-    ${audit ? `<p><a href="/students/${esc(studentId)}/grading">Check the tutor’s grading</a>${audit.waiting ? ` · ${audit.waiting} waiting` : ""}${audit.checked ? ` · you agreed with ${audit.agreed} of ${audit.checked}` : ""}</p>` : ""}
+    ${audit ? `<p><a href="/students/${esc(studentId)}/grading">Check the tutor’s grading</a>${audit.unsure ? ` · <strong>${audit.unsure} the tutor isn’t sure about</strong>` : ""}${audit.waiting ? ` · ${audit.waiting} to spot-check` : ""}${audit.checked ? ` · you agreed with ${audit.agreed} of ${audit.checked}` : ""}</p>` : ""}
     <p class="fine">A fair check is a question your child had not seen, answered without a hint and graded with confidence. This compares your child with their own start. Bloom's “2 sigma” finding compared tutored students with a classroom group, which one family cannot measure; a change of 0.8 or more here is large, and 2 would match that benchmark's size.</p>
   </section>`
 }
@@ -776,7 +776,7 @@ function experimentsSection(studentId: string, rows: Array<{ key: string; label:
   </section>`
 }
 
-export function scoreboardPage(name: string, studentId: string, board: Scoreboard, titles: Record<string, string> = {}, measures: Array<{ label: string; value: string; detail: string; definition: string; enough: boolean }> = [], progress?: { ladders: ConceptLadder[]; gain: Gain; audit?: { checked: number; agreed: number; waiting: number }; experiments?: Parameters<typeof experimentsSection>[1] }): string {
+export function scoreboardPage(name: string, studentId: string, board: Scoreboard, titles: Record<string, string> = {}, measures: Array<{ label: string; value: string; detail: string; definition: string; enough: boolean }> = [], progress?: { ladders: ConceptLadder[]; gain: Gain; audit?: { checked: number; agreed: number; waiting: number; unsure?: number }; experiments?: Parameters<typeof experimentsSection>[1] }): string {
   const mastered = board.conceptsMasteredThisWeek.length
     ? board.conceptsMasteredThisWeek
         .map((row) => `<li>${esc(conceptTitle(row.conceptId, titles))} · ${esc(BLOOM_NAME[row.bloomLevel])}</li>`)

@@ -1,0 +1,86 @@
+[
+ {
+  "name": "ambiguous fraction explanation with the topic's material",
+  "input": {
+   "concept": "Equivalent fractions",
+   "bloomLevel": 2,
+   "prompt": "Explain why 2/4 and 1/2 are the same amount.",
+   "key": "Rubric: both are one half; multiplying the top and bottom of 1/2 by 2 gives 2/4.",
+   "response": "if you split each half into 2 you get 2 quarters, its the same bit of the pizza",
+   "grounding": {
+    "idea": "Multiplying the top and bottom by the same number gives an equal fraction.",
+    "example": "1/2 = 2/4",
+    "nonExample": "1/2 = 2/3"
+   },
+   "doubts": [
+    "The first grader was only 70% confident."
+   ]
+  }
+ },
+ {
+  "name": "answer matching a known misconception",
+  "input": {
+   "concept": "Equivalent fractions",
+   "bloomLevel": 2,
+   "prompt": "Explain why 2/4 and 1/2 are the same amount.",
+   "key": "Rubric: both are one half; multiplying the top and bottom of 1/2 by 2 gives 2/4.",
+   "response": "they are the same because 2 is bigger than 1 and 4 is bigger than 2",
+   "grounding": {
+    "idea": "Multiplying the top and bottom by the same number gives an equal fraction.",
+    "example": "1/2 = 2/4",
+    "nonExample": "1/2 = 2/3",
+    "misconceptions": [
+     {
+      "belief": "Bigger numbers on top and bottom mean a bigger fraction.",
+      "fix": "Compare the pieces: 2/4 is two quarters, the same as one half."
+     }
+    ]
+   },
+   "doubts": [
+    "Two independent graders disagreed about this answer."
+   ]
+  }
+ },
+ {
+  "name": "open answer graded against its rubric",
+  "input": {
+   "concept": "Equivalent fractions",
+   "bloomLevel": 2,
+   "prompt": "Explain why 2/4 and 1/2 are the same amount.",
+   "key": "Rubric: both are one half; multiplying the top and bottom of 1/2 by 2 gives 2/4.",
+   "response": "if you split each half into 2 you get 2 quarters, its the same bit of the pizza",
+   "grounding": {
+    "idea": "Multiplying the top and bottom by the same number gives an equal fraction.",
+    "example": "1/2 = 2/4",
+    "nonExample": "1/2 = 2/3"
+   },
+   "doubts": [
+    "The first grader was only 70% confident."
+   ],
+   "rubric": {
+    "mustShow": [
+     {
+      "point": "Both name one half",
+      "acceptable": [
+       "both are a half",
+       "same as 1/2",
+       "they are equal"
+      ]
+     }
+    ],
+    "doesNotMeet": [
+     "adding the tops and bottoms"
+    ],
+    "notRequired": [
+     "spelling",
+     "full sentences"
+    ],
+    "examples": {
+     "meets": "Both are one half because doubling top and bottom keeps the amount.",
+     "almost": "They are the same.",
+     "notYet": "2+2=4 so they match."
+    }
+   }
+  }
+ }
+]

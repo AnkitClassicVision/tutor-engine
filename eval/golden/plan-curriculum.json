@@ -28,7 +28,31 @@
        {
         "prompt": "Two plants are the same, but one sits in a dark closet for a week. Predict which one stays healthier and explain why.",
         "answer": "Rubric: the plant in the light; it can keep making food because it gets sunlight.",
-        "bloomLevel": 4
+        "bloomLevel": 4,
+        "rubric": {
+         "mustShow": [
+          {
+           "point": "The plant in light stays healthier because it can keep making food",
+           "acceptable": [
+            "the one in the light",
+            "sunlight lets it make food",
+            "the dark one cannot make food"
+           ]
+          }
+         ],
+         "doesNotMeet": [
+          "the dark one because it rests"
+         ],
+         "notRequired": [
+          "spelling",
+          "full sentences"
+         ],
+         "examples": {
+          "meets": "The one in the light, because it can keep making food from sunlight.",
+          "almost": "The one in the light.",
+          "notYet": "The dark one, because it gets to rest."
+         }
+        }
        }
       ]
      },
@@ -46,7 +70,31 @@
        {
         "prompt": "Design a simple test to show that water travels up a stem. Say what you would see.",
         "answer": "Rubric: puts a stem or celery in coloured water and observes the colour rising into the leaves.",
-        "bloomLevel": 6
+        "bloomLevel": 6,
+        "rubric": {
+         "mustShow": [
+          {
+           "point": "Puts a stem in coloured water and watches the colour rise",
+           "acceptable": [
+            "celery in food colouring",
+            "coloured water goes up the stem",
+            "the leaves change colour"
+           ]
+          }
+         ],
+         "doesNotMeet": [
+          "just says water goes up"
+         ],
+         "notRequired": [
+          "spelling",
+          "full sentences"
+         ],
+         "examples": {
+          "meets": "Put celery in coloured water and see the leaves turn that colour.",
+          "almost": "Water goes up the stem.",
+          "notYet": "Pour water on the leaves."
+         }
+        }
        }
       ]
      }
@@ -70,6 +118,11 @@
      {
       "question": "Check 4",
       "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 5",
+      "answer": "Yes.",
       "ok": true
      }
     ]
@@ -146,7 +199,31 @@
         "prompt": "Two plants are the same, but one sits in a dark closet for a week. Predict which one stays healthier and explain why.",
         "answer": "Rubric: the plant in the light; it can keep making food because it gets sunlight.",
         "bloomLevel": 4,
-        "transfer": true
+        "transfer": true,
+        "rubric": {
+         "mustShow": [
+          {
+           "point": "The plant in light stays healthier because it can keep making food",
+           "acceptable": [
+            "the one in the light",
+            "sunlight lets it make food",
+            "the dark one cannot make food"
+           ]
+          }
+         ],
+         "doesNotMeet": [
+          "the dark one because it rests"
+         ],
+         "notRequired": [
+          "spelling",
+          "full sentences"
+         ],
+         "examples": {
+          "meets": "The one in the light, because it can keep making food from sunlight.",
+          "almost": "The one in the light.",
+          "notYet": "The dark one, because it gets to rest."
+         }
+        }
        }
       ]
      },
@@ -164,7 +241,31 @@
        {
         "prompt": "Design a simple test to show that water travels up a stem. Say what you would see.",
         "answer": "Rubric: puts a stem or celery in coloured water and observes the colour rising into the leaves.",
-        "bloomLevel": 6
+        "bloomLevel": 6,
+        "rubric": {
+         "mustShow": [
+          {
+           "point": "Puts a stem in coloured water and watches the colour rise",
+           "acceptable": [
+            "celery in food colouring",
+            "coloured water goes up the stem",
+            "the leaves change colour"
+           ]
+          }
+         ],
+         "doesNotMeet": [
+          "just says water goes up"
+         ],
+         "notRequired": [
+          "spelling",
+          "full sentences"
+         ],
+         "examples": {
+          "meets": "Put celery in coloured water and see the leaves turn that colour.",
+          "almost": "Water goes up the stem.",
+          "notYet": "Pour water on the leaves."
+         }
+        }
        }
       ]
      }
@@ -188,6 +289,11 @@
      {
       "question": "Check 4",
       "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 5",
+      "answer": "Yes.",
       "ok": true
      }
     ]
@@ -262,7 +368,31 @@
        {
         "prompt": "Two plants are the same, but one sits in a dark closet for a week. Predict which one stays healthier and explain why.",
         "answer": "Rubric: the plant in the light; it can keep making food because it gets sunlight.",
-        "bloomLevel": 4
+        "bloomLevel": 4,
+        "rubric": {
+         "mustShow": [
+          {
+           "point": "The plant in light stays healthier because it can keep making food",
+           "acceptable": [
+            "the one in the light",
+            "sunlight lets it make food",
+            "the dark one cannot make food"
+           ]
+          }
+         ],
+         "doesNotMeet": [
+          "the dark one because it rests"
+         ],
+         "notRequired": [
+          "spelling",
+          "full sentences"
+         ],
+         "examples": {
+          "meets": "The one in the light, because it can keep making food from sunlight.",
+          "almost": "The one in the light.",
+          "notYet": "The dark one, because it gets to rest."
+         }
+        }
        }
       ]
      },
@@ -280,7 +410,31 @@
        {
         "prompt": "Design a simple test to show that water travels up a stem. Say what you would see.",
         "answer": "Rubric: puts a stem or celery in coloured water and observes the colour rising into the leaves.",
-        "bloomLevel": 6
+        "bloomLevel": 6,
+        "rubric": {
+         "mustShow": [
+          {
+           "point": "Puts a stem in coloured water and watches the colour rise",
+           "acceptable": [
+            "celery in food colouring",
+            "coloured water goes up the stem",
+            "the leaves change colour"
+           ]
+          }
+         ],
+         "doesNotMeet": [
+          "just says water goes up"
+         ],
+         "notRequired": [
+          "spelling",
+          "full sentences"
+         ],
+         "examples": {
+          "meets": "Put celery in coloured water and see the leaves turn that colour.",
+          "almost": "Water goes up the stem.",
+          "notYet": "Pour water on the leaves."
+         }
+        }
        }
       ]
      }
@@ -304,6 +458,11 @@
      {
       "question": "Check 4",
       "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 5",
+      "answer": "Yes.",
       "ok": true
      }
     ]
@@ -381,7 +540,31 @@
        {
         "prompt": "Two plants are the same, but one sits in a dark closet for a week. Predict which one stays healthier and explain why.",
         "answer": "Rubric: the plant in the light; it can keep making food because it gets sunlight.",
-        "bloomLevel": 4
+        "bloomLevel": 4,
+        "rubric": {
+         "mustShow": [
+          {
+           "point": "The plant in light stays healthier because it can keep making food",
+           "acceptable": [
+            "the one in the light",
+            "sunlight lets it make food",
+            "the dark one cannot make food"
+           ]
+          }
+         ],
+         "doesNotMeet": [
+          "the dark one because it rests"
+         ],
+         "notRequired": [
+          "spelling",
+          "full sentences"
+         ],
+         "examples": {
+          "meets": "The one in the light, because it can keep making food from sunlight.",
+          "almost": "The one in the light.",
+          "notYet": "The dark one, because it gets to rest."
+         }
+        }
        }
       ]
      },
@@ -399,7 +582,31 @@
        {
         "prompt": "Design a simple test to show that water travels up a stem. Say what you would see.",
         "answer": "Rubric: puts a stem or celery in coloured water and observes the colour rising into the leaves.",
-        "bloomLevel": 6
+        "bloomLevel": 6,
+        "rubric": {
+         "mustShow": [
+          {
+           "point": "Puts a stem in coloured water and watches the colour rise",
+           "acceptable": [
+            "celery in food colouring",
+            "coloured water goes up the stem",
+            "the leaves change colour"
+           ]
+          }
+         ],
+         "doesNotMeet": [
+          "just says water goes up"
+         ],
+         "notRequired": [
+          "spelling",
+          "full sentences"
+         ],
+         "examples": {
+          "meets": "Put celery in coloured water and see the leaves turn that colour.",
+          "almost": "Water goes up the stem.",
+          "notYet": "Pour water on the leaves."
+         }
+        }
        }
       ]
      }
@@ -423,6 +630,11 @@
      {
       "question": "Check 4",
       "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 5",
+      "answer": "Yes.",
       "ok": true
      }
     ]
@@ -500,7 +712,31 @@
        {
         "prompt": "Two plants are the same, but one sits in a dark closet for a week. Predict which one stays healthier and explain why.",
         "answer": "Rubric: the plant in the light; it can keep making food because it gets sunlight.",
-        "bloomLevel": 4
+        "bloomLevel": 4,
+        "rubric": {
+         "mustShow": [
+          {
+           "point": "The plant in light stays healthier because it can keep making food",
+           "acceptable": [
+            "the one in the light",
+            "sunlight lets it make food",
+            "the dark one cannot make food"
+           ]
+          }
+         ],
+         "doesNotMeet": [
+          "the dark one because it rests"
+         ],
+         "notRequired": [
+          "spelling",
+          "full sentences"
+         ],
+         "examples": {
+          "meets": "The one in the light, because it can keep making food from sunlight.",
+          "almost": "The one in the light.",
+          "notYet": "The dark one, because it gets to rest."
+         }
+        }
        }
       ]
      },
@@ -518,7 +754,31 @@
        {
         "prompt": "Design a simple test to show that water travels up a stem. Say what you would see.",
         "answer": "Rubric: puts a stem or celery in coloured water and observes the colour rising into the leaves.",
-        "bloomLevel": 6
+        "bloomLevel": 6,
+        "rubric": {
+         "mustShow": [
+          {
+           "point": "Puts a stem in coloured water and watches the colour rise",
+           "acceptable": [
+            "celery in food colouring",
+            "coloured water goes up the stem",
+            "the leaves change colour"
+           ]
+          }
+         ],
+         "doesNotMeet": [
+          "just says water goes up"
+         ],
+         "notRequired": [
+          "spelling",
+          "full sentences"
+         ],
+         "examples": {
+          "meets": "Put celery in coloured water and see the leaves turn that colour.",
+          "almost": "Water goes up the stem.",
+          "notYet": "Pour water on the leaves."
+         }
+        }
        }
       ]
      }
@@ -542,6 +802,11 @@
      {
       "question": "Check 4",
       "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 5",
+      "answer": "Yes.",
       "ok": true
      }
     ]
@@ -619,7 +884,31 @@
        {
         "prompt": "Two plants are the same, but one sits in a dark closet for a week. Predict which one stays healthier and explain why.",
         "answer": "Rubric: the plant in the light; it can keep making food because it gets sunlight.",
-        "bloomLevel": 4
+        "bloomLevel": 4,
+        "rubric": {
+         "mustShow": [
+          {
+           "point": "The plant in light stays healthier because it can keep making food",
+           "acceptable": [
+            "the one in the light",
+            "sunlight lets it make food",
+            "the dark one cannot make food"
+           ]
+          }
+         ],
+         "doesNotMeet": [
+          "the dark one because it rests"
+         ],
+         "notRequired": [
+          "spelling",
+          "full sentences"
+         ],
+         "examples": {
+          "meets": "The one in the light, because it can keep making food from sunlight.",
+          "almost": "The one in the light.",
+          "notYet": "The dark one, because it gets to rest."
+         }
+        }
        }
       ]
      },
@@ -637,7 +926,31 @@
        {
         "prompt": "Design a simple test to show that water travels up a stem. Say what you would see.",
         "answer": "Rubric: puts a stem or celery in coloured water and observes the colour rising into the leaves.",
-        "bloomLevel": 6
+        "bloomLevel": 6,
+        "rubric": {
+         "mustShow": [
+          {
+           "point": "Puts a stem in coloured water and watches the colour rise",
+           "acceptable": [
+            "celery in food colouring",
+            "coloured water goes up the stem",
+            "the leaves change colour"
+           ]
+          }
+         ],
+         "doesNotMeet": [
+          "just says water goes up"
+         ],
+         "notRequired": [
+          "spelling",
+          "full sentences"
+         ],
+         "examples": {
+          "meets": "Put celery in coloured water and see the leaves turn that colour.",
+          "almost": "Water goes up the stem.",
+          "notYet": "Pour water on the leaves."
+         }
+        }
        }
       ]
      }
@@ -661,6 +974,11 @@
      {
       "question": "Check 4",
       "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 5",
+      "answer": "Yes.",
       "ok": true
      }
     ]
@@ -763,6 +1081,11 @@
      {
       "question": "Check 4",
       "answer": "Yes, checked.",
+      "ok": true
+     },
+     {
+      "question": "Check 5",
+      "answer": "Yes.",
       "ok": true
      }
     ]

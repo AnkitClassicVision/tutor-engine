@@ -1,6 +1,7 @@
 import { ladders } from "./engine/ladder.ts"
 import { changedMinds } from "./museum.ts"
 import { armFor } from "./experiments.ts"
+import { escalatedItems } from "./grading-audit.ts"
 import { ARROW, BACK } from './icons.ts'
 import { ageBand, presentationFor, BAND_LABEL } from './engine/age.ts'
 import { ARC_INDEPENDENT } from './engine/arc.ts'
@@ -262,7 +263,9 @@ export async function parentTools(db: DatabaseSync, owner: string, id: string, l
   const packControlsState = await packSettings(db, id)
   const recentPacks = await listPacks(db, id, 5)
   const noteSection = `<details class="note-form panel" id="note" open><summary>Leave a note for ${esc(student.display_name)}</summary><p class="fine">A short message on ${esc(student.display_name)}’s home screen, shown once. One note at a time.</p>${waiting ? `<p class="fine">Waiting for ${esc(student.display_name)}: “${esc(waiting.body)}”. Leaving another replaces it.</p>` : ''}<form method="post" action="/students/${id}/note" data-note-form>${csrf()}<label>Your note (up to 200 characters)<textarea name="text" maxlength="200" required placeholder="Try the fractions review first. Proud of you."></textarea></label><button type="submit">Leave this note</button></form></details>`
-  const head = (title: string) => `${nav(id, 'parent')}${aiProblem ? `<p class="banner" role="status" data-ai-missing>${esc(aiProblem)} Checks, hints and curriculum building fail until then. <a href="/welcome/ai?next=${encodeURIComponent(`/students/${id}/parent`)}">Connect an AI</a></p>` : ''}${options.notice ? `<p class="ok" role="status">${esc(options.notice)}</p>` : ''}<div class="parent-head"><div><h1>${title}</h1><p class="step-tag mode-tag">Parent mode · ${esc(student.display_name)}</p></div><form action="/parent/lock" method="post" class="lock-form">${csrf()}<button type="submit" class="ghost">Lock and return to student mode</button></form></div>`
+  const unsure = (await escalatedItems(db, id)).length
+  const unsureBanner = unsure ? `<p class="banner" role="status" data-grading-unsure>The tutor isn’t fully sure about ${unsure === 1 ? 'one of' : `${unsure} of`} ${esc(student.display_name)}’s answers and needs you to decide. <a href="/students/${esc(id)}/grading">Look at ${unsure === 1 ? 'it' : 'them'}</a></p>` : ''
+  const head = (title: string) => `${nav(id, 'parent')}${unsureBanner}${aiProblem ? `<p class="banner" role="status" data-ai-missing>${esc(aiProblem)} Checks, hints and curriculum building fail until then. <a href="/welcome/ai?next=${encodeURIComponent(`/students/${id}/parent`)}">Connect an AI</a></p>` : ''}${options.notice ? `<p class="ok" role="status">${esc(options.notice)}</p>` : ''}<div class="parent-head"><div><h1>${title}</h1><p class="step-tag mode-tag">Parent mode · ${esc(student.display_name)}</p></div><form action="/parent/lock" method="post" class="lock-form">${csrf()}<button type="submit" class="ghost">Lock and return to student mode</button></form></div>`
   const back = `<p class="links"><a href="/students/${esc(id)}/parent">${BACK}${esc(student.display_name)}’s overview</a></p>`
   if (view === 'classes') return `<div data-world="${worldOf(student)}" class="parent-area">${head('Classes and practice')}${back}<section class="panel pack-zone" id="practice">${packAskCard(id, { junior: false, parent: true, settings: packControlsState, requestId: crypto.randomUUID() })}${packList(recentPacks)}</section>${learningPlan}</div>`
   if (view === 'school') return `<div data-world="${worldOf(student)}" class="parent-area">${head('School results')}${back}${schoolResults}</div>`

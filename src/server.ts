@@ -1,4 +1,4 @@
-import { sealFor } from "./family-crypto.ts"
+import { sealFor, sealForStudent } from "./family-crypto.ts"
 import { sweepPrivateFiles } from "./file-erasures.ts"
 import { UserError, userMessage } from "./errors.ts"
 import { learningMeasures, type Measure } from "./learning-metrics.ts"
@@ -6,9 +6,9 @@ import { ageBand } from "./engine/age.ts"
 import { FreshPracticeRequired, freshPractice } from './fresh-practice.ts'
 import { recordRun } from './runbook/record.ts'
 import { ladders } from "./engine/ladder.ts"
-import { approveMap, isBuiltIn, mapRow, runResearchJob, startResearchJob, decideMap, subjectMaps } from "./subject-map.ts"
+import { approveMap, approvedMap, concepts, isBuiltIn, mapRow, runResearchJob, startResearchJob, decideMap, subjectMaps } from "./subject-map.ts"
 import { mapsSection, subjectMapPage } from "./subject-map-view.ts"
-import { auditPage, auditSample, auditSummary, recordAudit } from "./grading-audit.ts"
+import { auditPage, auditSample, auditSummary, escalatedItems, recordAudit } from "./grading-audit.ts"
 import { EXPERIMENTS, armFor, enrolled, experimentReport, setExperiment, type ExperimentKey } from "./experiments.ts"
 import { gainOnFairChecks } from "./engine/gain.ts"
 import { feedbackState, promptIdentity } from './session-feedback.ts'
@@ -38,7 +38,8 @@ import { chatgptAccessToken, chatgptConfig, listChatGptModels } from "./chatgpt.
 import { networkSource } from "./auth-throttle.ts"
 import { destroyAuthSession, loginUser, openAuthSession, readAuthSession, registerUser } from "./auth.ts"
 import { planCurriculum, readSyllabusUpload } from "./plan-subject.ts"
-import { gradeResponse } from "./grade-response.ts"
+import { judgeAnswer, type Grounding } from "./grade-response.ts"
+import { readRubric } from "./rubric.ts"
 import { decisionContext, decisionHistory, recordDecision } from "./decisions.ts"
 import { contentGrade } from "./engine/course.ts"
 import { gradeLabel } from "./engine/grade.ts"
@@ -138,7 +139,7 @@ export interface AppOptions {
   runWorker?: boolean
   onAuthenticated?: (owner: string) => void
   onRecoveryMail?: (owner: string) => void
-  judgeResponse?: typeof gradeResponse
+  judgeResponse?: typeof judgeAnswer
 }
 
 export async function startServer(options: AppOptions & { host: string; port: number }) {
@@ -301,7 +302,7 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse, options:
   if (gradingMatch && method === "GET") {
     try {
       const student = await assertStudent(options.db, auth!.userId, gradingMatch[1])
-      return html(res, "Check the grading", auditPage(student.id, student.display_name, await auditSample(options.db, student.id), await auditSummary(options.db, student.id), await titleMap(options.db, student.id)), csrf)
+      return html(res, "Check the grading", auditPage(student.id, student.display_name, await auditSample(options.db, student.id), await auditSummary(options.db, student.id), await titleMap(options.db, student.id), await escalatedItems(options.db, student.id)), csrf)
     } catch { return send(res, 404, "text/plain", "Student not found.") }
   }
   const mapMatch = url.pathname.match(/^\/students\/([0-9a-f-]{36})\/maps\/([0-9a-f-]{36})$/i)
@@ -649,6 +650,14 @@ async function post(
       await setExperiment(options.db, experimentMatch[1], String(data.key ?? ""), data.on === "1")
       return redirect(res, `/students/${experimentMatch[1]}/scoreboard#experiments-title`)
     }
+    const decideMatch = url.pathname.match(/^\/students\/([0-9a-f-]{36})\/grading\/([0-9a-f-]{36})\/decide$/i)
+    if (decideMatch) {
+      await assertStudent(options.db, auth.userId, decideMatch[1])
+      const item = (await escalatedItems(options.db, decideMatch[1])).find(row => row.id === decideMatch[2])
+      if (!item) throw new UserError("That answer is no longer waiting for you.")
+      await reviewAnswer(options.db, auth.userId, item.session_id, { itemId: item.id, correct: data.correct === "1", grader: "parent", reason: data.correct === "1" ? "A parent decided this answer meets the question after the tutor was unsure." : "A parent decided this answer does not meet the question yet after the tutor was unsure." })
+      return redirect(res, `/students/${decideMatch[1]}/grading`)
+    }
     const auditMatch = url.pathname.match(/^\/students\/([0-9a-f-]{36})\/grading\/([0-9a-f-]{36})$/i)
     if (auditMatch) {
       await assertStudent(options.db, auth.userId, auditMatch[1])
@@ -875,37 +884,67 @@ async function progressFor(db: AppOptions["db"], studentId: string) {
   return { ladders: ladders(attempts), gain: gainOnFairChecks(attempts), audit: await auditSummary(db, studentId), experiments }
 }
 
+/** The topic's own material for a grounding pass: its idea and examples, and the approved subject map's success levels and misconceptions. */
+async function groundingFor(db: AppOptions["db"], ownerId: string, studentId: string, conceptId: string): Promise<Grounding> {
+  const concept = (await studentConcepts(db, ownerId, studentId)).find((c) => c.conceptId === conceptId)
+  if (!concept) return {}
+  const grounding: Grounding = { idea: concept.recall, example: concept.example, nonExample: concept.nonExample }
+  const key = (await db.prepare("SELECT map_key FROM custom_concepts WHERE concept_id = ? AND student_id = ?").get(conceptId, studentId)) as { map_key: string } | undefined
+  const map = key?.map_key ? await approvedMap(db, studentId, concept.subject) : null
+  const mapped = map ? concepts(map).find((c) => c.key === key!.map_key) : undefined
+  if (mapped) { grounding.success = mapped.success; grounding.misconceptions = mapped.misconceptions.map((m) => ({ belief: m.belief, fix: m.fix })) }
+  return grounding
+}
+
 export async function gradePendingResponses(
   db: AppOptions["db"], ownerId: string, sessionId: string,
-  judge: typeof gradeResponse = gradeResponse, itemIds?: string[], ctx?: JobContext,
+  judge: typeof judgeAnswer = judgeAnswer, itemIds?: string[], ctx?: JobContext,
 ) {
   const session = (await getOwnedSession(db, ownerId, sessionId))
+  const studentId = String(session.student_id)
   const ai = (await aiConfigFor(db, ownerId))
-  const titles = (await titleMap(db, String(session.student_id)))
-  const pending = (await sessionItems(db, sessionId)).filter((item) => item.answered === 1 && item.correct == null
+  const titles = (await titleMap(db, studentId))
+  const pending = (await sessionItems(db, sessionId)).filter((item) => item.answered === 1 && item.correct == null && !item.grading_doubt && !Number(item.disputed)
     && (!itemIds || itemIds.includes(String(item.id))))
   const judged = await Promise.all(pending.map(async (item) => ({
     item,
-    verdict: !String(item.given_answer ?? "").trim() || /^(?:\?|unreadable|unclear|illegible)$/i.test(String(item.given_answer).trim()) ? null : await judge({
+    judgment: !String(item.given_answer ?? "").trim() || /^(?:\?|unreadable|unclear|illegible)$/i.test(String(item.given_answer).trim()) ? { kind: "failed" as const } : await judge({
       concept: titles[String(item.concept_id)] ?? String(item.concept_id),
       bloomLevel: Number(item.bloom_level) as BloomLevel,
-      prompt: String(item.prompt), key: String(item.answer), response: String(item.given_answer ?? ""),
-    }, ai, 25000, { record: report => recordRun(db, ownerId, String(session.student_id), report) }),
+      prompt: String(item.prompt), key: String(item.answer), response: String(item.given_answer ?? ""), rubric: readRubric(item.rubric_json),
+    }, ai, { grounding: await groundingFor(db, ownerId, studentId, String(item.concept_id)), record: report => recordRun(db, ownerId, studentId, report) }).catch(() => ({ kind: "failed" as const })),
   })))
-  for (const { item, verdict } of judged) {
+  for (const { item, judgment } of judged) {
     const saveVerdict = async () => {
-      if (!verdict) {
-        await recordDecision(db, String(session.student_id), "grading_pending", "The selected AI did not return a reliable rubric verdict. The response remains pending and has not been counted as a success or failure.", {
+      const current = (await sessionItems(db, sessionId)).find((row) => row.id === item.id)
+      if (!current || current.correct != null) return
+      if (judgment.kind === "failed") {
+        await recordDecision(db, studentId, "grading_pending", "The selected AI did not return a usable grade. The response remains pending and has not been counted as a success or failure.", {
           sessionId, itemId: item.id, conceptId: item.concept_id, graderProvider: ai.provider, graderModel: ai.model,
         })
         return
       }
-      const current = (await sessionItems(db, sessionId)).find((row) => row.id === item.id)
-      if (!current || current.correct != null) return
+      if (judgment.kind === "question_problem") {
+        // The question, not the child's answer, is the problem: retire it quietly, count it neither way, keep it for quality checks.
+        await db.prepare("UPDATE session_items SET disputed = 1, grader = 'retired', grading_reason = ? WHERE id = ?").run("The question could not be graded fairly as written.", item.id)
+        await recordDecision(db, studentId, "question_retired", "Grading found a problem with the question itself, so the answer counts neither way and the question is retired without asking a parent.", {
+          sessionId, itemId: item.id, conceptId: item.concept_id, graderProvider: ai.provider, graderModel: ai.model,
+        })
+        return
+      }
+      if (judgment.kind === "escalated") {
+        // Still unsure after grounding: a parent decides, and is told why the tutor is not confident.
+        await db.prepare("UPDATE session_items SET grading_doubt = ? WHERE id = ?").run(await sealForStudent(db, studentId, judgment.doubt.slice(0, 1200)), item.id)
+        await recordDecision(db, studentId, "grading_escalated", "After a grounding pass the tutor was still not fully confident, so a parent will decide. The answer counts neither way until then.", {
+          sessionId, itemId: item.id, conceptId: item.concept_id, graderProvider: ai.provider, graderModel: ai.model,
+        })
+        return
+      }
       await reviewAnswer(db, ownerId, sessionId, {
-        itemId: String(item.id), correct: verdict.correct, errorType: verdict.errorType ?? undefined,
-        grader: `model:${ai.provider}`, graderModel: ai.model, reason: verdict.reason,
+        itemId: String(item.id), correct: judgment.verdict.correct, errorType: judgment.verdict.errorType ?? undefined,
+        grader: `model:${ai.provider}`, graderModel: ai.model, reason: judgment.verdict.reason,
       })
+      if (judgment.path === "grounded") await recordDecision(db, studentId, "grading_grounded", "The first grade was uncertain or disputed; a grounding pass settled it from the topic's own material.", { sessionId, itemId: item.id, conceptId: item.concept_id })
     }
     if (ctx) { if (!(await ctx.commit(saveVerdict))) return }
     else await saveVerdict()
@@ -954,9 +993,10 @@ export function jobHandlers(options: AppOptions): Record<string, JobHandler> {
     grade: async (ctx, payload) => {
       await ctx.stage("Checking your reasoning")
       await gradePendingResponses(db, ctx.job.owner_user_id, payload.sessionId, options.judgeResponse, payload.itemIds, ctx)
-      const unresolved = (await sessionItems(db, payload.sessionId)).some(i => i.answered === 1 && i.correct == null && (!payload.itemIds || payload.itemIds.includes(i.id)))
-      if (unresolved) throw new Error("Review needed")
-      return { sessionId: payload.sessionId }
+      const mine = (await sessionItems(db, payload.sessionId)).filter(i => i.answered === 1 && i.correct == null && (!payload.itemIds || payload.itemIds.includes(i.id)))
+      // Escalated answers wait for a parent; the child carries on. Only answers the AI could not grade at all retry.
+      if (mine.some(i => !i.grading_doubt && !Number(i.disputed))) throw new Error("Review needed")
+      return { sessionId: payload.sessionId, ...(mine.some(i => i.grading_doubt) ? { escalated: mine.filter(i => i.grading_doubt).length } : {}) }
     },
     lesson: async (ctx, payload) => {
       await ctx.stage("Explaining the next step")
@@ -997,7 +1037,7 @@ export function jobHandlers(options: AppOptions): Record<string, JobHandler> {
       }
       await ctx.stage("Writing questions from your school sources")
       let curriculum: Awaited<ReturnType<typeof planCurriculum>>
-      try { curriculum = await planCurriculum(payload.input, (await aiConfigFor(db, ctx.job.owner_user_id)), 90000, { record: report => recordRun(db, ctx.job.owner_user_id, ctx.job.student_id ?? null, report) }) }
+      try { curriculum = await planCurriculum(payload.input, (await aiConfigFor(db, ctx.job.owner_user_id)), 150000, { record: report => recordRun(db, ctx.job.owner_user_id, ctx.job.student_id ?? null, report) }) }
       catch {
         await failCurrentPlan('The source is saved. Check the AI connection and retry the curriculum job.')
         throw new Error('Question generation failed')

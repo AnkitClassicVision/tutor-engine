@@ -25,7 +25,7 @@ export const FAMILY_FIELDS: Record<string, { owner: "id" | "student" | "session"
   talk_messages: { owner: "student", columns: ["body"] },
   lesson_messages: { owner: "session", columns: ["body"] },
   guided_attempts: { owner: "question", columns: ["body"] },
-  session_items: { owner: "session", columns: ["given_answer", "draft_answer"] },
+  session_items: { owner: "session", columns: ["given_answer", "draft_answer", "grading_doubt"] },
   recaps: { owner: "session", columns: ["learned", "hard", "tell_friend"] },
   school_results: { owner: "student", columns: ["title", "notes"] },
   digests: { owner: "user", columns: ["subject", "body"] },

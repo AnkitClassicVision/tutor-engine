@@ -18,6 +18,7 @@ import { runbook, routeRunbook, type Runbook, type RunbookId } from "./pack-runb
 import type { RunReport } from "./runbook/contract.ts"
 import { recordRun } from "./runbook/record.ts"
 import { approvedMap, concepts } from "./subject-map.ts"
+import { parseRubric, RUBRIC_BRIEF, RUBRIC_SCHEMA } from "./rubric.ts"
 import { blocked, checkDraft, checkItem, PACK_FORMATS, type Issue, type PackDraft, type PackItem, type PackSkill, type QaRules } from "./pack-qa.ts"
 import {
   addPackConcept, aiConfigFor, aiConnectionProblem, aiSettings, assertStudent, createTarget, findConceptByTitle, insertPackItem,
@@ -282,7 +283,8 @@ export async function discardPack(db: DatabaseSync, ownerUserId: string, packId:
 // ---- Writing and checking -------------------------------------------------------------------------
 
 export type PackAsk = (kind: "write" | "check" | "repair", prompt: string, system: string, schema: string, ai: AiConfig) => Promise<string>
-const TIMEOUTS = { write: 150_000, check: 90_000, repair: 90_000 }
+// Writing saves the draft before checking starts, so a long mission write and its checks need not share one host call.
+const TIMEOUTS = { write: 240_000, check: 90_000, repair: 90_000 }
 export const defaultPackAsk: PackAsk = (kind, prompt, system, schema, ai) => askText(prompt, system, schema, TIMEOUTS[kind], ai, { maxTokens: kind === "check" ? 4000 : 12000 })
 
 const ITEM_SCHEMA = {
@@ -293,6 +295,7 @@ const ITEM_SCHEMA = {
     choices: { type: ["array", "null"], items: { type: "string" } }, work: { type: ["string", "null"] },
     hints: { type: "array", items: { type: "string" }, minItems: 3, maxItems: 3 }, explanation: { type: "string" },
     bloom: { type: "integer", minimum: 1, maximum: 6 },
+    rubric: { ...RUBRIC_SCHEMA, nullable: true },
   },
 }
 export const PACK_SCHEMA = JSON.stringify({
@@ -328,7 +331,8 @@ const SHAPE = `Return one JSON object:
 {"interpretation": "one plain sentence naming exactly what this pack practises",
  "lesson": {"hook": "...", "steps": ["...", "..."], "workedExample": "...", "quickCheck": {"question": "...", "answer": "..."}},
  "skills": [{"title": "...", "recall": "the one idea to remember", "example": "...", "nonExample": "...",
-   "items": [{"prompt": "...", "answer": "...", "format": "number|choice|word|written", "choices": ["..."] or null, "work": "arithmetic expression" or null, "hints": ["...", "...", "..."], "explanation": "...", "bloom": 1}]}]}`
+   "items": [{"prompt": "...", "answer": "...", "format": "number|choice|word|written", "choices": ["..."] or null, "work": "arithmetic expression" or null, "hints": ["...", "...", "..."], "explanation": "...", "bloom": 1, "rubric": {"mustShow": [{"point": "...", "acceptable": ["...", "..."]}], "doesNotMeet": ["..."], "notRequired": ["..."], "examples": {"meets": "...", "almost": "...", "notYet": "..."}} or null}]}]}
+Give a rubric for every written question and null for every other format.`
 
 export function writerBrief(book: Runbook) {
   return [
@@ -338,6 +342,7 @@ export function writerBrief(book: Runbook) {
     "Counts: write exactly pack.skills skills and exactly pack.questionsPerSkill questions in every skill. The runbook's balance gives the shares, not the count.",
     "Bloom demand: 1 remember, 2 understand, 3 apply, 4 analyse, 5 evaluate, 6 create. Stay inside the runbook's range. Order each skill's questions from easier to harder.",
     "Code recomputes every `work` expression, checks every option list and hint, and an independent reviewer answers every question without the key. Questions that fail are removed, so accuracy matters more than variety.",
+    RUBRIC_BRIEF,
     book.text,
     teachingMovesBrief(),
     skillText("assess-learning"),
@@ -360,6 +365,7 @@ function parseItem(value: unknown): PackItem | null {
   const item: PackItem = {
     prompt: str(v.prompt, 800), answer: str(v.answer, 800), format: format as PackItem["format"], choices: format === "choice" ? choices : null,
     work: format === "number" && str(v.work, 200) ? str(v.work, 200) : null, hints, explanation: str(v.explanation, 700), bloom: Number.isFinite(bloom) ? bloom : 0,
+    rubric: format === "written" ? parseRubric(v.rubric) ?? null : null,
   }
   return item.prompt && item.answer ? item : null
 }

@@ -1,5 +1,6 @@
 import { safetyReply } from "./child-safety.ts"
 import { childSafe } from "./runbook/gates.ts"
+import { rubricIssues, type Rubric } from "./rubric.ts"
 import { promptIdentity } from "./session-feedback.ts"
 import { parseNumber, plain } from "./engine/score.ts"
 
@@ -10,7 +11,7 @@ import { parseNumber, plain } from "./engine/score.ts"
 
 export const PACK_FORMATS = ["number", "choice", "word", "written"] as const
 export type PackFormat = (typeof PACK_FORMATS)[number]
-export interface PackItem { prompt: string; answer: string; format: PackFormat; choices: string[] | null; work: string | null; hints: string[]; explanation: string; bloom: number }
+export interface PackItem { prompt: string; answer: string; format: PackFormat; choices: string[] | null; work: string | null; hints: string[]; explanation: string; bloom: number; rubric?: Rubric | null }
 export interface PackSkill { title: string; recall: string; example: string; nonExample: string; items: PackItem[] }
 export interface PackLesson { hook: string; steps: string[]; workedExample: string; quickCheck: { question: string; answer: string } }
 export interface PackDraft { interpretation: string; lesson: PackLesson; skills: PackSkill[] }
@@ -177,6 +178,8 @@ export function checkItem(item: PackItem, rules: QaRules): Issue[] {
     case "written": {
       if (!/^rubric:/i.test(item.answer.trim())) issues.push(block("key", "Written answers need a rubric that starts with Rubric:."))
       if (item.bloom < 2) issues.push(block("bloom", "Written answers ask for understanding or more."))
+      // A written answer is graded against the rubric written with it.
+      for (const found of rubricIssues(item.rubric ?? undefined)) issues.push(found.block ? block(found.rule, found.message) : warn(found.rule, found.message))
       break
     }
   }

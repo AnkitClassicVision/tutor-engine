@@ -2,14 +2,14 @@ import type { DatabaseSync } from 'node:sqlite'
 
 export function migrateJourney(db: DatabaseSync) {
   const columns: Record<string, Record<string, string>> = {
-    session_items: { shown_at: 'TEXT', skipped: 'INTEGER NOT NULL DEFAULT 0', skip_reason: "TEXT NOT NULL DEFAULT ''", draft_answer: 'TEXT', format: "TEXT NOT NULL DEFAULT 'text'", choices_json: 'TEXT', explanation: "TEXT NOT NULL DEFAULT ''", evidence_kind: "TEXT NOT NULL DEFAULT 'practice'", confidence: 'TEXT', disputed: 'INTEGER NOT NULL DEFAULT 0' },
+    session_items: { shown_at: 'TEXT', skipped: 'INTEGER NOT NULL DEFAULT 0', skip_reason: "TEXT NOT NULL DEFAULT ''", draft_answer: 'TEXT', format: "TEXT NOT NULL DEFAULT 'text'", choices_json: 'TEXT', explanation: "TEXT NOT NULL DEFAULT ''", evidence_kind: "TEXT NOT NULL DEFAULT 'practice'", confidence: 'TEXT', disputed: 'INTEGER NOT NULL DEFAULT 0', grading_doubt: 'TEXT', rubric_json: 'TEXT' },
     sheets: { score_results: 'TEXT' },
     students: { access_code: "TEXT NOT NULL DEFAULT ''", access_code_hash: "TEXT NOT NULL DEFAULT ''", access_pin_hash: "TEXT NOT NULL DEFAULT ''", presentation: "TEXT NOT NULL DEFAULT 'auto'", world: "TEXT NOT NULL DEFAULT 'cartoon'", last_duration: 'INTEGER NOT NULL DEFAULT 10', pack_child_requests: "TEXT NOT NULL DEFAULT 'classes'", pack_child_mode: "TEXT NOT NULL DEFAULT 'now'", pack_daily_limit: 'INTEGER NOT NULL DEFAULT 3', experiments: "TEXT NOT NULL DEFAULT '{}'" },
     auth_sessions: { student_only: 'INTEGER NOT NULL DEFAULT 0', selected_student: 'TEXT', parent_unlocked_until: 'TEXT' },
     users: { photo_model: "TEXT NOT NULL DEFAULT ''", data_key: "TEXT NOT NULL DEFAULT ''", email_verified_at: 'TEXT', ai_refresh_lease: 'TEXT', chatgpt_welcomed_at: 'TEXT' },
     tutor_sessions: { lesson_done: 'INTEGER NOT NULL DEFAULT 1', carried_from: 'TEXT', feedback_cursor: 'INTEGER NOT NULL DEFAULT 0', goal: "TEXT NOT NULL DEFAULT 'practice'", material_id: 'TEXT', question_id: 'TEXT', paused_at: 'TEXT' },
     custom_concepts: { prereqs: "TEXT NOT NULL DEFAULT '[]'", map_key: "TEXT NOT NULL DEFAULT ''" },
-    practice_items: { evidence_kind: "TEXT NOT NULL DEFAULT 'practice'", pack_id: 'TEXT', format: "TEXT NOT NULL DEFAULT 'text'", choices_json: 'TEXT', hints_json: 'TEXT', explanation: "TEXT NOT NULL DEFAULT ''" },
+    practice_items: { rubric_json: 'TEXT', evidence_kind: "TEXT NOT NULL DEFAULT 'practice'", pack_id: 'TEXT', format: "TEXT NOT NULL DEFAULT 'text'", choices_json: 'TEXT', hints_json: 'TEXT', explanation: "TEXT NOT NULL DEFAULT ''" },
   }
   for (const [table, fields] of Object.entries(columns)) {
     const existing = db.prepare(`PRAGMA table_info(${table})`).all().map(c => c.name)

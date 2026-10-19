@@ -1,11 +1,15 @@
 {
  "fresh-practice": {
-  "version": 3,
-  "fingerprint": "05a78deb5b6ec987"
+  "version": 4,
+  "fingerprint": "b12001e0ef92129f"
  },
  "grade-response": {
+  "version": 7,
+  "fingerprint": "97d502fd0c21aaa0"
+ },
+ "ground-judgment": {
   "version": 4,
-  "fingerprint": "ff0a12a5884ec544"
+  "fingerprint": "103ae94a921ffa12"
  },
  "guide-school-homework": {
   "version": 2,
@@ -24,8 +28,8 @@
   "fingerprint": "c259f31c836baff9"
  },
  "plan-curriculum": {
-  "version": 4,
-  "fingerprint": "695c9fd45d80a4d2"
+  "version": 5,
+  "fingerprint": "95f63d7533055367"
  },
  "read-school-material": {
   "version": 2,
@@ -40,7 +44,7 @@
   "fingerprint": "70defb34df010e94"
  },
  "verify-judgment": {
-  "version": 3,
-  "fingerprint": "bd67fd81912df0b1"
+  "version": 5,
+  "fingerprint": "9e083e707086c158"
  }
 }

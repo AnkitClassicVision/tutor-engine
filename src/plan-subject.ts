@@ -4,6 +4,7 @@ import type { Contract, RunReport } from "./runbook/contract.ts"
 import { judgeQuestions, questionCritic } from "./runbook/critics.ts"
 import { bloomCue, childSafe, distinct, noLeak, readingFit, type Issue } from "./runbook/gates.ts"
 import { runContract, type Ask } from "./runbook/run.ts"
+import { isOpen, parseRubric, rubricIssues, RUBRIC_BRIEF, RUBRIC_SCHEMA, type Rubric } from "./rubric.ts"
 import type { TopicCandidate } from "./choose-topics.ts"
 import { contentSkillBrief } from "./content-skills.ts"
 import { coursePlanningBrief } from "./course-planning.ts"
@@ -15,7 +16,7 @@ export interface CurriculumTopic {
   recall: string
   example: string
   nonExample: string
-  questions: Array<{ prompt: string; answer: string; bloomLevel?: BloomLevel; transfer?: boolean }>
+  questions: Array<{ prompt: string; answer: string; bloomLevel?: BloomLevel; transfer?: boolean; rubric?: Rubric }>
 }
 
 export interface CurriculumPlan {
@@ -44,7 +45,7 @@ const SCHEMA = JSON.stringify({
             maxItems: 2,
             items: {
               type: "object",
-              properties: { prompt: { type: "string" }, answer: { type: "string" }, bloomLevel: { type: "integer", minimum: 1, maximum: 6 }, transfer: { type: "boolean" } },
+              properties: { prompt: { type: "string" }, answer: { type: "string" }, bloomLevel: { type: "integer", minimum: 1, maximum: 6 }, transfer: { type: "boolean" }, rubric: RUBRIC_SCHEMA },
               required: ["prompt", "answer", "bloomLevel"],
               additionalProperties: false,
             },
@@ -75,15 +76,16 @@ export function readSyllabusUpload(input: { text?: string; base64?: string; mime
 const flat = (plan: CurriculumPlan) => plan.topics.flatMap((topic, index) => topic.questions.map(question => ({ ...question, bloomLevel: question.bloomLevel ?? 1, topic: index, title: topic.title })))
 
 export const PLAN_CURRICULUM: Contract<CurriculumInput, CurriculumPlan> = {
-  id: "plan-curriculum", version: 4, role: "planner",
+  id: "plan-curriculum", version: 5, role: "planner",
   skills: ["design-questions", "assess-learning", "adapt-session", "revise-agenda"],
-  brief: () => [coursePlanningBrief(), contentSkillBrief()].join("\n\n"),
+  brief: () => [coursePlanningBrief(), contentSkillBrief(), RUBRIC_BRIEF].join("\n\n"),
   schema: JSON.parse(SCHEMA),
   selfCheck: [
     "Does every topic come from the syllabus, the subject description or the latest note, rather than a guess?",
     "Are the two questions in each topic different from each other and from any source question?",
     "Does each Bloom label match what the child must actually do, and does every level 4-6 answer start with Rubric:?",
     "Is every answer key correct?",
+    "Does every open question have a rubric that accepts several ways of saying each point and names what does not count?",
   ],
   prompt: input => curriculumPrompt(input),
   parse: reply => {
@@ -94,8 +96,10 @@ export const PLAN_CURRICULUM: Contract<CurriculumInput, CurriculumPlan> = {
   gate: (plan, input) => {
     const found: Issue[] = []
     const questions = flat(plan)
-    for (const question of questions)
+    for (const question of questions) {
+      if (isOpen(question.answer)) found.push(...rubricIssues(question.rubric).map(item => ({ ...item, item: question.topic })))
       found.push(...[...noLeak(question.prompt, question.answer), ...childSafe([question.prompt, question.answer]), ...readingFit(question.prompt, input.ageGrade), ...bloomCue(question.prompt, question.bloomLevel)].map(item => ({ ...item, item: question.topic })))
+    }
     for (const item of distinct(questions.map(question => question.prompt))) found.push({ ...item, item: questions[item.item!].topic })
     plan.topics.forEach((topic, index) => found.push(...childSafe([topic.title, topic.recall, topic.example, topic.nonExample], index)))
     return found
@@ -112,17 +116,18 @@ export const PLAN_CURRICULUM: Contract<CurriculumInput, CurriculumPlan> = {
       return judgeQuestions(verdict, questions).map(item => ({ ...item, item: questions[item.item!].topic }))
     },
   },
-  timeoutMs: 90000,
+  // Writing a rubric for every open question takes longer; the run budget still fits a 300-second host function.
+  timeoutMs: 150000,
 }
 
 export async function planCurriculum(
   input: CurriculumInput,
   ai: AiConfig = { provider: "grok", model: "", apiKey: "" },
-  timeoutMs = 90000,
+  timeoutMs = 150000,
   options: { ask?: Ask; record?: (report: RunReport) => Promise<void> } = {},
 ): Promise<CurriculumPlan | null> {
   try {
-    const { output, report } = await runContract({ ...PLAN_CURRICULUM, timeoutMs }, input, ai, { ask: options.ask })
+    const { output, report } = await runContract({ ...PLAN_CURRICULUM, timeoutMs }, input, ai, { ask: options.ask, budgetMs: 260000 })
     await options.record?.(report).catch(() => {})
     return output
   } catch {
@@ -164,12 +169,14 @@ export function parseCurriculum(raw: string): CurriculumPlan | null {
       if (!Array.isArray(value.questions) || value.questions.length !== 2) return null
       const questions: CurriculumTopic["questions"] = []
       for (const question of value.questions) {
-        const withTransfer = question !== null && typeof question === "object" && Object.hasOwn(question, "transfer")
-        if (!hasFields(question, withTransfer ? ["prompt", "answer", "bloomLevel", "transfer"] : ["prompt", "answer", "bloomLevel"]) || !isText(question.prompt) || !isText(question.answer)) return null
+        const optional = question !== null && typeof question === "object" ? ["transfer", "rubric"].filter(key => Object.hasOwn(question, key)) : []
+        if (!hasFields(question, ["prompt", "answer", "bloomLevel", ...optional]) || !isText(question.prompt) || !isText(question.answer)) return null
+        const withTransfer = optional.includes("transfer")
         if (withTransfer && typeof question.transfer !== "boolean") return null
         if (!Number.isInteger(question.bloomLevel) || Number(question.bloomLevel) < 1 || Number(question.bloomLevel) > 6) return null
         if (Number(question.bloomLevel) >= 4 && !/^rubric:/i.test(question.answer.trim())) return null
-        questions.push({ prompt: question.prompt.trim(), answer: question.answer.trim(), bloomLevel: question.bloomLevel as BloomLevel, ...(question.transfer === true ? { transfer: true } : {}) })
+        const rubric = parseRubric(question.rubric)
+        questions.push({ prompt: question.prompt.trim(), answer: question.answer.trim(), bloomLevel: question.bloomLevel as BloomLevel, ...(question.transfer === true ? { transfer: true } : {}), ...(rubric ? { rubric } : {}) })
       }
       if (questions[0].prompt.toLowerCase() === questions[1].prompt.toLowerCase()) return null
       topics.push({ title, recall: (value.recall as string).trim(), example: (value.example as string).trim(), nonExample: (value.nonExample as string).trim(), questions })
