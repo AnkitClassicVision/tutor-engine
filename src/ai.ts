@@ -1,4 +1,5 @@
 import { askLocalCodex } from './codex-local.ts'
+import { AiProviderError, classifyError, classifyResponse, type AiHealth } from "./ai-health.ts"
 import { spawn } from "node:child_process"
 import { readFileSync } from "node:fs"
 import { CHILD_SAFETY_BRIEF } from "./child-safety.ts"
@@ -12,6 +13,8 @@ export interface AiConfig {
   apiKey: string
   /** Called when the provider rejects the credential, so a stored token is not reused. */
   onRejected?: () => Promise<void>
+  /** Records the family's AI state: null after a working call, or a lasting problem (WF-01). */
+  onHealth?: (health: AiHealth | null) => Promise<void>
 }
 
 async function chatgpt(ai: AiConfig, instructions: string, content: ChatGptContent, signal: AbortSignal) {
@@ -27,7 +30,31 @@ export function normalizeProvider(value: string): AiProvider {
   return PROVIDERS.has(value as AiProvider) ? (value as AiProvider) : "grok"
 }
 
+/** Runs an AI call and keeps the family's AI state current: a working call clears it, a lasting failure sets it. */
+async function tracked<T>(ai: AiConfig, call: () => Promise<T>): Promise<T> {
+  try {
+    const result = await call()
+    await ai.onHealth?.(null).catch(() => {})
+    return result
+  } catch (error) {
+    const health = classifyError(error)
+    if (health) await ai.onHealth?.(health).catch(() => {})
+    throw error
+  }
+}
+
 export async function askModel(
+  promptPath: string,
+  schema: string,
+  systemPrompt: string,
+  timeoutMs: number,
+  ai: AiConfig,
+  options: { maxTokens?: number } = {},
+) {
+  return tracked(ai, () => askModelUntracked(promptPath, schema, systemPrompt, timeoutMs, ai, options))
+}
+
+async function askModelUntracked(
   promptPath: string,
   schema: string,
   systemPrompt: string,
@@ -110,7 +137,7 @@ async function openAiCompatible(ai: AiConfig, systemPrompt: string, user: any, s
       ],
     }),
   })
-  if (!response.ok) throw new Error("The AI service rejected the key or the model name.")
+  if (!response.ok) throw new AiProviderError(classifyResponse(response.status, await response.text().catch(() => "")), "The AI service rejected the key or the model name.")
   const body = (await response.json()) as { choices?: Array<{ message?: { content?: string } }> }
   return body.choices?.[0]?.message?.content ?? ""
 }
@@ -131,7 +158,7 @@ async function anthropic(ai: AiConfig, systemPrompt: string, user: any, signal: 
       messages: [{ role: "user", content: user }],
     }),
   })
-  if (!response.ok) throw new Error("Anthropic rejected the key or the model name.")
+  if (!response.ok) throw new AiProviderError(classifyResponse(response.status, await response.text().catch(() => "")), "Anthropic rejected the key or the model name.")
   const body = (await response.json()) as { content?: Array<{ text?: string }> }
   return body.content?.map((part) => part.text ?? "").join("") ?? ""
 }
@@ -194,6 +221,10 @@ function run(command: string, args: string[], timeoutMs: number, stdin = "") {
 }
 
 export async function askPhoto(ai: AiConfig, system: string, prompt: string, mime: string, base64: string): Promise<Record<string, unknown>> {
+  return tracked(ai, () => askPhotoUntracked(ai, system, prompt, mime, base64))
+}
+
+async function askPhotoUntracked(ai: AiConfig, system: string, prompt: string, mime: string, base64: string): Promise<Record<string, unknown>> {
   system = `${CHILD_SAFETY_BRIEF}\n\n${system}`
   if (["codex", "grok", "claude"].includes(ai.provider) || !ai.apiKey || !ai.model) throw new Error("Select a photo-capable API model, or transcribe the page.")
   const signal = AbortSignal.timeout(120000)

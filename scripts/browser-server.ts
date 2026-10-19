@@ -6,6 +6,7 @@ import { judgeAnswer } from '../src/grade-response.ts'
 import { startServer } from '../src/server.ts'
 import { registerUser } from '../src/auth.ts'
 import { createStudent } from '../src/services.ts'
+import { encryptSecret } from '../src/secrets.ts'
 import { seedStrengths } from '../test/fixtures/strengths.ts'
 const dir = mkdtempSync(join(tmpdir(), 'tutor-browser-'))
 const db = openDb(join(dir, 'browser.sqlite'))
@@ -16,11 +17,16 @@ await db.prepare("UPDATE users SET email_verified_at = ?, ai_provider = 'openai'
 await seedStrengths(db, strengthsUser.userId)
 // A family with no AI connected, to check that what the screens promise without one really works.
 // One per browser project, so parallel browsers never share a mission.
-for (const project of ['chromium', 'firefox', 'webkit', 'mobile-chromium']) {
+for (const project of ['chromium', 'firefox', 'webkit', 'mobile-chromium', 'tablet']) {
   const noAiUser = await registerUser(db, `no-ai-${project}@example.invalid`, 'synthetic-browser-password')
   if (!noAiUser.ok) throw new Error('Synthetic no-AI registration failed')
   await db.prepare("UPDATE users SET email_verified_at = ?, ai_provider = 'openai', ai_model = '', ai_key = '' WHERE id = ?").run(new Date().toISOString(), noAiUser.userId)
   await createStudent(db, noAiUser.userId, { displayName: 'Synthetic offline', birthDate: '2016-05-04', sessionCapMinutes: 10 })
+  // WF-01: a family whose AI key stopped being accepted.
+  const revoked = await registerUser(db, `revoked-${project}@example.invalid`, 'synthetic-browser-password')
+  if (!revoked.ok) throw new Error('Synthetic revoked registration failed')
+  await db.prepare("UPDATE users SET email_verified_at = ?, ai_provider = 'openai', ai_model = 'gpt-synthetic', ai_key = ?, ai_health = 'revoked', ai_health_at = ? WHERE id = ?").run(new Date().toISOString(), encryptSecret('sk-synthetic-revoked'), new Date().toISOString(), revoked.userId)
+  await createStudent(db, revoked.userId, { displayName: 'Synthetic revoked', birthDate: '2016-05-04', sessionCapMinutes: 10 })
 }
 // A researched subject map for any new class, from the research golden case.
 const researchMap = JSON.parse(readFileSync(new URL('../eval/golden/research-subject.json', import.meta.url), 'utf8'))[0].replies.write

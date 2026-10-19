@@ -161,3 +161,23 @@ test("photos sent from the planner are saved once, shown in the thread, and appl
     assert.equal((await plannerRow(f.db, f.student, marked.messageId))?.status, "")
   } finally { f.db.close() }
 })
+
+test("WF-07: a suggestion made before the plan changed is not applied and says why", async () => {
+  const { undoDecision } = await import("../src/undo.ts")
+  const f = await family()
+  try {
+    const first = await acceptPlannerMessage(f.db, f.owner, f.student, "Use 15 minutes per mission", "test")
+    const applied = await applyProposal(f.db, f.owner, f.student, first.messageId)
+    const later = await acceptPlannerMessage(f.db, f.owner, f.student, "Make missions 20 minutes", "test")
+    // The plan changes after the suggestion was made: the earlier change is undone.
+    await new Promise(resolve => setTimeout(resolve, 5))
+    await undoDecision(f.db, f.owner, f.student, String(applied.decisionId))
+    await assert.rejects(applyProposal(f.db, f.owner, f.student, later.messageId), /plan changed after this suggestion/)
+    await assert.rejects(applyProposal(f.db, f.owner, f.student, later.messageId), /plan changed/, "a retry is refused too")
+    assert.notEqual(Number((await assertStudent(f.db, f.owner, f.student)).session_cap_minutes), 20, "nothing was applied")
+    // A fresh suggestion made after the change applies normally.
+    const fresh = await acceptPlannerMessage(f.db, f.owner, f.student, "Make missions 20 minutes", "test")
+    assert.equal((await applyProposal(f.db, f.owner, f.student, fresh.messageId)).applied, true)
+    assert.equal(Number((await assertStudent(f.db, f.owner, f.student)).session_cap_minutes), 20)
+  } finally { f.db.close() }
+})

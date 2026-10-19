@@ -6,7 +6,7 @@ export function migrateJourney(db: DatabaseSync) {
     sheets: { score_results: 'TEXT' },
     students: { access_code: "TEXT NOT NULL DEFAULT ''", access_code_hash: "TEXT NOT NULL DEFAULT ''", access_pin_hash: "TEXT NOT NULL DEFAULT ''", presentation: "TEXT NOT NULL DEFAULT 'auto'", world: "TEXT NOT NULL DEFAULT 'cartoon'", last_duration: 'INTEGER NOT NULL DEFAULT 10', pack_child_requests: "TEXT NOT NULL DEFAULT 'classes'", pack_child_mode: "TEXT NOT NULL DEFAULT 'now'", pack_daily_limit: 'INTEGER NOT NULL DEFAULT 3', experiments: "TEXT NOT NULL DEFAULT '{}'" },
     auth_sessions: { student_only: 'INTEGER NOT NULL DEFAULT 0', selected_student: 'TEXT', parent_unlocked_until: 'TEXT' },
-    users: { photo_model: "TEXT NOT NULL DEFAULT ''", data_key: "TEXT NOT NULL DEFAULT ''", email_verified_at: 'TEXT', ai_refresh_lease: 'TEXT', chatgpt_welcomed_at: 'TEXT' },
+    users: { photo_model: "TEXT NOT NULL DEFAULT ''", data_key: "TEXT NOT NULL DEFAULT ''", email_verified_at: 'TEXT', ai_refresh_lease: 'TEXT', chatgpt_welcomed_at: 'TEXT', ai_health: 'TEXT', ai_health_at: 'TEXT' },
     tutor_sessions: { lesson_done: 'INTEGER NOT NULL DEFAULT 1', carried_from: 'TEXT', feedback_cursor: 'INTEGER NOT NULL DEFAULT 0', goal: "TEXT NOT NULL DEFAULT 'practice'", material_id: 'TEXT', question_id: 'TEXT', paused_at: 'TEXT', requested_at: 'TEXT', paused_ms: 'INTEGER NOT NULL DEFAULT 0' },
     custom_concepts: { prereqs: "TEXT NOT NULL DEFAULT '[]'", map_key: "TEXT NOT NULL DEFAULT ''" },
     practice_items: { rubric_json: 'TEXT', evidence_kind: "TEXT NOT NULL DEFAULT 'practice'", pack_id: 'TEXT', format: "TEXT NOT NULL DEFAULT 'text'", choices_json: 'TEXT', hints_json: 'TEXT', explanation: "TEXT NOT NULL DEFAULT ''" },

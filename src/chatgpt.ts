@@ -34,6 +34,8 @@ const MESSAGES: Record<ChatGptProblem, string> = {
 
 export class ChatGptError extends Error {
   kind: ChatGptProblem
+  /** True when ChatGPT named the plan's usage limit itself, not just a 429 (WF-01: only a named limit is lasting). */
+  usageLimit = false
   constructor(kind: ChatGptProblem, message = MESSAGES[kind]) { super(message); this.kind = kind }
 }
 
@@ -319,7 +321,8 @@ export async function distrustChatGptToken(db: DatabaseSync, userId: string) {
 
 function problemFor(status: number, code: string, response: Response) {
   logFailure('request', response, code)
-  if (code === 'subscription_sharing_usage_limit_exceeded' || status === 429) return new ChatGptError('limit')
+  if (code === 'subscription_sharing_usage_limit_exceeded') return Object.assign(new ChatGptError('limit'), { usageLimit: true })
+  if (status === 429) return new ChatGptError('limit')
   if (code === 'subscription_sharing_user_not_eligible') return new ChatGptError('not_eligible')
   if (code === 'subscription_sharing_usage_unavailable' || code === 'subscription_sharing_user_unavailable') return new ChatGptError('temporary')
   if (code === 'subscription_sharing_unsupported_capability') return new ChatGptError('unsupported')

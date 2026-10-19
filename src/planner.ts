@@ -290,6 +290,11 @@ export async function applyProposal(db: DatabaseSync, ownerUserId: string, stude
     if (!row) throw new PlannerConflict("That suggestion is no longer here.")
     if (row.status === "applied") return { applied: true, decisionId: row.decision_id, jobId: row.job_id, location: `/students/${studentId}/parent`, message: "Already applied." }
     if (row.status !== "proposed") throw new PlannerConflict("That suggestion was replaced. Ask again.")
+    // WF-07: a suggestion made before another change was applied or undone was based on a plan that no longer exists.
+    const since = (await db.prepare("SELECT count(*) AS n FROM decision_records WHERE student_id = ? AND kind IN ('planner_change_applied', 'change_undone') AND created_at > ?").get(studentId, String(row.created_at))) as { n: number } | undefined
+    if (Number(since?.n ?? 0) > 0) {
+      throw new PlannerConflict("The plan changed after this suggestion was made, so it was not applied. Ask again for an up-to-date suggestion.")
+    }
     const proposal = rowProposal(row)
     if (!proposal) throw new PlannerConflict("That suggestion cannot be applied.")
     const p = proposal.params

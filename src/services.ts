@@ -1,4 +1,5 @@
 import { noteChangedMind } from "./museum.ts"
+import { currentHealth, HEALTH_CHILD, HEALTH_PARENT, type AiHealth } from "./ai-health.ts"
 import { conceptSubject, measuredSkill, supportSuppliesSkill } from "./engine/access.ts"
 import type { Rubric } from "./rubric.ts"
 import { sealFor, sealForStudent } from "./family-crypto.ts"
@@ -12,7 +13,7 @@ import { feedbackState, promptIdentity } from './session-feedback.ts'
 import { learningMilestones } from "./engine/adventure.ts"
 import { cloudStorage, storePrivateFile, deletePrivateFile } from "./storage.ts"
 import { onWriteRollback } from "./transaction.ts"
-import { withWrite, lockFamily } from './transaction.ts'
+import { withWrite, lockFamily, withDatabaseScope } from './transaction.ts'
 import { encryptSecret, decryptSecret } from "./secrets.ts"
 import { missionArc } from "./engine/arc.ts"
 import { PRESENTATIONS, ageBand, numberChoices } from "./engine/age.ts"
@@ -1492,8 +1493,8 @@ export async function latestDirection(db: DatabaseSync, studentId: string, subje
 }
 
 export async function aiSettings(db: DatabaseSync, userId: string) {
-  const row = (await db.prepare("SELECT ai_provider, ai_model, ai_key, photo_model, chatgpt_welcomed_at FROM users WHERE id = ?").get(userId)) as
-    | { ai_provider: string; ai_model: string; ai_key: string; photo_model: string; chatgpt_welcomed_at: string | null }
+  const row = (await db.prepare("SELECT ai_provider, ai_model, ai_key, photo_model, chatgpt_welcomed_at, ai_health, ai_health_at FROM users WHERE id = ?").get(userId)) as
+    | { ai_provider: string; ai_model: string; ai_key: string; photo_model: string; chatgpt_welcomed_at: string | null; ai_health: string | null; ai_health_at: string | null }
     | undefined
   const credential = row?.ai_provider === "chatgpt" ? readCredential(row.ai_key) : null
   return {
@@ -1502,12 +1503,25 @@ export async function aiSettings(db: DatabaseSync, userId: string) {
     hasKey: Boolean(row?.ai_key),
     photoModel: row?.photo_model || "",
     chatgpt: credential ? { email: credential.email, reconnect: Boolean(credential.reconnect), welcomed: Boolean(row?.chatgpt_welcomed_at) } : null,
+    /** WF-01: a lasting problem found while working (revoked, used up, not eligible, model gone), or null. */
+    health: currentHealth(row?.ai_health, row?.ai_health_at),
   }
 }
 
+/** Whether reading a photo can work: a photo model is chosen, or the ChatGPT plan reads photos itself (WF-01 no_photo). */
+export function photoReadingReady(settings: { provider: string; photoModel: string }) {
+  return settings.provider === "chatgpt" || Boolean(settings.photoModel)
+}
+
+/** The child's line for a lasting problem found while working (WF-01). */
+export function aiChildLine(settings: { health?: AiHealth | null }) {
+  return settings.health ? HEALTH_CHILD[settings.health] : ""
+}
+
 /** A plain-language reason the family's AI connection cannot answer yet, or "" when a model call is possible. */
-export function aiConnectionProblem(settings: { provider: string; hasKey: boolean; model: string; chatgpt?: { reconnect: boolean } | null }) {
+export function aiConnectionProblem(settings: { provider: string; hasKey: boolean; model: string; chatgpt?: { reconnect: boolean } | null; health?: AiHealth | null }) {
   const cli = ["codex", "grok", "claude"].includes(settings.provider)
+  if (settings.health) return HEALTH_PARENT[settings.health]
   if (process.env.TUTOR_PUBLIC === "1" && (cli || !settings.hasKey)) return "No AI is connected yet. A parent can connect an account or add an API key in AI settings."
   if (!cli && !settings.hasKey) return "No AI is connected yet. A parent can connect an account or add an API key in AI settings."
   if (settings.provider === "openrouter" && !settings.model) return "Choose a text model in AI settings before starting."
@@ -1545,7 +1559,15 @@ export async function aiConfigFor(db: DatabaseSync, userId: string) {
     // A ChatGPT connection stores an encrypted token set; requests get a current access token.
     apiKey: provider === "chatgpt" ? (row?.ai_key ? await chatgptAccessToken(db, userId) : "") : decryptSecret(row?.ai_key || ""),
     ...(provider === "chatgpt" ? { onRejected: () => distrustChatGptToken(db, userId) } : {}),
+    // Its own database scope, so the write never joins another flow's open transaction (which could roll it back).
+    onHealth: (health: AiHealth | null) => withDatabaseScope(db, () => recordAiHealth(db, userId, health)),
   }
+}
+
+/** Keeps the family's AI state (WF-01). Clearing is a no-op unless a state is set, so working calls stay cheap. */
+export async function recordAiHealth(db: DatabaseSync, userId: string, health: AiHealth | null, now = new Date()) {
+  if (health) await db.prepare("UPDATE users SET ai_health = ?, ai_health_at = ? WHERE id = ?").run(health, now.toISOString(), userId)
+  else await db.prepare("UPDATE users SET ai_health = NULL, ai_health_at = NULL WHERE id = ? AND ai_health IS NOT NULL").run(userId)
 }
 
 /** Save a verified ChatGPT connection, keeping a still-offered model choice. */
@@ -1555,7 +1577,7 @@ export async function saveChatGptConnection(db: DatabaseSync, userId: string, cr
   const keep = (value: string) => current.ai_provider === "chatgpt" && value && (offered.has(value) || !models.length) ? value : ""
   const model = keep(current.ai_model) || models[0]?.slug || ""
   const photoModel = keep(current.photo_model) || model
-  await db.prepare("UPDATE users SET ai_provider = 'chatgpt', ai_model = ?, photo_model = ?, ai_key = ?, ai_refresh_lease = NULL WHERE id = ?").run(model, photoModel, encryptSecret(JSON.stringify(credential)), userId)
+  await db.prepare("UPDATE users SET ai_provider = 'chatgpt', ai_model = ?, photo_model = ?, ai_key = ?, ai_refresh_lease = NULL, ai_health = NULL, ai_health_at = NULL WHERE id = ?").run(model, photoModel, encryptSecret(JSON.stringify(credential)), userId)
   for (const student of (await listStudents(db, userId))) {
     await recordDecision(db, student.id, "ai_settings_changed", "The parent connected their ChatGPT plan. Learner evidence and previous decisions remain available to the new model.", { provider: "chatgpt", model })
   }
@@ -1574,7 +1596,7 @@ export async function saveAiSettings(
   const current = (await db.prepare("SELECT ai_key, ai_provider FROM users WHERE id = ?").get(userId)) as { ai_key: string; ai_provider: string } | undefined
   const key = provider === "codex" ? "" : input.apiKey.trim() ? encryptSecret(input.apiKey.trim()) : current?.ai_provider === provider ? current.ai_key : ""
   if (!["codex", "grok", "claude"].includes(provider) && !key) throw new UserError("Connect or paste an API key for the selected provider.")
-  await db.prepare("UPDATE users SET ai_provider = ?, ai_model = ?, ai_key = ?, photo_model = ? WHERE id = ?").run(provider, input.model.trim(), key, input.photoModel?.trim() ?? "", userId)
+  await db.prepare("UPDATE users SET ai_provider = ?, ai_model = ?, ai_key = ?, photo_model = ?, ai_health = NULL, ai_health_at = NULL WHERE id = ?").run(provider, input.model.trim(), key, input.photoModel?.trim() ?? "", userId)
   for (const student of (await listStudents(db, userId))) {
     await recordDecision(db, student.id, "ai_settings_changed", "The parent changed the AI settings. Learner evidence and previous decisions remain available to the new model.", {
       provider, model: input.model.trim(),

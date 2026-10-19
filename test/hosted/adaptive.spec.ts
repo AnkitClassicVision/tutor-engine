@@ -14,7 +14,7 @@ test.afterEach(async () => {
   await closePostgres()
 })
 
-test('adaptive recommendation, harder probe and independent milestone persist on the actual origin', async ({ page }) => {
+test('a harder probe is answered from its local key, saved and resumed on the actual origin, with one attempt recorded', async ({ page }) => {
   const email = `hosted-${crypto.randomUUID()}@example.invalid`, password = randomBytes(24).toString('base64url')
   owner = await withPostgres(async db => {
     const user = await registerUser(db, email, password)
@@ -33,9 +33,10 @@ test('adaptive recommendation, harder probe and independent milestone persist on
   await page.getByLabel('Birthday', { exact: true }).fill('2018-03-04')
   await page.getByRole('button', { name: 'Add student', exact: true }).click()
   await page.waitForURL(u => /^\/(students\/|welcome\/ai)/.test(u.pathname)); if (new URL(page.url()).pathname === '/welcome/ai') await page.getByRole('link', { name: 'Skip for now', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'Choose your path', exact: true })).toBeVisible()
+  // Current child home (2026-10-19): a greeting, then the topics map offers a harder probe.
+  await expect(page.getByRole('heading', { name: /Hey, Synthetic learner/ })).toBeVisible()
   const home = page.url(), student = new URL(home).pathname.split('/').at(-1)!
-  await page.getByRole('link', { name: 'Explore a topic', exact: false }).click()
+  await page.goto(`${home}/map`)
   await page.getByRole('button', { name: 'Try a harder one', exact: true }).first().click()
   await expect(page.locator('form.answer')).toBeVisible()
   const session = new URL(page.url()).pathname.split('/').at(-1)!
@@ -48,9 +49,10 @@ test('adaptive recommendation, harder probe and independent milestone persist on
   await page.waitForURL(new URL(response.headers().location, home).href)
   await expect(page.locator('form.answer')).toBeVisible()
   await page.getByRole('button', { name: 'Save & stop', exact: true }).click()
-  await expect(page.getByText('1 unique learning milestones', { exact: false })).toBeVisible()
+  // The saved mission waits on the home page, across a reload.
+  await expect(page.getByText('Your unfinished mission is waiting.', { exact: false })).toBeVisible()
   await page.reload()
-  await expect(page.getByText('1 unique learning milestones', { exact: false })).toBeVisible()
+  await expect(page.getByText('Your unfinished mission is waiting.', { exact: false })).toBeVisible()
   await page.getByRole('button', { name: 'Pick up where I left off', exact: false }).click()
   await expect(page.locator('form.answer')).toBeVisible()
   const evidence = await withPostgres(db => db.prepare('SELECT count(*) n FROM attempts WHERE student_id = ? AND session_id = ?').get(student, session), true)

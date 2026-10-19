@@ -480,3 +480,31 @@ test('WF-05: help starts only after the child checks or fixes the question; the 
     assert.equal(f.db.prepare('SELECT confirmed_by FROM material_questions WHERE id = ?').get(close)!.confirmed_by, f.student)
   } finally { f.server.close(); f.db.close() }
 })
+
+test('WF-01: while the AI connection is revoked, a written answer waits for the parent instead of a failing job', async () => {
+  const f = await fixture()
+  try {
+    const { submitAnswer } = await import('../src/services.ts')
+    f.db.prepare("UPDATE users SET ai_health = 'revoked', ai_health_at = ? WHERE id = ?").run(new Date().toISOString(), f.owner)
+    const session = (await startTutorSession(f.db, f.owner, f.student, new Date(), { focusConceptId: 'math.primary.3.multiply' }))
+    const item = (await f.db.prepare("SELECT id, answer FROM session_items WHERE session_id = ? AND answered = 0 AND answer LIKE 'Rubric:%' ORDER BY position LIMIT 1").get(session)) as { id: string } | undefined
+    assert.ok(item, 'the mission has a written question')
+    const items = await f.db.prepare('SELECT id FROM session_items WHERE session_id = ? AND answered = 0 ORDER BY position').all(session) as Array<{ id: string }>
+    for (const before of items.slice(0, items.findIndex(i => i.id === item!.id))) await submitAnswer(f.db, f.owner, session, { itemId: before.id, answer: '0' })
+    const response = await f.request(`/session/${session}/answer`, { itemId: item!.id, answer: 'my reasons in words' })
+    assert.equal(response.status, 303); assert.match(String(response.headers.get('location')), /saved=waiting/)
+    assert.equal(f.db.prepare("SELECT count(*) AS n FROM jobs WHERE kind = 'grade'").get()!.n, 0)
+  } finally { f.server.close(); f.db.close() }
+})
+
+test('WF-05 case 5: two confirmations at the same moment make one confirmation', async () => {
+  const f = await fixture()
+  try {
+    const { confirmQuestion } = await import('../src/schoolwork.ts')
+    const material = crypto.randomUUID(), question = crypto.randomUUID()
+    f.db.prepare(`INSERT INTO materials (id, student_id, kind, title, subject, work_state, revision, created_at) VALUES (?, ?, 'homework', 'Synthetic homework', 'Math', 'partial', 1, ?)`).run(material, f.student, new Date().toISOString())
+    f.db.prepare(`INSERT INTO material_questions (id, material_id, revision, number, prompt, readable, confidence) VALUES (?, ?, 1, '1', 'What is 6 + 7?', 1, 0.95)`).run(question, material)
+    await Promise.all([confirmQuestion(f.db, f.owner, question, 'yes'), confirmQuestion(f.db, f.owner, question, 'yes'), f.request(`/questions/${question}/confirm`, { choice: 'yes' }), f.request(`/questions/${question}/confirm`, { choice: 'yes' })])
+    assert.equal(f.db.prepare("SELECT count(*) AS n FROM decision_records WHERE student_id = ? AND kind = 'homework_question_confirmed'").get(f.student)!.n, 1)
+  } finally { f.server.close(); f.db.close() }
+})

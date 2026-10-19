@@ -1,6 +1,7 @@
 import { UserError } from "./errors.ts"
 import type { Database as DatabaseSync } from "./database.ts"
-import { assertStudent, isAiConnectionError } from './services.ts'
+import { assertStudent, isAiConnectionError, recordAiHealth } from './services.ts'
+import { classifyError } from './ai-health.ts'
 import { ChatGptError } from './chatgpt.ts'
 import { withWrite, withDatabaseScope, lockFamily } from './transaction.ts'
 
@@ -93,7 +94,10 @@ export async function runNextJob(db: DatabaseSync, handlers: Record<string, JobH
     } }, JSON.parse(job.payload))
     await withDatabaseScope(db, async () => { await db.prepare("UPDATE jobs SET status = 'succeeded', stage = 'Finished', result = ?, updated_at = ?, lease_until = NULL WHERE id = ? AND status = 'running' AND run_token = ?").run(JSON.stringify(result ?? {}), new Date().toISOString(), job.id, token) })
   } catch (error) {
-    const reason = error instanceof ChatGptError && error.kind === 'limit' ? 'The family ChatGPT plan has reached its usage limit for now. Your work is saved. Ask a parent to check it, then try again.'
+    const health = classifyError(error)
+    if (health) await withDatabaseScope(db, () => recordAiHealth(db, job.owner_user_id, health)).catch(() => {})
+    const reason = error instanceof ChatGptError && error.kind === 'limit' && !error.usageLimit ? 'ChatGPT is busy right now. Your work is saved; try again in a little while.'
+      : error instanceof ChatGptError && error.kind === 'limit' ? 'The family ChatGPT plan has reached its usage limit for now. Your work is saved. Ask a parent to check it, then try again.'
       : error instanceof ChatGptError && error.kind === 'not_eligible' ? 'The family ChatGPT account cannot use its plan for AI help here. Your work is saved. Ask a parent to check AI settings.'
       : error instanceof ChatGptError && error.kind === 'reconnect' ? 'ChatGPT did not accept this request. Your work is saved. Try again, or ask a parent to reconnect ChatGPT in AI settings.'
       : error instanceof ChatGptError && error.kind === 'temporary' ? 'ChatGPT is busy right now. Your work is saved; try again in a little while.'

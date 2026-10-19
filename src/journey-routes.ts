@@ -363,14 +363,14 @@ export async function journeyRoute(req: IncomingMessage, res: ServerResponse, ur
     const model = pick(data.model)
     if (!model) { redirect(res, '/settings?error=Choose a model from your ChatGPT account.'); return true }
     const photoModel = pick(data.photoModel) ?? model
-    await db.prepare("UPDATE users SET ai_model = ?, photo_model = ? WHERE id = ? AND ai_provider = 'chatgpt'").run(model, photoModel, auth.userId)
+    await db.prepare("UPDATE users SET ai_model = ?, photo_model = ?, ai_health = NULL, ai_health_at = NULL WHERE id = ? AND ai_provider = 'chatgpt'").run(model, photoModel, auth.userId)
     redirect(res, '/settings?notice=Saved. New work uses this ChatGPT model.'); return true
   }
   if (chatgpt && path === '/connections/chatgpt/welcome' && method === 'POST') { await db.prepare('UPDATE users SET chatgpt_welcomed_at = ? WHERE id = ?').run(new Date().toISOString(), auth.userId); redirect(res, '/settings'); return true }
   if (path === '/connections/disconnect' && method === 'POST') {
     const current = await db.prepare('SELECT ai_provider, ai_key FROM users WHERE id = ?').get(auth.userId)
     const revoked = current?.ai_provider === 'chatgpt' && current.ai_key ? await revokeChatGpt(String(current.ai_key)) : null
-    await db.prepare("UPDATE users SET ai_key = '', ai_model = '', photo_model = '', ai_refresh_lease = NULL WHERE id = ?").run(auth.userId)
+    await db.prepare("UPDATE users SET ai_key = '', ai_model = '', photo_model = '', ai_refresh_lease = NULL, ai_health = NULL, ai_health_at = NULL WHERE id = ?").run(auth.userId)
     redirect(res, `/settings?notice=${encodeURIComponent(revoked === false ? 'Disconnected here. OpenAI did not confirm the sign-out, so you can also remove Kids Tutor in ChatGPT settings.' : 'Disconnected')}`); return true
   }
   let match = path.match(/^\/students\/([0-9a-f-]{36})\/world$/i)

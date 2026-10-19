@@ -17,6 +17,17 @@ Round 1 (steps 0–10 below) implemented the audit's first batch. Round 2 runs t
 
 Rules for every milestone: the shared assignment contract in AGENT-PROMPTS.md applies; synthetic data only; nothing is sent, published or deployed without the owner's yes in chat; a self-review is not independent QA.
 
+## Round 3
+
+| Card | Step | Output | Done when |
+|---|---|---|---|
+| R3-1 | Orchestrator | [ORCHESTRATION-R3.md](ORCHESTRATION-R3.md) | Each chosen item has acceptance cases, evidence or UNKNOWN, and its files |
+| R3-2 | Flow and designer | `flows/WF-01.md`, `design/wf01-states.html` | Every AI state has trigger, what works, wording, recovery and exit; screenshots pass the overflow and target check |
+| R3-3 | Implementer | AI connection states on every screen | Each state shows the right wording and action on the child, parent, controls and photo pages; unit, HTTP and four-browser tests |
+| R3-4 | Implementer | Shared-device safety and stale planner suggestions | WF-09-A cases 4 and 5, WF-07-A cases 2 and 5 pass |
+| R3-5 | Coverage | Tablet project, keyboard mission, simultaneous confirm, hosted adaptive spec | Green, or real defects fixed or recorded |
+| R3-6 | Independent QA judge | [QA-ROUND-3.md](QA-ROUND-3.md) | Reviewer did not write the code; judge decision recorded |
+
 ## Round 1
 
 Status: in progress, started 2026-10-19. One step at a time; each step uses the matching prompt in [AGENT-PROMPTS.md](AGENT-PROMPTS.md), names its workflow and acceptance IDs, and ends with tests and a commit before the next step starts. Code tests are recorded as code tests; nothing here is child usability or learning evidence.
@@ -82,3 +93,14 @@ Status: in progress, started 2026-10-19. One step at a time; each step uses the 
   - The ladder labels a memory step shown at a lower level.
   - Scope and implementation: `src/engine/access.ts`; no historical reclassification.
 - 2026-10-19, M8 review: independent QA REVISE (narrow), then LIMITED PILOT once the owner says yes. Fixes: the rule uses each question's own subject (reviews from other subjects inside a mission); read-aloud help counts as supported on the strengths map and the overview. Accepted lows: the answer-time log does not write "access"; a late read-aloud note is dropped. Unit 360/360; affected four-browser specs 32/32. Commit 09a6a0c, not yet deployed or pushed.
+- 2026-10-19, round 3 started (owner: "yes start round 3"). R3-1 done: [ORCHESTRATION-R3.md](ORCHESTRATION-R3.md). Main slice: AI connection states (WF-01). Then shared-device safety, stale planner suggestions, apply-twice test and coverage.
+- 2026-10-19, R3-2 (prompts 3–4): [flows/WF-01.md](flows/WF-01.md) and [design/wf01-states.html](design/wf01-states.html). Seven states, each with what still works, wording, action and how it clears; seven acceptance cases. Screenshots at three widths pass. Ages 5–7 get a one-sentence child banner.
+- 2026-10-19, R3-3: WF-01 AI connection states built (330abd5): classified failures, per-family state (migration 023), shown on every screen, cleared by a working call or new settings. Unit 364/364, cloud 3/3, affected four-browser specs 84/84.
+- 2026-10-19, R3-4: a stale planner suggestion is refused with an explanation (72574c7; unit test). Signing out clears unsent drafts in the tab, and Back after sign-out shows no family page (new shared-device spec, 4/4 browsers; it fails without the fix). Apply-twice was already tested (`test/planner.test.ts:67`), so the orchestration record is corrected.
+- 2026-10-19, R3-5 coverage:
+  - Added an iPad-sized tablet project (WebKit, touch) running the child-journey specs.
+  - Added a keyboard-only mission test on Chrome, Firefox and mobile Chrome. It is skipped on desktop Safari, which by default tabs only to form fields.
+  - Added a simultaneous-confirm test (one confirmation from four at once) and WF-06 ladder cases 1 and 3.
+  - Updated the hosted adaptive spec to the current screens; it passes against the live site.
+  - Results: full suite 226 passed, 1 skipped (22.1 min); unit 367/367.
+- 2026-10-19, R3-6 (independent QA judge): [QA-ROUND-3.md](QA-ROUND-3.md). Pass 1 REVISE (high: a ChatGPT 401 locked families out). Pass 2 LIMITED PILOT for WF-01, WF-07, WF-09 and coverage. All findings fixed (6f6b390, 5d74452). Full five-project browser suite 231 passed, 1 skipped; unit 368/368; cloud 3/3 through migration 023. Release waits on the owner's yes (deploy applies migration 023).

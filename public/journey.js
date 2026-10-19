@@ -45,6 +45,10 @@ for (const field of drafts) {
   field.addEventListener('blur', saveDraft)
   addEventListener('pagehide', saveDraft)
 }
+// WF-09: signing out ends this device's session, so unsent drafts in the tab go with it.
+document.querySelectorAll('form[action="/logout"]').forEach(form => form.addEventListener('submit', () => {
+  try { for (const key of Object.keys(sessionStorage)) if (key.startsWith('draft:')) sessionStorage.removeItem(key) } catch { /* Storage can be unavailable; nothing to clear. */ }
+}))
 // Acknowledge in the same event frame, while preserving the clicked button's value.
 document.querySelectorAll('form:not([data-fetch])').forEach(form => form.addEventListener('submit', () => {
   if (form.dataset.submitting) return

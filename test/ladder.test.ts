@@ -103,3 +103,10 @@ test("a memory step shown at a lower thinking level says so on the parent ladder
   assert.match(html, /Remembered after a week \(at the basics level\)/)
   assert.equal((html.match(/\(at the [a-z-]+ level\)/g) ?? []).length, 1, "a memory at the topic's own level gets no extra label")
 })
+
+test("WF-06 cases 1 and 3: no memory step before day 7, and the month step from day 28", () => {
+  assert.ok(!conceptLadder("c", [attempt("2026-09-01", 3, true), attempt("2026-09-07", 3, true)]).reached.includes("retained7"), "day 6 is too early")
+  const month = conceptLadder("c", [attempt("2026-09-01", 3, true), attempt("2026-09-29", 3, true)])
+  assert.ok(month.reached.includes("retained7")); assert.ok(month.reached.includes("retained28"))
+  assert.ok(!conceptLadder("c", [attempt("2026-09-01", 3, true), attempt("2026-09-28", 3, true)]).reached.includes("retained28"), "day 27 is not a month")
+})

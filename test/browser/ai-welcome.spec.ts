@@ -102,3 +102,27 @@ test('with no AI connected, every screen says the same thing, and what it promis
   }
   expect(waiting, 'at least one written answer was saved for a grown-up').toBeGreaterThan(0)
 })
+
+test('WF-01: a revoked AI connection is shown on the child and parent screens, and saving settings clears it', async ({ page }, testInfo) => {
+  await page.goto('/')
+  const login = page.locator('form[action="/login"]')
+  await login.getByLabel('Email').fill(`revoked-${testInfo.project.name}@example.invalid`)
+  await login.getByLabel('Password', { exact: true }).fill('synthetic-browser-password')
+  await login.getByRole('button', { name: 'Enter', exact: true }).click()
+  if (!/\/students\/[0-9a-f-]{36}$/.test(page.url())) await page.getByRole('link', { name: /Synthetic revoked/ }).first().click()
+  const home = page.url(), student = home.split('/').at(-1)!
+  const banner = page.locator('[data-ai-state="revoked"]')
+  await expect(banner).toContainText('My AI helper can’t connect right now.'.replace('’', "'"))
+  await expect(banner).toContainText('You can still practise')
+  await page.goto(`/students/${student}/parent`)
+  await expect(page.locator('[data-ai-missing]')).toContainText('no longer accepted')
+  await expect(page.locator('[data-ai-missing]').getByRole('link', { name: 'Open AI settings' })).toBeVisible()
+  await page.goto(`/students/${student}/controls`)
+  await expect(page.locator('.connection-status[data-ai-state="revoked"]')).toContainText('no longer accepted')
+  // Saving the settings again clears the state.
+  await page.goto('/settings')
+  await page.getByRole('button', { name: 'Save AI', exact: true }).click()
+  await page.waitForURL(u => u.searchParams.has('notice'))
+  await page.goto(home)
+  await expect(page.locator('[data-ai-state]')).toHaveCount(0)
+})

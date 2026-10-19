@@ -3,6 +3,7 @@
 // a subject map may cite. Providers without a search tool fall back to the model's own knowledge,
 // and the map then says it was not checked against the web.
 
+import { AiProviderError, classifyResponse } from "./ai-health.ts"
 import { CHILD_SAFETY_BRIEF } from "./child-safety.ts"
 import type { AiConfig } from "./ai.ts"
 
@@ -28,7 +29,7 @@ const httpsOnly = (citations: Citation[]) => {
 
 async function post(url: string, headers: Record<string, string>, body: unknown, signal: AbortSignal) {
   const response = await fetch(url, { method: "POST", signal, headers: { "Content-Type": "application/json", ...headers }, body: JSON.stringify(body) })
-  if (!response.ok) throw new Error("The AI service refused the research request.")
+  if (!response.ok) throw new AiProviderError(classifyResponse(response.status, await response.text().catch(() => "")), "The AI service refused the research request.")
   return response.json() as Promise<any>
 }
 
