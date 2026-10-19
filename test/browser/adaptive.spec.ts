@@ -44,10 +44,12 @@ test('adaptive choices, harder probe, teaching recovery and saved summary', asyn
   await expect(page.locator('form.answer')).toBeVisible()
   const question = await page.locator('.question-text').innerText()
   await sendAnswer(page, 'definitely wrong 12345')
+  await expect(page.getByText('Show me how', { exact: true }).first()).toBeVisible()
   for (const opener of await page.getByText('Show me how', { exact: true }).all()) await opener.click()
   await expect(page.getByText('The answer:', { exact: false }).first()).toBeVisible()
   const ready = page.getByRole('button', { name: 'Ready for a fresh question', exact: true })
-  if (await ready.count()) await ready.click()
+  // Wait for the fresh question's page, or the typed draft lands on the page being replaced.
+  if (await ready.count()) { await ready.click(); await expect(ready).toHaveCount(0) }
   await page.getByLabel('Answer', { exact: true }).fill('saved thinking')
   await page.getByRole('button', { name: 'Save & stop', exact: true }).click()
   await page.getByRole('button', { name: 'Pick up where I left off', exact: false }).click()
