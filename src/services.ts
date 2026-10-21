@@ -2704,9 +2704,28 @@ export async function enforceSessionTime(db: DatabaseSync, owner: string, sessio
   if (!session.ended_at && until >= Date.parse(String(session.started_at)) + Number(session.cap_minutes) * 60000) await endSession(db, sessionId, "attention", now)
   return (await getOwnedSession(db, owner, sessionId))
 }
-export async function pauseSession(db: DatabaseSync, owner: string, sessionId: string) {
-  await getOwnedSession(db, owner, sessionId)
-  await db.prepare("UPDATE tutor_sessions SET paused_at = coalesce(paused_at, ?) WHERE id = ? AND ended_at IS NULL").run(learningNow().toISOString(), sessionId)
+export async function saveAnswerDraft(db: DatabaseSync, owner: string, sessionId: string, input: { itemId: string; revision?: string; answer: string }) {
+  return withWrite(db, async () => {
+    await lockFamily(db, owner)
+    const session = await getOwnedSession(db, owner, sessionId), items = await sessionItems(db, sessionId), item = items.find(i => i.answered === 0)
+    if (session.mode === 'assessment' && !assessmentOpen(session, items)) throw new UserError('This assessment has been submitted.')
+    if (!item || item.id !== input.itemId || input.answer.length > 4000) throw new UserError('This is not the current question.')
+    if (input.revision !== undefined && input.revision !== String(item.revision_id ?? '')) throw new UserError('This question changed. Reload your saved work before saving.')
+    if (session.end_reason === 'continued') throw new UserError('Continue in your resumed mission before saving.')
+    const changed = await db.prepare('UPDATE session_items SET draft_answer = ? WHERE id = ? AND answered = 0 AND skipped = 0').run(await sealFor(db, owner, input.answer), item.id as string)
+    if (!changed.changes) throw new UserError('This is not the current question.')
+    return { saved: true, itemId: item.id, revision: String(item.revision_id ?? ''), studentId: session.student_id }
+  })
+}
+
+export async function pauseSession(db: DatabaseSync, owner: string, sessionId: string, draft?: { itemId: string; revision?: string; answer: string }) {
+  return withWrite(db, async () => {
+    await lockFamily(db, owner)
+    await getOwnedSession(db, owner, sessionId)
+    // Native form submission includes the current response even before enhancement scripts load.
+    if (draft) await saveAnswerDraft(db, owner, sessionId, draft)
+    await db.prepare("UPDATE tutor_sessions SET paused_at = coalesce(paused_at, ?) WHERE id = ? AND ended_at IS NULL").run(learningNow().toISOString(), sessionId)
+  })
 }
 
 /** Submission closes the entire check, even when the learner deliberately leaves items unanswered. */

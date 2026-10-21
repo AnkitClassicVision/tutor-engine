@@ -85,6 +85,16 @@ if (answerForm) {
   // Acknowledgment follows the committed answer. A network failure leaves the response editable here.
   form.dataset.fetch = ''
   form.addEventListener('submit', async event => {
+    const pause = event.submitter?.getAttribute('formaction')?.endsWith('/pause')
+    if (pause) {
+      // Finish any in-flight draft before the native pause writes the current response.
+      if (form.dataset.draftReady) return
+      event.preventDefault()
+      const button = event.submitter
+      // A cached acknowledgment resolves immediately; requestSubmit must run in a later task.
+      if (await saveDraft()) { form.dataset.draftReady = '1'; setTimeout(() => form.requestSubmit(button), 0) }
+      return
+    }
     event.preventDefault()
     if (submitting) return
     keepDraft(); const workMs = keepActive(); submitting = true; activeSince = null; clearTimeout(debounce)
@@ -114,15 +124,6 @@ if (answerForm) {
       submitting = false; form.removeAttribute('aria-busy'); if (!leaving) controls.forEach(button => { button.disabled = false })
       if (!leaving && !document.hidden) activeSince = performance.now()
     }
-  })
-  // Save & stop must finish the current draft before a resumed mission can copy it.
-  document.querySelector('form[action$="/pause"]')?.addEventListener('submit', async event => {
-    const pause = event.currentTarget, button = event.submitter
-    if (pause.dataset.draftReady) return
-    event.preventDefault()
-    // A cached acknowledgment resolves in this event's microtask. Submit in the next task so the
-    // browser's guard against recursively submitting the same form has been released.
-    if (await saveDraft()) { pause.dataset.draftReady = '1'; setTimeout(() => pause.requestSubmit(button), 0) }
   })
 }
 // Talk drafts use the same safe tab storage, without claiming a durable server save.

@@ -72,6 +72,16 @@ test('failed saves stay editable even when tab storage is disabled, and recovery
   expect(errors).toEqual([])
 })
 
+test('Save & stop retains typed work when the enhancement script cannot load', async ({ page }) => {
+  const field = await question(page)
+  await page.route('**/journey.js', route => route.abort())
+  await page.reload()
+  await field.fill('my draft without the enhancement script')
+  await page.getByRole('button', { name: 'Save & stop', exact: true }).click()
+  await page.getByRole('button', { name: /Pick up where/ }).click()
+  await expect(field).toHaveValue('my draft without the enhancement script')
+})
+
 test('save acknowledgment is neutral, measured after the reply, and format help uses the access route', async ({ page }) => {
   const field = await question(page)
   const access = page.waitForRequest(request => request.url().endsWith('/access') && request.postDataJSON().kind === 'format_help')

@@ -9,7 +9,7 @@ import { POSTGRES_MIGRATIONS } from '../../src/migrations.ts'
 import { openDb } from '../../src/db.ts'
 import { migrateJourney } from '../../src/journey-db.ts'
 import { cutoverLearningEvidence } from '../../src/evidence-cutover.ts'
-import { adventureFor, listStates, loadAttempts, reviewAnswer, submitAnswer, acknowledgeFeedback, createStudent, createTarget, nextLearningAction, startTutorSession, sessionItems, finishAssessment, createSheet, getSheet, scoreSheet } from '../../src/services.ts'
+import { adventureFor, listStates, loadAttempts, reviewAnswer, submitAnswer, acknowledgeFeedback, createStudent, createTarget, nextLearningAction, startTutorSession, sessionItems, finishAssessment, createSheet, getSheet, scoreSheet, pauseSession } from '../../src/services.ts'
 import { freshEvidence, masteryMet } from '../../src/engine/mastery.ts'
 import { retentionChecks, retentionPairs } from '../../src/engine/evidence.ts'
 import { applicationTables } from '../../src/cloud-backup.ts'
@@ -56,6 +56,15 @@ async function exercise(db: Database) {
   await cutoverLearningEvidence(db, owner, student, 'isolated-repeat-cutover', date(5))
   assert.deepEqual(await db.prepare('SELECT states_json, milestones_json, created_at FROM learning_cutovers WHERE student_id=?').get(student), receipt)
   assert.equal((await db.prepare('SELECT draft_answer FROM session_items WHERE id=?').get(evidenceId('historical-open-draft')))!.draft_answer, 'Synthetic saved draft')
+  const openDraft = (await db.prepare('SELECT * FROM session_items WHERE id=?').get(evidenceId('historical-open-draft')))!
+  await withLearningClock(() => date(5), async () => {
+    await assert.rejects(() => pauseSession(db, owner, String(openDraft.session_id), { itemId: String(openDraft.id), revision: 'stale', answer: 'Rejected draft' }))
+    assert.equal((await db.prepare('SELECT paused_at FROM tutor_sessions WHERE id=?').get(openDraft.session_id))!.paused_at, null)
+    await pauseSession(db, owner, String(openDraft.session_id), { itemId: String(openDraft.id), revision: String(openDraft.revision_id), answer: 'Synthetic native pause draft' })
+  })
+  const nativePause = { draft: (await sessionItems(db, String(openDraft.session_id)))[0].draft_answer,
+    pausedAt: (await db.prepare('SELECT paused_at FROM tutor_sessions WHERE id=?').get(openDraft.session_id))!.paused_at }
+  assert.equal(nativePause.draft, 'Synthetic native pause draft'); assert.equal(nativePause.pausedAt, date(5).toISOString())
   const pending = await db.prepare('SELECT * FROM session_items WHERE id=?').get(evidenceId('historical-open-review'))
   await reviewAnswer(db, owner, String(pending!.session_id), { itemId: String(pending!.id), correct: true }, date(5))
   await reviewAnswer(db, owner, String(pending!.session_id), { itemId: String(pending!.id), correct: true }, date(5))
@@ -87,7 +96,7 @@ async function exercise(db: Database) {
   const revisions = new Map(attempts.filter(a => a.task).map(a => [a.task!.revision, `revision:${a.attemptId}`]))
   const normalize = (value: unknown) => JSON.parse(JSON.stringify(value, (_key, item) => typeof item === 'string' && revisions.has(item) ? revisions.get(item) : item))
   return normalize({ attempts, eligible: freshEvidence(attempts).map(a => a.attemptId), states: await listStates(db, student, date(15)),
-    retention: retentionPairs(attempts), milestones: await adventureFor(db, owner, student), flags, timing })
+    retention: retentionPairs(attempts), milestones: await adventureFor(db, owner, student), flags, timing, nativePause })
 }
 /** Exercise the authored check writer and every new scheduling query on both database adapters. */
 async function exerciseFractionCycle(db: Database) {

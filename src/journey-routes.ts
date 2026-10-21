@@ -1,8 +1,7 @@
 import { learningNow } from './learning-clock.ts'
 import { recordExposure } from './learning-exposure.ts'
 import { acknowledgeSaveVisible } from './turn-state.ts'
-import { withWrite, lockFamily } from './transaction.ts'
-import { captureConfidence } from './services.ts'
+import { captureConfidence, saveAnswerDraft } from './services.ts'
 import { sealFor } from './family-crypto.ts'
 import { assessmentOpen, openAssessment } from './assessment.ts'
 import { conceptSubject, measuredSkill, supportSuppliesSkill } from './engine/access.ts'
@@ -455,17 +454,7 @@ export async function journeyRoute(req: IncomingMessage, res: ServerResponse, ur
   match = path.match(/^\/session\/([0-9a-f-]{36})\/draft$/i)
   if (match && method === 'POST') {
     const sessionId = match[1]
-    const saved = await withWrite(db, async () => {
-      await lockFamily(db, auth.userId)
-      const session = (await getOwnedSession(db, auth.userId, sessionId)), items = await sessionItems(db, sessionId), item = items.find(i => i.answered === 0)
-      if (session.mode === 'assessment' && !assessmentOpen(session, items)) throw new UserError('This assessment has been submitted.')
-      if (!item || item.id !== data.itemId || String(data.answer ?? '').length > 4000) throw new UserError('This is not the current question.')
-      if (data.revision !== undefined && String(data.revision) !== String(item.revision_id ?? '')) throw new UserError('This question changed. Reload your saved work before saving.')
-      if (session.end_reason === 'continued') throw new UserError('Continue in your resumed mission before saving.')
-      const changed = await db.prepare('UPDATE session_items SET draft_answer = ? WHERE id = ? AND answered = 0 AND skipped = 0').run(await sealFor(db, auth.userId, String(data.answer ?? '')), item.id as string)
-      if (!changed.changes) throw new UserError('This is not the current question.')
-      return { saved: true, itemId: item.id, revision: String(item.revision_id ?? ''), studentId: session.student_id }
-    })
+    const saved = await saveAnswerDraft(db, auth.userId, sessionId, { itemId: String(data.itemId ?? ''), revision: data.revision === undefined ? undefined : String(data.revision), answer: String(data.answer ?? '') })
     json(200, saved); return true
   }
   match = path.match(/^\/session\/([0-9a-f-]{36})\/save-seen$/i)
@@ -526,7 +515,10 @@ export async function journeyRoute(req: IncomingMessage, res: ServerResponse, ur
       await recordExposure(db, String(session.student_id), match[1], first, 'lesson', learningNow(), true)
       await db.prepare('UPDATE tutor_sessions SET lesson_done = 1 WHERE id = ?').run(match[1]); redirect(res, `/session/${match[1]}`)
     }
-    else if (match[2] === 'pause') { await pauseSession(db, auth.userId, match[1]); redirect(res, `/students/${session.student_id}`) }
+    else if (match[2] === 'pause') {
+      await pauseSession(db, auth.userId, match[1], data.itemId === undefined ? undefined : { itemId: String(data.itemId), revision: data.revision === undefined ? undefined : String(data.revision), answer: String(data.answer ?? '') })
+      redirect(res, `/students/${session.student_id}`)
+    }
     else redirect(res, `/session/${(await resumeSession(db, auth.userId, match[1]))}`)
     return true
   }

@@ -3,19 +3,12 @@ import { settledAudit } from './settled-audit.ts'
 
 async function sendAnswer(page: Page, value: string) {
   await page.getByRole('textbox', { name: /^(Answer|Your steps)$/ }).fill(value)
-  // Inspect the real receipt before releasing it: Chromium may discard its body on navigation.
-  let receipt: { saved: boolean; location: string } | undefined
-  await page.route('**/session/*/answer', async route => {
-    const response = await route.fetch()
-    expect(response.ok()).toBe(true)
-    receipt = await response.json()
-    await route.fulfill({ response })
-  }, { times: 1 })
+  // A numeric answer reloads the same URL. Wait for the new document, not an already-matching URL.
+  // Receipt contents and lost replies are covered by the turn-saving and recovery journeys.
+  const navigated = page.waitForEvent('framenavigated', frame => frame === page.mainFrame())
   await page.getByRole('button', { name: 'Check', exact: true }).click()
-  await expect.poll(() => receipt?.saved).toBe(true)
-  const destination = receipt!.location
-  expect(destination).toBeTruthy()
-  await page.waitForURL(new URL(destination, page.url()).href)
+  await navigated
+  await page.waitForLoadState('load')
   if (new URL(page.url()).pathname.startsWith('/jobs/')) await page.getByRole('link', { name: 'See your next step' }).click()
 }
 

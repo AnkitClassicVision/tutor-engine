@@ -679,7 +679,7 @@ export function sessionPage(input: {
     <p class="question-text">${esc(String(input.item.prompt))}</p>${canRead ? '<button type="button" class="ghost" data-hear>Read aloud</button>' : ''}${input.band === "5-7" && canRead && skill !== "reading" ? `<label class="check autoread-toggle"><input type="checkbox" data-autoread-toggle checked> Read questions to me</label>` : ""}
   </article>
   ${hint}
-  <form method="post" action="/session/${esc(input.sessionId)}/answer" class="answer" data-started="${Date.now()}">
+  <form id="session-answer" method="post" action="/session/${esc(input.sessionId)}/answer" class="answer" data-started="${Date.now()}">
     ${csrfField()}
     <input type="hidden" name="itemId" value="${esc(String(input.item.id))}">
     <input type="hidden" name="revision" value="${esc(String(input.item.revision_id ?? ''))}">

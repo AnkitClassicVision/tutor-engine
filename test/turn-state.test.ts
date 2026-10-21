@@ -68,6 +68,26 @@ test('only the saved revision gets a neutral acknowledgment and answer-free timi
   } finally { await f.close() }
 })
 
+test('native pause saves the current draft atomically without grading or opening assessment feedback', async () => {
+  const f = await fixture()
+  try {
+    const item = f.items[0], path = `/session/${f.session}`
+    for (const changes of [{ revision: 'stale' }, { itemId: f.items[1].id }, { answer: 'x'.repeat(4001) }]) {
+      assert.equal((await f.request(`${path}/pause`, { itemId: item.id, revision: item.revision_id, answer: 'native draft', ...changes })).status, 400)
+      assert.equal((await f.db.prepare('SELECT paused_at FROM tutor_sessions WHERE id = ?').get(f.session))!.paused_at, null)
+    }
+    assert.equal((await f.request(`${path}/pause`, { itemId: item.id, revision: item.revision_id, answer: 'native draft' })).status, 303)
+    assert.equal((await sessionItems(f.db, f.session))[0].draft_answer, 'native draft')
+    assert.ok((await f.db.prepare('SELECT paused_at FROM tutor_sessions WHERE id = ?').get(f.session))!.paused_at)
+    assert.equal((await loadAttempts(f.db, f.student)).length, 0)
+    assert.equal((await f.request(`${path}/resume`, {})).status, 303)
+    assert.match(await (await f.request(path)).text(), /native draft/)
+    await finishAssessment(f.db, f.owner, f.session)
+    assert.equal((await f.request(`${path}/pause`, { itemId: item.id, revision: item.revision_id, answer: 'late edit' })).status, 400)
+    assert.equal((await sessionItems(f.db, f.session))[0].draft_answer, 'native draft')
+  } finally { await f.close() }
+})
+
 test('queued, running, failed and parent-required checks remain distinct, with actual checker transitions', async () => {
   const f = await fixture()
   try {
