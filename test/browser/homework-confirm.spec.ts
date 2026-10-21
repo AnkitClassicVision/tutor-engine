@@ -81,6 +81,7 @@ test('WF-05: ages 5–7 get one decision with Hear this and 64 px targets', asyn
   // On the uncertain reading, Hear this reads the words in the box, including the child's edits.
   await page.goto(material)
   await page.getByRole('link', { name: /Check this question/ }).click()
+  await page.waitForLoadState('load')
   await page.getByLabel('Fix the words', { exact: true }).fill('Sam ate 1/3 of a pizza.')
   await page.evaluate(() => { (window as any).__spoken.length = 0 })
   await page.getByRole('button', { name: 'Hear this', exact: true }).click()
@@ -88,6 +89,7 @@ test('WF-05: ages 5–7 get one decision with Hear this and 64 px targets', asyn
   // On an unreadable question the box starts empty, so Hear this reads what to do.
   await page.goto(material)
   await page.getByRole('link', { name: /I couldn’t read this one/ }).click()
+  await page.waitForLoadState('load')
   await page.evaluate(() => { (window as any).__spoken.length = 0 })
   await page.getByRole('button', { name: 'Hear this', exact: true }).click()
   await expect.poll(() => page.evaluate(() => (window as any).__spoken[0])).toContain('Type the question')

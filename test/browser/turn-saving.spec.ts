@@ -72,7 +72,7 @@ test('failed saves stay editable even when tab storage is disabled, and recovery
   expect(errors).toEqual([])
 })
 
-test('Save & stop retains typed work when the enhancement script cannot load', async ({ page }) => {
+test('native pause retains typed work when the enhancement script cannot load', async ({ page }) => {
   const field = await question(page)
   await page.route('**/journey.js', route => route.abort())
   await page.reload()
@@ -118,6 +118,8 @@ for (const noAi of [false, true]) for (const age of [6, 9, 12]) test(`age ${age}
     await page.getByRole('link', { name: new RegExp(`Synthetic capability ${age}`) }).first().click()
   } else await onboard(page, age)
   await page.getByRole('button', { name: 'Start student mode', exact: true }).click()
+  await page.waitForLoadState('load')
+  await page.evaluate(() => document.fonts.ready)
   const navigation = await page.locator('.journey-nav').evaluate(node => ({ fixed: getComputedStyle(node).position === 'fixed', top: node.getBoundingClientRect().top }))
   for (const control of [page.getByRole('button', { name: 'Let’s go' }), page.locator('[data-capability-notice]')]) {
     await expect(control).toBeVisible()

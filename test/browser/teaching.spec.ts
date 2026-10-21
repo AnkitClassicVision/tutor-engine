@@ -34,6 +34,10 @@ test('worked reasons lead to completion, saved recovery, faded help and a differ
   await page.getByRole('button', { name: 'Save & stop', exact: true }).click()
   await page.getByRole('button', { name: /Pick up where/ }).click()
   await expect(field).toHaveValue(calculate(first))
+  // Native single-line Enter checks the answer even with the external Pause control above it.
+  await page.route('**/journey.js', route => route.abort())
+  await page.reload()
+  await expect(field).toHaveValue(calculate(first))
   await field.press('Enter')
   await expect(page.locator('.question-text')).not.toHaveText(first)
   const faded = await page.locator('.question-text').innerText()

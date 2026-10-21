@@ -31,6 +31,7 @@ test('every world can be picked, styles the whole app and passes the accessibili
     await page.locator(`[data-world-tile="${world}"]`).click()
     await expect(page).toHaveURL(new RegExp(`/students/${student}$`))
     await expect(page.locator(`[data-world="${world}"]`).first()).toBeAttached()
+    await page.waitForLoadState('load')
     // The mascot art for this world loads (same-origin, CSP-safe).
     const mascot = await page.locator('.today-greeting .companion').evaluate(el => getComputedStyle(el).backgroundImage)
     expect(mascot).toContain(`/worlds/${world}/bloop-wave.webp`)

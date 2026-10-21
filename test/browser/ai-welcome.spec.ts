@@ -73,6 +73,9 @@ test('with no AI connected, every screen says the same thing, and what it promis
   const nextStep = page.getByRole('link', { name: 'See your next step', exact: false }), ready = page.getByRole('button', { name: 'Ready for a fresh question', exact: true })
   let waiting = 0
   for (let i = 0; i < 12 && await page.locator('form.answer').count(); i++) {
+    // A planned break disables answering until the learner chooses Continue.
+    const continueWork = page.getByRole('button', { name: 'Continue', exact: true })
+    if (await continueWork.count()) await Promise.all([page.waitForEvent('domcontentloaded'), continueWork.click()])
     const choices = page.locator('fieldset.choices .choice')
     if (await choices.count()) await choices.first().click()
     else await page.getByRole('textbox', { name: /^(Answer|Your steps)$/ }).fill('definitely wrong')
