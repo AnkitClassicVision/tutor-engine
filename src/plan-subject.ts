@@ -80,7 +80,7 @@ export function readSyllabusUpload(input: { text?: string; base64?: string; mime
 const flat = (plan: CurriculumPlan) => plan.topics.flatMap((topic, index) => topic.questions.map(question => ({ ...question, bloomLevel: question.bloomLevel ?? 1, topic: index, title: topic.title })))
 
 export const PLAN_CURRICULUM: Contract<CurriculumInput, CurriculumPlan> = {
-  id: "plan-curriculum", version: 8, role: "planner",
+  id: "plan-curriculum", version: 9, role: "planner",
   skills: ["design-questions", "assess-learning", "adapt-session", "revise-agenda"],
   brief: () => [coursePlanningBrief(), contentSkillBrief(), RUBRIC_BRIEF].join("\n\n"),
   schema: JSON.parse(SCHEMA),

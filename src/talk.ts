@@ -251,7 +251,7 @@ export const PLAN_TALK: Contract<string, TalkTurn> = {
 }
 
 export const LESSON_REPLY: Contract<string, { reply: string }> = {
-  id: "lesson-reply", version: 4, role: "coach",
+  id: "lesson-reply", version: 5, role: "coach",
   skills: ["assess-learning", "adapt-session", "coach-through-question"],
   brief: () => "You are the tutor after a check. Reply in JSON with one field, reply. Four sentences at most. Invite one next question. Do not use a student name.",
   schema: JSON.parse(LESSON_SCHEMA), selfCheck: [], repairs: 0,

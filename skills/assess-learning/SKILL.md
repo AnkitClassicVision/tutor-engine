@@ -1,7 +1,7 @@
 ---
 name: assess-learning
 description: Design and judge Tutor Engine assessments that check the requested concept and actual Bloom demand, separate practice from testing, and require evidence over time before mastery.
-version: 2
+version: 3
 role: verifier
 ---
 
@@ -17,7 +17,7 @@ Assessments use fresh questions and withhold all coaching, hints, correctness fe
 
 Homework provides immediate corrective feedback and the ordered hint ladder. Lessons may alternate opening/immediate feedback with a short batch review after early success; misses interrupt the batch for teaching. Two confirmed misses call for a new teaching approach, not another repeated drill. Keep Bloom demand separate from degree of support: preserve comparison, reasoning and creation during supported practice, then fade help and check fresh unaided performance. A scaffolded creation does not award mastery at Create by itself. Delayed retention and transfer are separate evidence, not implied by immediate practice success.
 
-Objective keys may be scored locally. Open explanations, Analyze justifications, Evaluate, and Create need an explicit rubric and substantive judgment. The parent has chosen automatic model grading: the account's selected AI judges the actual response against the key/rubric, including reasoning and originality. A valid verdict with confidence at least 0.8 counts automatically; malformed, uncertain, or failed calls stay pending with a parent-review fallback. Local keyword matches never substitute for this judgment. Preserve the grading reason and provider with the response.
+Objective keys may be scored locally. Open explanations, Analyze justifications, Evaluate, and Create need an explicit rubric and substantive judgment. The parent has chosen automatic model grading: the account's selected AI judges the actual response against the key/rubric, including reasoning and originality. The first grade requires confidence of at least 0.85 and agreement from an independent second judgment, also at least 0.85, that never sees the first verdict. Lower confidence, unusable evidence or disagreement requires a separate grounding pass using the rubric and topic material. A valid grounded verdict can count at confidence of at least 0.8; if needed, one further grounding pass addresses the remaining doubts. A faulty question is retired without scoring the child. Unsettled answers go to parent review and failed calls stay pending for retry; neither counts as a miss. Local keyword matches never substitute for this judgment. Preserve the grading reason and provider with the response.
 
 Record the actual concept, Bloom level, date, session, hints, interleaving, time, modality, and diagnosed error. Mastery requires three qualifying successes across two sessions on two days, at least one mixed with another topic, and zero hints per qualifying success under the current engine. A same-day perfect check is diagnostic evidence. Keep review after 7/30 days, and flag three sessions below 70% with the error type.
 
