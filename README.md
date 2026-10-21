@@ -96,6 +96,8 @@ Where things are:
 
 Design system: [DESIGN.md](DESIGN.md). Product principles: [PRODUCT.md](PRODUCT.md). Shipped defaults and the reasons for them: [docs/DECISIONS.md](docs/DECISIONS.md).
 
+Learning evidence, the fractions cycle, paper handoff and migration/rollback boundaries: [docs/LEARNING-EVIDENCE.md](docs/LEARNING-EVIDENCE.md).
+
 UI/UX improvement framework: [docs/ux/](docs/ux/README.md) contains a river mind map, current-source audit, child and parent workflow contracts, a 12-step process series, quality gates and reusable agent prompts. It is a proposed design and validation framework, not a claim of completed child research or a shipped redesign.
 
 ## What is solid and what is early
@@ -106,7 +108,7 @@ UI/UX improvement framework: [docs/ux/](docs/ux/README.md) contains a river mind
 - **Teaching quality with real children.** Do missions hold attention, and does mastery last a week later? We need classroom and parent feedback.
 - **AI grading accuracy.** The [review pack](eval/review-pack/README.md) has 100 synthetic cases that are not yet human-approved.
 - **Child safety of AI output.** Today it relies on keyword checks plus model instructions, not full moderation.
-- **The built-in math curriculum is small** (32 concepts, grades 1–8). AI-built classes extend it for each family, but a fuller open curriculum would help everyone.
+- **The built-in math curriculum is small** (33 concepts, grades 1–8). AI-built classes extend it for each family, but a fuller open curriculum would help everyone.
 - **Subjects beyond math.** Reading and science work through photos and planning, but have no built-in curriculum yet.
 - **Translations.**
 

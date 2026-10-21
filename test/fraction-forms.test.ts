@@ -5,6 +5,7 @@ import { loadBackbone } from '../src/engine/graph.ts'
 import { rubricIssues } from '../src/rubric.ts'
 import { taskEvidence, taskMatches } from '../src/task-evidence.ts'
 import { fractionCaseKeys } from '../src/engine/scaffolds.ts'
+import { applyProblem } from '../src/engine/items.ts'
 
 const value = (fraction: string) => { const [n, d = '1'] = fraction.split('/'); return Number(n) / Number(d) }
 const delivered = (task: NonNullable<ReturnType<typeof authoredFractionTask>>) => ({
@@ -18,6 +19,20 @@ test('authored fraction outcomes have distinct identities and the declared prere
   assert.equal(new Set(Object.values(FRACTION_OUTCOMES).map(o => o.id)).size, 5)
   for (const [id, outcome] of Object.entries(FRACTION_OUTCOMES)) assert.deepEqual(graph.nodes.get(id)?.prereqs, outcome.prerequisites)
   assert.ok(FRACTION_FORM_CASES >= 60)
+})
+
+test('operation-choice recall and understanding examples support both combining and removing with correct keys', () => {
+  const concept = loadBackbone().nodes.get('math.fractions.operation-choice')!
+  const relationships = new Set<string>()
+  for (let seed = 1; seed <= 30; seed++) {
+    const problem = applyProblem(concept, seed), amounts = [...problem.prompt.matchAll(/\d+\/\d+/g)].map(m => value(m[0]))
+    const removing = problem.prompt.includes('poured out')
+    relationships.add(removing ? 'remove' : 'combine')
+    assert.ok(Math.abs(value(problem.answer) - (removing ? amounts[0] - amounts[1] : amounts[0] + amounts[1])) < 1e-12)
+    assert.match(problem.step1, removing ? /removed.*subtract/ : /joins.*add/)
+    assert.match(problem.wrongStep, removing ? /addition/ : /subtraction/)
+  }
+  assert.deepEqual([...relationships].sort(), ['combine', 'remove'])
 })
 
 test('every authored numeric key and creation example satisfies the mathematical constraints', () => {

@@ -3,10 +3,17 @@ import { settledAudit } from './settled-audit.ts'
 
 async function sendAnswer(page: Page, value: string) {
   await page.getByRole('textbox', { name: /^(Answer|Your steps)$/ }).fill(value)
-  const responsePromise = page.waitForResponse(r => r.request().method() === 'POST' && new URL(r.url()).pathname.endsWith('/answer'))
+  // Inspect the real receipt before releasing it: Chromium may discard its body on navigation.
+  let receipt: { saved: boolean; location: string } | undefined
+  await page.route('**/session/*/answer', async route => {
+    const response = await route.fetch()
+    expect(response.ok()).toBe(true)
+    receipt = await response.json()
+    await route.fulfill({ response })
+  }, { times: 1 })
   await page.getByRole('button', { name: 'Check', exact: true }).click()
-  const response = await responsePromise
-  const destination = response.headers().location
+  await expect.poll(() => receipt?.saved).toBe(true)
+  const destination = receipt!.location
   expect(destination).toBeTruthy()
   await page.waitForURL(new URL(destination, page.url()).href)
   if (new URL(page.url()).pathname.startsWith('/jobs/')) await page.getByRole('link', { name: 'See your next step' }).click()

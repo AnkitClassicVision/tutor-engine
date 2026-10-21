@@ -231,6 +231,21 @@ export function applyProblem(concept: ConceptNode, seed: number): Applied {
   const pick = (mod: number) => Math.floor(rand() * mod)
   const id = concept.conceptId
 
+  if (id === 'math.fractions.operation-choice') {
+    const a = 2 + pick(3), b = 1 + pick(2), denominator = a + b + 2 + pick(5), removing = pick(2) === 1
+    const start = removing ? a + b : a, result = removing ? a : a + b
+    const initial = `${start}/${denominator}`, change = `${b}/${denominator}`, answer = fractionString(result, denominator)
+    return {
+      prompt: `A jug starts with ${initial} litre. ${change} litre ${removing ? 'is poured out' : 'is added'}. How much is in the jug now?`,
+      answer,
+      nudge: 'Are parts being combined, or is a part being removed from a whole?',
+      step1: removing ? 'Some liquid is removed, so subtract the removed part from the start.' : 'The new liquid joins what is there, so add the two parts.',
+      step2: `${initial} ${removing ? '−' : '+'} ${change} = ${result}/${denominator}.`,
+      step3: `The jug now holds ${answer} litre.`,
+      wrongStep: `Use ${removing ? 'addition' : 'subtraction'} instead: ${initial} ${removing ? '+' : '−'} ${change} = ${fractionString(removing ? start + b : start - b, denominator)}.`,
+    }
+  }
+
   if (id.startsWith("math.primary.")) {
     const [, , gradeRaw, operation] = id.split(".")
     const grade = Number(gradeRaw), a = 2 + pick(grade === 1 ? 7 : 8), b = 2 + pick(7)

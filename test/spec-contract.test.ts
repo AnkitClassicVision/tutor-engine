@@ -139,6 +139,10 @@ test("a school overlay reuses backbone IDs and preserves learner evidence and Bl
 test("every backbone Apply generator measures its concept instead of silently falling back to addition", () => {
   const graph = loadBackbone()
   for (const concept of graph.nodes.values()) {
+    for (const level of [1, 2, 3, 4, 5, 6] as const) {
+      const reachable = generateItem(concept, level, 42)
+      assert.ok(reachable.prompt && reachable.answer, `${concept.conceptId} at Bloom ${level} must be deliverable`)
+    }
     const item = generateItem(concept, 3, 42)
     assert.ok(item.answer)
     if (concept.conceptId !== "math.4.nbt.b.4") assert.doesNotMatch(item.prompt, /^Compute \d+ \+ \d+\.$/, concept.conceptId)
