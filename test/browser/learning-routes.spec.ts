@@ -87,7 +87,11 @@ test('a live fractions cycle measures a genuine seven-day pair, preserves suppor
       if (new URL(page.url()).pathname.startsWith('/jobs/')) { await f.drain(); await page.goto(f.baseURL + '/session/' + learning) }
       if (!(await f.items(learning)).some(i => i.answered === 0)) break
       if (await page.locator('form.answer').count()) await answer(page, f)
-      else await page.getByRole('button', { name: 'Ready for a fresh question', exact: true }).click()
+      // Feedback can return to the same URL; inspect the next document only after it loads.
+      else await Promise.all([
+        page.waitForNavigation({ waitUntil: 'domcontentloaded' }),
+        page.getByRole('button', { name: 'Ready for a fresh question', exact: true }).click(),
+      ])
     }
     expect((await f.items(learning)).every(i => i.answered === 1)).toBe(true)
     await expect(page.locator('form.answer')).toHaveCount(0)
