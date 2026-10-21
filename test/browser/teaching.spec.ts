@@ -1,0 +1,53 @@
+import { test, expect } from '@playwright/test'
+import { settledAudit } from './settled-audit.ts'
+
+const gcd = (a: number, b: number): number => b ? gcd(b, a % b) : a
+const calculate = (question: string) => {
+  const match = question.match(/Add (\d+)\/(\d+) \+ (\d+)\/(\d+)/)
+  if (!match) throw new Error(`Expected the synthetic fraction task, got ${question}`)
+  const [,a,b,c,d] = match.map(Number), top = a*d + c*b, bottom = b*d, common = gcd(top,bottom)
+  return `${top/common}/${bottom/common}`
+}
+
+test('worked reasons lead to completion, saved recovery, faded help and a different independent task', async ({ page }, info) => {
+  await page.goto('/')
+  const login = page.locator('form[action="/login"]')
+  await login.getByLabel('Email').fill(`teaching-${info.project.name}@example.invalid`)
+  await login.getByLabel('Password', { exact: true }).fill('synthetic-browser-password')
+  await login.getByRole('button', { name: 'Enter', exact: true }).click()
+  await page.getByRole('link', { name: /Synthetic fraction learner/ }).first().click()
+  await page.getByRole('button', { name: /Let’s go/ }).click()
+  await expect(page.getByRole('heading', { name: 'A worked example' })).toBeVisible()
+  const worked = await page.locator('.worked-example').innerText()
+  expect(worked).toContain('same-sized parts')
+  expect(worked).toContain('Subtract the second amount')
+  expect(await page.locator('.worked-example ol li').count()).toBe(3)
+  await page.getByRole('button', { name: 'Let’s try one together', exact: true }).click()
+  const first = await page.locator('.question-text').innerText()
+  expect(first).toContain('Started for you')
+  expect(first).toContain('Finish the problem')
+  expect(worked).not.toContain(first.match(/Add[^.]+\./)![0])
+  const field = page.getByRole('textbox', { name: 'Answer', exact: true })
+  await field.fill(calculate(first))
+  await page.reload()
+  await expect(field).toHaveValue(calculate(first))
+  await page.getByRole('button', { name: 'Save & stop', exact: true }).click()
+  await page.getByRole('button', { name: /Pick up where/ }).click()
+  await expect(field).toHaveValue(calculate(first))
+  await field.press('Enter')
+  await expect(page.locator('.question-text')).not.toHaveText(first)
+  const faded = await page.locator('.question-text').innerText()
+  expect(faded).toContain('Started for you')
+  expect(faded, 'the faded completion supplies the shared unit, leaving the renaming to the child').not.toContain(' = ')
+  await field.fill(calculate(faded))
+  await page.getByRole('button', { name: 'Check', exact: true }).click()
+  await expect(page.locator('.question-text')).not.toHaveText(faded)
+  const independent = await page.locator('.question-text').innerText()
+  expect(independent).not.toContain('Started for you')
+  expect(independent).not.toContain(first.match(/Add[^.]+\./)![0])
+  expect(independent).not.toContain(faded.match(/Add[^.]+\./)![0])
+  await expect(page.locator('.step-tag[data-beat="own"]')).toBeVisible()
+  const dimensions = await page.evaluate(() => ({ viewport: innerWidth, content: document.documentElement.scrollWidth }))
+  expect(dimensions.content).toBeLessThanOrEqual(dimensions.viewport + 1)
+  expect((await (await settledAudit(page)).withTags(['wcag2a','wcag2aa']).analyze()).violations).toEqual([])
+})

@@ -20,12 +20,12 @@ test("the ladder separates help, independence, memory and use somewhere new", ()
   const helped = conceptLadder("c", [attempt("2026-09-01", 3, true, { hintsUsed: 1, supportUsed: "hint" })])
   assert.deepEqual(helped.reached, ["practiced", "assisted"]); assert.equal(helped.band, "none")
   assert.match(helped.next, /on their own/)
-  const own = conceptLadder("c", [attempt("2026-09-01", 3, true), attempt("2026-09-09", 2, true)])
+  const own = conceptLadder("c", [attempt("2026-09-01", 3, true), attempt("2026-09-09", 3, true)])
   assert.deepEqual(own.reached, ["practiced", "independent", "retained7"]); assert.equal(own.band, "use"); assert.equal(own.since, "2026-09-01")
   // A repeated question, an unresolved grade or a hinted answer is not independent evidence.
   const notOwn = conceptLadder("c", [attempt("2026-09-01", 6, true, { fresh: false }), attempt("2026-09-02", 6, true, { evidenceCertainty: "unresolved" })])
   assert.equal(notOwn.band, "none"); assert.ok(!notOwn.reached.includes("independent"))
-  const top = conceptLadder("c", [attempt("2026-09-01", 5, true), attempt("2026-09-05", 4, true, { kind: "transfer" }), attempt("2026-09-29", 3, true)])
+  const top = conceptLadder("c", [attempt("2026-09-01", 5, true), attempt("2026-09-05", 5, true, { kind: "transfer" }), attempt("2026-09-29", 5, true)])
   assert.deepEqual(top.reached, ["practiced", "independent", "retained7", "retained28", "transferred"])
   assert.equal(top.band, "judge"); assert.equal(top.goalMet, true)
   const summary = ladderSummary([helped, own, top])
@@ -38,12 +38,12 @@ test("before and after needs enough fair checks a week apart and reports uncerta
   assert.match(gainOnFairChecks(early).note, /Needs 12/)
   const close = [...early, ...Array.from({ length: 6 }, (_, i) => attempt("2026-09-06", 3, true))]
   assert.equal(gainOnFairChecks(close).enough, false)
-  const later = [...early, ...Array.from({ length: 6 }, (_, i) => attempt(`2026-09-2${i}`, 3, true))]
+  const later = [...early, ...Array.from({ length: 6 }, (_, i) => attempt(`2026-09-2${i}`, 2, true))]
   const gain = gainOnFairChecks(later)
   assert.equal(gain.enough, true)
   assert.equal(Math.round(gain.before!.accuracy * 100), 33); assert.equal(gain.after!.accuracy, 1)
   assert.equal(gain.size, "large"); assert.ok(gain.effect! > 1.5)
-  assert.equal(gain.demandChange, 1)
+  assert.equal(gain.demandChange, 0, 'the comparison holds demand constant')
   assert.match(gain.note, /risen/)
   // Hinted answers never enter the comparison.
   const hinted = [...later.slice(0, 6), ...Array.from({ length: 6 }, (_, i) => attempt(`2026-09-2${i}`, 3, true, { hintsUsed: 1, supportUsed: "hint" }))]
@@ -81,7 +81,7 @@ test("the numbers page shows the ladder and the fair-check comparison to parents
   const rows = [conceptLadder("c", [attempt("2026-09-01", 5, true), attempt("2026-09-05", 4, true, { kind: "transfer" }), attempt("2026-09-29", 3, true)])]
   const html = scoreboardPage("Synthetic", "00000000-0000-0000-0000-000000000000", { conceptsMasteredThisWeek: [], frontier: [], stuck: [], errorTrend: [], justRightRatio: null, retention7: { checked: 0, held: 0 }, retention30: { checked: 0, held: 0 } } as any, { c: "Fractions" }, [], { ladders: rows, gain: gainOnFairChecks([]) })
   assert.match(html, /How far the thinking has climbed/)
-  assert.match(html, /1 meet the full goal/)
+  assert.match(html, /0 meet the full goal/, 'unmatched memory and lower-level transfer cannot establish the top-level outcome')
   assert.match(html, /Used somewhere new/)
   assert.match(html, /Needs 12 fair checks; 0 so far/)
   assert.match(html, /describes your child against their own start; it does not show what caused the change/)
@@ -97,10 +97,10 @@ test("the numbers page shows the ladder and the fair-check comparison to parents
 test("a memory step shown at a lower thinking level says so on the parent ladder (owner decision 2026-10-19)", () => {
   const row = conceptLadder("c", [attempt("2026-09-01", 5, true), attempt("2026-09-09", 2, true), attempt("2026-09-30", 5, true)])
   assert.deepEqual(row.memoryLevel, { retained7: 5, retained28: 5 }, "the highest later success counts")
-  const lower = conceptLadder("c", [attempt("2026-09-01", 5, true), attempt("2026-09-09", 2, true)])
+  const lower = conceptLadder("c", [attempt("2026-09-01", 5, true), attempt("2026-09-01", 2, true), attempt("2026-09-09", 2, true)])
   assert.equal(lower.band, "judge"); assert.equal(lower.memoryLevel.retained7, 2)
   const html = scoreboardPage("Synthetic", "00000000-0000-0000-0000-000000000000", { conceptsMasteredThisWeek: [], frontier: [], stuck: [], errorTrend: [], justRightRatio: null, retention7: { checked: 0, held: 0 }, retention30: { checked: 0, held: 0 } } as any, { c: "Fractions" }, [], { ladders: [lower, conceptLadder("d", [attempt("2026-09-01", 3, true, { conceptId: "d" }), attempt("2026-09-09", 3, true, { conceptId: "d" })])], gain: gainOnFairChecks([]) })
-  assert.match(html, /Remembered after a week \(at the basics level\)/)
+  assert.match(html, /Comparable check after a week \(at the basics level\)/)
   assert.equal((html.match(/\(at the [a-z-]+ level\)/g) ?? []).length, 1, "a memory at the topic's own level gets no extra label")
 })
 

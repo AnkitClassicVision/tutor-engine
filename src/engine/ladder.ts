@@ -1,8 +1,9 @@
+import { retentionChecks } from "./evidence.ts"
 // The evidence ladder: for each concept, how far the child's thinking has climbed and how much of it
 // they own. Thinking bands follow the blueprint's pairs of Bloom levels; ownership separates practice,
 // help, independence, memory after time and use in a new situation.
 
-import { independent } from "./mastery.ts"
+import { independent, freshEvidence } from "./mastery.ts"
 import type { AttemptRecord, BloomLevel } from "./types.ts"
 import { addDays } from "./dates.ts"
 
@@ -14,7 +15,7 @@ export const OWNERSHIP = ["practiced", "assisted", "independent", "retained7", "
 export type Ownership = (typeof OWNERSHIP)[number]
 export const OWNERSHIP_LABEL: Record<Ownership, string> = {
   practiced: "Practised", assisted: "With help", independent: "On their own",
-  retained7: "Remembered after a week", retained28: "Remembered after a month", transferred: "Used somewhere new",
+  retained7: "Comparable check after a week", retained28: "Comparable check after a month", transferred: "Used somewhere new",
 }
 
 export interface ConceptLadder {
@@ -24,7 +25,7 @@ export interface ConceptLadder {
   highestLevel: BloomLevel | 0
   /** Every ownership step reached, in order. Steps can be reached out of order (a transfer before a month passes). */
   reached: Ownership[]
-  /** The first independent success, which the memory checks count from. */
+  /** The first independent success; delayed comparisons have their own eligible baseline. */
   since: string | null
   /** Independent at Judge and produce, remembered after a month, and used somewhere new. */
   goalMet: boolean
@@ -38,31 +39,30 @@ const confirmed = (attempt: AttemptRecord) => attempt.evidenceCertainty !== "unr
 
 export function conceptLadder(conceptId: string, attempts: AttemptRecord[]): ConceptLadder {
   const rows = attempts.filter(a => a.conceptId === conceptId && confirmed(a)).sort((a, b) => (a.createdAt ?? a.day).localeCompare(b.createdAt ?? b.day))
-  const own = rows.filter(a => a.correct && independent(a))
+  const own = freshEvidence(rows).filter(a => a.correct)
   const reached = new Set<Ownership>()
   if (rows.length) reached.add("practiced")
-  if (rows.some(a => a.correct && !independent(a))) reached.add("assisted")
+  if (rows.some(a => a.correct && (a.hintsUsed > 0 || a.supportUsed && a.supportUsed !== 'none'))) reached.add("assisted")
   const first = own[0]
   if (first) {
     reached.add("independent")
-    // A later independent success on the same idea, at any demand, shows it was kept.
-    if (own.some(a => a.day >= addDays(first.day, 7))) reached.add("retained7")
-    if (own.some(a => a.day >= addDays(first.day, 28))) reached.add("retained28")
+    if (retentionChecks(rows, 7).some(pair => pair.after.correct)) reached.add("retained7")
+    if (retentionChecks(rows, 28).some(pair => pair.after.correct)) reached.add("retained28")
   }
   const memoryLevel: ConceptLadder["memoryLevel"] = {}
   for (const [step, days] of [["retained7", 7], ["retained28", 28]] as const) {
-    const later = first ? own.filter(a => a.day >= addDays(first.day, days)) : []
+    const later = retentionChecks(rows, days).filter(pair => pair.after.correct).map(pair => pair.after)
     if (later.length) memoryLevel[step] = Math.max(...later.map(a => a.bloomLevel)) as BloomLevel
   }
   if (own.some(a => a.kind === "transfer")) reached.add("transferred")
   const highestLevel = (own.length ? Math.max(...own.map(a => a.bloomLevel)) : 0) as BloomLevel | 0
   const band = bandOf(highestLevel)
-  const goalMet = band === "judge" && reached.has("retained28") && reached.has("transferred")
+  const goalMet = band === "judge" && memoryLevel.retained28 === highestLevel && own.some(a => a.kind === 'transfer' && a.bloomLevel === highestLevel)
   const next = !rows.length ? "Start with a short check."
     : !reached.has("independent") ? "Get one right on their own, without a hint."
     : band !== "judge" ? `Try a ${band === "foundations" ? "use-it" : "judge-or-create"} challenge.`
     : !reached.has("transferred") ? "Use it in a new situation."
-    : !reached.has("retained28") ? `Check it again after ${first ? addDays(first.day, 28) : "a month"}.`
+    : memoryLevel.retained28 !== highestLevel ? 'Plan a comparable check at this level after a month.'
     : "Goal reached. Keep it fresh with an occasional review."
   return { conceptId, band, highestLevel, reached: OWNERSHIP.filter(step => reached.has(step)), since: first?.day ?? null, goalMet, next, memoryLevel }
 }

@@ -1,3 +1,4 @@
+import { stampTask } from "../src/task-evidence.ts"
 import assert from "node:assert/strict"
 import test from "node:test"
 import { readFileSync } from "node:fs"
@@ -89,7 +90,7 @@ test("API providers receive the same course instructions and share result valida
   assert.equal(new Set(captured).size, 1)
 })
 
-test("comparable successes adapt across sessions without changing past answers", async () => {
+test("assessment successes keep the remaining declared questions unchanged", async () => {
   const { db, ownerId, studentId, conceptId } = await learner()
   try {
     // A synthetic isolated sequence, all at Apply on the same topic.
@@ -100,9 +101,8 @@ test("comparable successes adapt across sessions without changing past answers",
     const original = await sessionItems(db, sessionId)
     for (let i = 0; i < 6; i++) await submitAnswer(db, ownerId, sessionId, { itemId: String(original[i].id), answer: "4" }, new Date(now.getTime() + i * 1000))
     const adjusted = await sessionItems(db, sessionId)
-    assert.equal(adjusted[6].bloom_level, 4)
-    assert.notEqual(adjusted[6].prompt, original[6].prompt)
-    assert.deepEqual(adjusted.slice(0, 6).map(i => i.prompt), original.slice(0, 6).map(i => i.prompt))
+    assert.equal(adjusted[6].bloom_level, 3)
+    assert.deepEqual(adjusted.map(i => i.prompt), original.map(i => i.prompt))
   } finally { db.close() }
 })
 
@@ -113,6 +113,7 @@ test("mixed Bloom misses do not trigger an adjustment without comparable evidenc
     const original = await sessionItems(db, sessionId)
     for (let i = 0; i < 5; i++) {
       await db.prepare("UPDATE session_items SET prompt = ?, bloom_level = ? WHERE id = ?").run(`Fresh miss ${i}`, i % 2 + 1, original[i].id)
+      await stampTask(db, String(original[i].id), 'builtin')
       await submitAnswer(db, ownerId, sessionId, { itemId: String(original[i].id), answer: "definitely wrong" }, new Date(now.getTime() + i * 1000))
     }
     assert.equal((await sessionItems(db, sessionId))[5].prompt, original[5].prompt)
@@ -149,7 +150,10 @@ test("every backbone Apply generator measures its concept instead of silently fa
   assert.equal(workingBloom({ ...emptyState("concept", "2026-10-05"), bloomLevel: 4 }), 5)
   assert.equal(workingBloom({ ...emptyState("concept", "2026-10-05"), bloomLevel: 5 }), 6)
   assert.match(generateItem(graph.nodes.get("math.5.nf.a.1")!, 5, 42).prompt, /Judge both/)
-  assert.match(generateItem(graph.nodes.get("math.5.nf.a.1")!, 6, 42).prompt, /Write a problem/)
+  const creation = generateItem(graph.nodes.get("math.5.nf.a.1")!, 6, 42)
+  assert.match(creation.prompt, /Create a different addition problem/)
+  assert.match(creation.prompt, /different denominators/)
+  assert.ok(creation.rubric?.mustShow.some(point => /Construct a new pair/.test(point.point)))
 })
 
 test("written production awaits review and preserves the actual evidence, while recap alone awards no Bloom success", async () => {
@@ -159,6 +163,7 @@ test("written production awaits review and preserves the actual evidence, while 
     const current = (await sessionItems(db, sessionId))[0]
     await db.prepare("UPDATE session_items SET bloom_level = 6, answer = ?, interleaved = 0, hints_used = 2 WHERE id = ?")
       .run("Rubric: make an original fraction problem, solve it, and check it.", current.id)
+    await stampTask(db, String(current.id), 'designed')
     assert.equal(requiresJudgment("Rubric: make an original example", 6), true)
     const submitted = (await submitAnswer(db, ownerId, sessionId, { itemId: String(current.id), answer: "I made a new problem and explained my solution.", timeMs: 2200 }, now))
     assert.equal("pendingReview" in submitted && submitted.pendingReview, true)
@@ -170,12 +175,12 @@ test("written production awaits review and preserves the actual evidence, while 
     assert.equal(attempt.bloom_level, 6)
     assert.equal(attempt.hints_used, 2)
     assert.equal(attempt.interleaved, 0)
-    await assert.rejects(async () => (await reviewAnswer(db, ownerId, sessionId, { itemId: String(current.id), correct: true }, tomorrow)), /waiting for review/)
+    await reviewAnswer(db, ownerId, sessionId, { itemId: String(current.id), correct: true }, tomorrow) // idempotent late callback
     await saveRecap(db, ownerId, sessionId, { learned: "Fractions", hard: "Checking", tellFriend: "Use equal pieces", productionSuccess: true }, tomorrow)
     assert.equal((await db.prepare("SELECT count(*) AS n FROM attempts WHERE session_id = ?").get(sessionId))?.n, 1)
     const sheetId = (await createSheet(db, ownerId, studentId, tomorrow))
     const results = (await scoreSheet(db, ownerId, sheetId, [], tomorrow))
-    assert.ok(results.some((row) => row.pendingReview && row.reviewSessionId))
+    assert.ok(results.every((row) => row.unanswered && !row.pendingReview && !row.reviewSessionId))
   } finally { db.close() }
 })
 
@@ -207,6 +212,8 @@ test("automatic rubric grading persists a real model verdict while uncertain out
       const item = (await sessionItems(db, sessionId))[index]
       await db.prepare("UPDATE session_items SET bloom_level = 6, answer = ?, answered = 1, given_answer = ?, submitted_at = ? WHERE id = ?")
         .run("Rubric: create an original fraction problem and check it.", "An original fraction problem with a complete solution and check.", now.toISOString(), item.id)
+      await stampTask(db, String(item.id), 'designed')
+      await db.prepare('UPDATE session_items SET submitted_revision = revision_id WHERE id = ?').run(item.id)
       await gradePendingResponses(db, ownerId, sessionId, judgeAnswer, [String(item.id)])
       const graded = (await sessionItems(db, sessionId))[index]
       if (index === 0) {

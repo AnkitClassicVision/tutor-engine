@@ -75,9 +75,8 @@ test('with no AI connected, every screen says the same thing, and what it promis
   for (let i = 0; i < 12 && await page.locator('form.answer').count(); i++) {
     const choices = page.locator('fieldset.choices .choice')
     if (await choices.count()) await choices.first().click()
-    else await page.getByLabel('Answer', { exact: true }).fill('definitely wrong')
-    await page.getByRole('button', { name: 'Check', exact: true }).click()
-    await page.waitForLoadState('load')
+    else await page.getByRole('textbox', { name: /^(Answer|Your steps)$/ }).fill('definitely wrong')
+    await Promise.all([page.waitForEvent('domcontentloaded'), page.getByRole('button', { name: 'Check', exact: true }).click()])
     await expect(page.getByText('Could not finish', { exact: false })).toHaveCount(0)
     // Talking it through needs the AI, so it is not offered.
     await expect(page.locator('form.talk')).toHaveCount(0)

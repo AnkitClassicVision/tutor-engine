@@ -6,7 +6,7 @@ keywords: vocabulary, vocab, words, word list, meaning, meanings, definition, de
 formats: choice, word, written
 bloom: 1-3
 require_work: false
-version: 2
+version: 3
 role: coach
 ---
 
@@ -46,3 +46,5 @@ Hook, how to work out a word from context and word parts, one worked example on 
 - Good: "Which word means 'very tired'? exhausted / excited / exact" answer `exhausted`.
 - Good: "The ___ dog would not let anyone near its food. (fierce, gentle, sleepy)" answer `fierce`.
 - Bad: "What does exhausted mean? Exhausted means very tired." (the answer is in the question)
+
+If an approved subjectMap is supplied, keep its key in mapKey and use its exact title. Select the teaching route from its dimension and observed gap, preserve the success criteria, and use the contrast and misconception fixes for teaching. A worked example must show completed work and reasons, with a meaningful step left in a separate completion problem. Independent questions must use different cases; a paraphrase or equivalent calculation of the teaching example is not fresh evidence. Keep analysis, evaluation and creation demands when requested.

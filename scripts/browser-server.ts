@@ -8,6 +8,8 @@ import { registerUser } from '../src/auth.ts'
 import { createStudent } from '../src/services.ts'
 import { encryptSecret } from '../src/secrets.ts'
 import { seedStrengths } from '../test/fixtures/strengths.ts'
+import { seedAssessment } from '../test/fixtures/assessment.ts'
+import { seedTeachingRoute } from '../test/fixtures/teaching-route.ts'
 const dir = mkdtempSync(join(tmpdir(), 'tutor-browser-'))
 const db = openDb(join(dir, 'browser.sqlite'))
 // The full browser suite and focused strengths suite share this isolated family.
@@ -18,10 +20,20 @@ await seedStrengths(db, strengthsUser.userId)
 // A family with no AI connected, to check that what the screens promise without one really works.
 // One per browser project, so parallel browsers never share a mission.
 for (const project of ['chromium', 'firefox', 'webkit', 'mobile-chromium', 'tablet']) {
+  const teachingUser = await registerUser(db, `teaching-${project}@example.invalid`, 'synthetic-browser-password')
+  if (!teachingUser.ok) throw new Error('Synthetic teaching registration failed')
+  await db.prepare("UPDATE users SET email_verified_at = ?, ai_provider = 'openai', ai_model = '', ai_key = '' WHERE id = ?").run(new Date().toISOString(), teachingUser.userId)
+  await seedTeachingRoute(db, teachingUser.userId)
+  const assessmentUser = await registerUser(db, `assessment-${project}@example.invalid`, 'synthetic-browser-password')
+  if (!assessmentUser.ok) throw new Error('Synthetic assessment registration failed')
+  await db.prepare("UPDATE users SET email_verified_at = ?, ai_provider = 'openai', ai_model = '', ai_key = '' WHERE id = ?").run(new Date().toISOString(), assessmentUser.userId)
+  await seedAssessment(db, assessmentUser.userId, 'Synthetic assessment')
+  await seedAssessment(db, assessmentUser.userId, 'Synthetic early finish')
   const noAiUser = await registerUser(db, `no-ai-${project}@example.invalid`, 'synthetic-browser-password')
   if (!noAiUser.ok) throw new Error('Synthetic no-AI registration failed')
   await db.prepare("UPDATE users SET email_verified_at = ?, ai_provider = 'openai', ai_model = '', ai_key = '' WHERE id = ?").run(new Date().toISOString(), noAiUser.userId)
   await createStudent(db, noAiUser.userId, { displayName: 'Synthetic offline', birthDate: '2016-05-04', sessionCapMinutes: 10 })
+  for (const age of [6, 9, 12]) await createStudent(db, noAiUser.userId, { displayName: `Synthetic capability ${age}`, birthDate: new Date(Date.now() - age * 365.25 * 86400000).toISOString().slice(0, 10), sessionCapMinutes: 10 })
   // WF-01: a family whose AI key stopped being accepted.
   const revoked = await registerUser(db, `revoked-${project}@example.invalid`, 'synthetic-browser-password')
   if (!revoked.ok) throw new Error('Synthetic revoked registration failed')

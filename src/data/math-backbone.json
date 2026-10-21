@@ -174,6 +174,19 @@
       "nonExample": "1/2 + 1/3 = 2/5"
     },
     {
+      "conceptId": "math.fractions.operation-choice",
+      "subject": "math",
+      "grade": 5,
+      "title": "Choose addition or subtraction with fractions",
+      "prereqs": [
+        "math.4.nf.a.2",
+        "math.5.nf.a.1"
+      ],
+      "recall": "Identify the quantity asked for: combine parts to find a total, or subtract to find a remainder or difference",
+      "example": "A jar starts with 3/4 litre and loses 1/4 litre. The remainder is 3/4 − 1/4 = 1/2 litre",
+      "nonExample": "Add 3/4 and 1/4 to find what remains after pouring 1/4 litre out of 3/4 litre"
+    },
+    {
       "conceptId": "math.5.nf.b.4",
       "subject": "math",
       "grade": 5,

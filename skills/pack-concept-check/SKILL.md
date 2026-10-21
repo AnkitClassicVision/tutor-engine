@@ -6,7 +6,7 @@ keywords: science, history, geography, explain, why, how, cause, effect, cycle, 
 formats: choice, word, written, number
 bloom: 1-5
 require_work: false
-version: 3
+version: 4
 role: coach
 ---
 
@@ -46,3 +46,5 @@ Hook with a question the learner will be able to answer by the end, the idea in 
 - Good: "Why does a puddle get smaller on a sunny day?" written, `Rubric: water evaporates; heat from the sun turns liquid water into water vapour`.
 - Good: "Which of these is condensation? a) water on a cold glass b) ice melting c) salt dissolving" answer `water on a cold glass`.
 - Bad: "What is the water cycle?" with the answer "a cycle of water" (circular, uncheckable).
+
+If an approved subjectMap is supplied, keep its key in mapKey and use its exact title. Select the teaching route from its dimension and observed gap, preserve the success criteria, and use the contrast and misconception fixes for teaching. A worked example must show completed work and reasons, with a meaningful step left in a separate completion problem. Independent questions must use different cases; a paraphrase or equivalent calculation of the teaching example is not fresh evidence. Keep analysis, evaluation and creation demands when requested.

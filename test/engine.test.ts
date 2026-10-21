@@ -201,9 +201,11 @@ test("unlike-fraction items match an independent sum and the hint ladder hides t
       .filter((line) => line.startsWith("A)") || line.startsWith("B)"))
       .map((line) => [line[0], line.slice(3)]),
   )
-  const applied = generateItem(concept, 3, 2)
-  assert.ok(lines[understand.answer].includes(applied.prompt))
-  assert.ok(lines[understand.answer].includes(applied.answer))
+  // Recognition examples and the authored independent forms have separate bounded case books.
+  const match = lines[understand.answer].match(/Add (\d+)\/(\d+) \+ (\d+)\/(\d+)/)
+  assert.ok(match)
+  const [, a, b, c, d] = match.map(Number)
+  assert.ok(lines[understand.answer].includes('The sum is ' + fractionString(a * d + c * b, b * d)))
   assert.notEqual(generateItem(concept, 2, 99).prompt, understand.prompt)
 })
 

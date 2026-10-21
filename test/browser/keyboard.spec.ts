@@ -31,11 +31,10 @@ test('a mission starts, takes an answer and saves with the keyboard alone', asyn
   await page.keyboard.press('Enter')
   await expect(page.locator('form.answer')).toBeVisible()
   await tabTo(page, /^answer$/i)
-  await page.keyboard.type('7')
-  // Enter sends the answer; wait for the page it leads to (the mission again, or the checking page).
-  await Promise.all([page.waitForURL(u => u.pathname.startsWith('/jobs/') || u.pathname.startsWith('/session/'), { waitUntil: 'load' }), page.waitForResponse(r => r.request().method() === 'POST' && new URL(r.url()).pathname.endsWith('/answer')), page.keyboard.press('Enter')])
-  await page.waitForTimeout(300)
-  await page.waitForLoadState('load')
+  await page.keyboard.type('I would work through the quantities in the question in order.')
+  // Enter in a steps box adds a line. Tab to Check and activate it with Enter for either response control.
+  await tabTo(page, /^check$/i)
+  await Promise.all([page.waitForEvent('domcontentloaded'), page.keyboard.press('Enter')])
   // A written answer goes to the checking page; the keyboard path back is "Return to my saved work".
   if (new URL(page.url()).pathname.startsWith('/jobs/')) { await tabTo(page, /return to my saved work/i); await page.keyboard.press('Enter'); await page.waitForURL(u => u.pathname.startsWith('/session/')) }
   await tabTo(page, /save & stop/i)

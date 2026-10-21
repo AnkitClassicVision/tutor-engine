@@ -1,3 +1,4 @@
+import { REVIEW_LABELS } from './turn-state.ts'
 import { BAND_LABEL, OWNERSHIP, bandOf, OWNERSHIP_LABEL, ladderSummary, type Band, type ConceptLadder } from "./engine/ladder.ts"
 import { measuredSkill } from "./engine/access.ts"
 import type { Gain } from "./engine/gain.ts"
@@ -12,6 +13,8 @@ import { gradeLabel, nextGradeChange } from "./engine/grade.ts"
 import { bloomLabel, conceptTitle } from "./services.ts"
 import { BLOOM_NAME } from "./engine/types.ts"
 import type { Scoreboard } from "./engine/scoreboard.ts"
+import { TEACHING_ROUTE, type ApprovedTeaching } from './engine/teaching.ts'
+import type { Scaffold } from './engine/scaffolds.ts'
 
 export function page(title: string, body: string, csrf: string, extras = ""): string {
   return `<!doctype html>
@@ -348,12 +351,12 @@ function strengthLevel(word: string) {
   return "0"
 }
 
-function nextStepChooser(summary: { studentId: string; subject?: string; next: { conceptId: string; subject: string; title: string; reason?: string } | null; review?: { conceptId: string; subject: string; title: string } | null }) {
-  const start = (label: string, subject: string, conceptId: string, goal: string, primary: boolean, note: string) =>
-    `<form method="post" action="/students/${esc(summary.studentId)}/session" class="next-step">${csrfField()}<input type="hidden" name="subject" value="${esc(subject)}"><input type="hidden" name="focusConceptId" value="${esc(conceptId)}"><input type="hidden" name="intent" value="practice">${goal ? `<input type="hidden" name="goal" value="${esc(goal)}">` : ""}<button type="submit" ${primary ? "" : 'class="ghost"'}>${label}</button><small>${esc(note)}</small></form>`
+function nextStepChooser(summary: { studentId: string; subject?: string; next: { conceptId: string; subject: string; title: string; reason?: string; checkGoal?: string | null; checkLabel?: string | null } | null; review?: { conceptId: string; subject: string; title: string } | null }) {
+  const start = (label: string, subject: string, conceptId: string, goal: string, primary: boolean, note: string, assessment = false) =>
+    `<form method="post" action="/students/${esc(summary.studentId)}/session" class="next-step">${csrfField()}<input type="hidden" name="subject" value="${esc(subject)}"><input type="hidden" name="focusConceptId" value="${esc(conceptId)}"><input type="hidden" name="intent" value="practice">${goal ? `<input type="hidden" name="goal" value="${esc(goal)}">` : ""}${assessment ? '<input type="hidden" name="mode" value="assessment">' : ''}<button type="submit" ${primary ? "" : 'class="ghost"'}>${label}</button><small>${esc(note)}</small></form>`
   // A planned finish is a good place to stop: Done comes first, with one optional next step; other paths wait behind a tap.
   const more: string[] = []
-  if (summary.next) more.push(start(`Next mission: ${esc(summary.next.title)}`, summary.next.subject, summary.next.conceptId, "", false, summary.next.reason || "Recommended from your work so far."))
+  if (summary.next) more.push(start(summary.next.checkLabel ? esc(summary.next.checkLabel) : `Next mission: ${esc(summary.next.title)}`, summary.next.subject, summary.next.conceptId, summary.next.checkGoal ?? "", false, summary.next.reason || "Recommended from your work so far.", Boolean(summary.next.checkGoal)))
   if (summary.review) more.push(start(`Quick review: ${esc(summary.review.title)}`, summary.review.subject, summary.review.conceptId, "delayed_review", false, "A short recall check that is due today."))
   if (summary.subject) more.push(start(`One more round of ${esc(summary.subject)}`, summary.subject, "", "", false, "Fresh questions on this class."))
   more.push(`<div class="next-step"><a class="button ghost" href="/students/${esc(summary.studentId)}/map">Explore a different topic</a><small>Pick any bubble on your map.</small></div>`)
@@ -518,7 +521,9 @@ function concernControl(sessionId: string, item: Record<string, unknown>) {
 }
 
 export function sessionPage(input: {
-  summary?: { independent: number; supported: number; unresolved: number; studentId: string; subject?: string; next: { conceptId: string; subject: string; title: string; reason?: string } | null; review?: { conceptId: string; subject: string; title: string } | null }
+  reviewStates?: Map<string, { state: import('./turn-state.ts').ReviewState; jobId?: string }>
+  assessment?: { open: boolean; paused: boolean; unanswered: number }
+  summary?: { independent: number; supported: number; unresolved: number; studentId: string; subject?: string; next: { conceptId: string; subject: string; title: string; reason?: string; checkGoal?: string | null; checkLabel?: string | null } | null; review?: { conceptId: string; subject: string; title: string } | null; mixedStatus?: { message: string; conceptId: string; subject: string; minutes: number | null } | null }
   sessionId: string
   continuity: string
   item: Record<string, unknown> | null
@@ -550,11 +555,20 @@ export function sessionPage(input: {
   feedbackConceptId?: string
 }): string {
   const junior=input.band==="5-7"
+  const assessment = input.assessment
+  if (assessment?.open) input = { ...input, feedback: null, feedbackReview: undefined, pendingReviews: [], results: [], lesson: [] }
+  const finishCheck = assessment?.open ? `<details class="panel"><summary>Finish assessment early</summary><p>Submit the answers you have saved. Questions left blank will be marked unanswered. After feedback opens, this assessment cannot be resumed.</p><form method="post" action="/session/${esc(input.sessionId)}/finish">${csrfField()}<button type="submit" class="ghost">Finish assessment now</button></form></details>` : ''
+  if (assessment?.open && assessment.paused) return `<h1>Assessment saved</h1><p>Your answers stay saved. Take a break, then continue the same questions. Help and results open when you finish the assessment.</p><form method="post" action="/session/${esc(input.sessionId)}/resume">${csrfField()}<button type="submit">Resume assessment</button></form>${finishCheck}`
   const feedbackReview=input.feedbackReview
   // The correction card below explains the item it belongs to, so that item's card does not repeat it.
   const fixFor=(i: Record<string, unknown>)=>Boolean(input.feedback?.corrective?.ask && input.feedback?.prompt && input.feedback.prompt===i.prompt)
   const entries=feedbackReview?.entries ?? []
-  const feedbackCards=entries.length ? `<section class="feedback-review" aria-label="Feedback on your work"><h2${feedbackReview?.checkpoint ? ' class="visually-hidden"' : ''}>${feedbackReview?.timing==='batch' ? 'Let’s look for a pattern' : 'Feedback on your last try'}</h2>${feedbackReview?.timing==='batch' ? `<p>${entries.filter(i=>i.correct===1).length} answers held; ${entries.filter(i=>i.correct===0).length} need another look. A shared miss is a clue to check, not a diagnosis.</p><p>The shared ideas: ${[...new Set(entries.map(i=>conceptTitle(String(i.concept_id),input.titles)))].map(esc).join(", ")}. Compare your approaches: what stayed the same, and what changed?</p>` : ''}${entries.map(i=>`<article class="${i.correct==null ? 'is-pending' : i.correct===1 ? 'is-right' : 'is-miss'}" data-item="${esc(String(i.id ?? ''))}">${i.correct===1 ? companion("cheer") : i.correct===0 ? companion("oops") : ''}<p class="verdict">${i.correct==null ? 'Still checking' : i.correct===1 ? 'Yes! That holds.' : 'Needs another look'}</p>${junior && i.correct===0 ? `<div class="say-this"><p>${esc(childReasonText(String(i.grading_reason ?? '')) || 'Not quite. Let’s look at it again.')}</p><button type="button" class="ghost" data-hear>Hear this</button></div>` : ''}<p>${esc(String(i.prompt))} <span class="fine">· ${esc(conceptTitle(String(i.concept_id),input.titles))}</span></p><p><strong>You answered:</strong> ${esc(String(i.given_answer ?? ''))}</p>${i.correct==null ? '<p>We’re still checking this one. It won’t count against you.</p>' : i.correct===1 ? '' : `${!junior && childReasonText(String(i.grading_reason ?? '')) ? `<p>${esc(childReasonText(String(i.grading_reason)))}</p>` : ''}${fixFor(i) ? '' : `<details class="show-how"><summary>Show me how</summary>${mathPicture(String(i.prompt))}<p><strong>The answer:</strong> ${esc(childAnswer(String(i.answer)))}</p></details>`}${concernControl(input.sessionId, i)}`}</article>`).join('')}</section>` : ''
+  const pendingLine = (id: string) => {
+    const review = input.reviewStates?.get(id)
+    const label = review ? REVIEW_LABELS[review.state] : input.aiMissing ? REVIEW_LABELS.parent : REVIEW_LABELS.waiting
+    return `${esc(label)}${review?.state === 'retry' && review.jobId ? ` <a href="/jobs/${esc(review.jobId)}">Try checking again</a>` : ''}`
+  }
+  const feedbackCards=entries.length ? `<section class="feedback-review" aria-label="Feedback on your work"><h2${feedbackReview?.checkpoint ? ' class="visually-hidden"' : ''}>${feedbackReview?.timing==='batch' ? 'Let’s look for a pattern' : 'Feedback on your last try'}</h2>${feedbackReview?.timing==='batch' ? `<p>${entries.filter(i=>i.correct===1).length} answers held; ${entries.filter(i=>i.correct===0).length} need another look. A shared miss is a clue to check, not a diagnosis.</p><p>The shared ideas: ${[...new Set(entries.map(i=>conceptTitle(String(i.concept_id),input.titles)))].map(esc).join(", ")}. Compare your approaches: what stayed the same, and what changed?</p>` : ''}${entries.map(i=>`<article class="${i.correct==null ? 'is-pending' : i.correct===1 ? 'is-right' : 'is-miss'}" data-item="${esc(String(i.id ?? ''))}">${i.correct===1 ? companion("cheer") : i.correct===0 ? companion("oops") : ''}<p class="verdict">${i.correct==null ? 'Awaiting review' : i.correct===1 ? 'Yes! That holds.' : 'Needs another look'}</p>${junior && i.correct===0 ? `<div class="say-this"><p>${esc(childReasonText(String(i.grading_reason ?? '')) || 'Not quite. Let’s look at it again.')}</p><button type="button" class="ghost" data-hear>Hear this</button></div>` : ''}<p>${esc(String(i.prompt))} <span class="fine">· ${esc(conceptTitle(String(i.concept_id),input.titles))}</span></p><p><strong>You answered:</strong> ${esc(String(i.given_answer ?? ''))}</p>${i.correct==null ? `<p>${pendingLine(String(i.id))} It will count only after it has been checked.</p>` : i.correct===1 ? '' : `${!junior && childReasonText(String(i.grading_reason ?? '')) ? `<p>${esc(childReasonText(String(i.grading_reason)))}</p>` : ''}${fixFor(i) ? '' : `<details class="show-how"><summary>Show me how</summary>${mathPicture(String(i.prompt))}<p><strong>The answer:</strong> ${esc(childAnswer(String(i.answer)))}</p></details>`}${concernControl(input.sessionId, i)}`}</article>`).join('')}</section>` : ''
   const fix=input.feedback?.corrective
   const correction=fix ? (fix.ask
     ? `<aside class="miss" role="status">${companion("oops")}<strong>${esc(fix.label)}</strong>${fix.why ? `<p>${esc(fix.why)}</p>` : ''}<div class="say-this"><p class="nudge">${esc(fix.ask)}</p>${junior ? '<button type="button" class="ghost" data-hear>Hear this</button>' : ''}</div><details class="show-how"><summary>Show me how</summary>${mathPicture(String(input.feedback?.prompt ?? ''))}${input.feedbackConceptId ? manipulative(input.feedbackConceptId, String(input.feedback?.prompt ?? '')) : ''}${fix.explain ? `<p>${esc(fix.explain)}</p>` : ''}<p><strong>The answer:</strong> ${esc(String(fix.answer ?? ''))}</p></details></aside>`
@@ -562,6 +576,7 @@ export function sessionPage(input: {
   if(feedbackReview?.checkpoint && !input.ended) return `<h1>${feedbackReview.timing==='batch' ? 'Look back at these tries' : 'Let’s try a different approach'}</h1>${feedbackCards}${correction}${input.lesson?.length ? `<ol class="thread">${input.lesson.map(m=>`<li class="bubble ${m.role==='student'?'mine':''}"><p${input.speak && m===input.lesson?.filter(t=>t.role==='tutor').at(-1) ? ' data-say' : ''}>${esc(m.body)}</p>${m.role==='tutor' ? '<button type="button" class="ghost" data-hear>Hear that</button>' : ''}</li>`).join('')}</ol>` : ''}${input.aiMissing ? `<p class="fine" data-ai-talk-off>${esc(input.aiChildLine || 'Talking it through needs an AI connection. A grown-up can connect one.')}</p>` : `<details class="panel"><summary>Talk through this step</summary><p>${junior ? 'Stuck? Ask me. We’ll go one small step at a time.' : 'We’ll start with one small question, then give a hint or show the steps if you’re stuck. You can ask for an explanation or take a break.'}</p><form method="post" action="/session/${esc(input.sessionId)}/ask" class="talk">${csrfField()}<input type="hidden" name="voice" value="0"><label>Ask about this step<textarea name="message" required placeholder="Which part should I try first?"></textarea></label><button type="submit" class="ghost">Ask the tutor</button>${microphoneControls()}</form></details>`}<form method="post" action="/session/${esc(input.sessionId)}/feedback">${csrfField()}<button type="submit">Ready for a fresh question</button></form><p>Take a break whenever you need. Your answers stay saved.</p>`
   const review = (input.pendingReviews ?? []).map((item) => `
     <details class="panel"><summary>Parent review · ${esc(BLOOM_NAME[Number(item.bloom_level)] ?? "Written work")}</summary>
+      <p>${pendingLine(String(item.id))} You can check the saved response yourself.</p>
       <p>${esc(String(item.prompt))}</p>
       <p><strong>Student response:</strong> ${esc(String(item.given_answer ?? ""))}</p>
       <p><strong>Key or rubric:</strong> ${esc(String(item.answer))}</p>
@@ -571,7 +586,7 @@ export function sessionPage(input: {
         <button name="verdict" value="retry" class="ghost" type="submit">Needs more work</button>
       </form>
     </details>`).join("")
-  const reviewNote = review ? `<p>This written work could not be graded confidently by the AI. It stays pending until it is reviewed.</p>${review}` : ""
+  const reviewNote = review ? `<p>${input.aiMissing ? 'These answers are saved for a grown-up to check.' : 'These answers are waiting for review.'} They will count only after they have been checked.</p>${review}` : ""
   if (input.ended || !input.item) {
     const results = breakdownList(input.results ?? [])
     const lesson = input.lesson ?? []
@@ -594,10 +609,13 @@ export function sessionPage(input: {
       : ""
     const nextSteps = input.summary ? nextStepChooser(input.summary) : ""
     return `
-    <h1>Look what you did</h1>
+    <h1>${assessment ? 'Assessment complete' : 'Look what you did'}</h1>
+    ${!assessment && input.summary?.mixedStatus ? `<p class="fine" data-mixed-pending>${esc(input.summary.mixedStatus.message)}</p>${input.summary.mixedStatus.minutes ? `<form method="post" action="/students/${esc(input.summary.studentId)}/session">${csrfField()}<input type="hidden" name="intent" value="practice"><input type="hidden" name="subject" value="${esc(input.summary.mixedStatus.subject)}"><input type="hidden" name="focusConceptId" value="${esc(input.summary.mixedStatus.conceptId)}"><input type="hidden" name="durationMinutes" value="${input.summary.mixedStatus.minutes}"><button type="submit" class="ghost">Five-minute practice</button></form>` : ''}` : ''}
+    ${assessment?.unanswered ? `<p>${assessment.unanswered} ${assessment.unanswered === 1 ? 'question was' : 'questions were'} left unanswered. These are not graded as incorrect.</p>` : ''}
     ${input.summary ? `<p class="done-line">${missionLine(input.summary)}</p>` : ''}
     ${nextSteps}
     ${feedbackCards}${correction}
+    ${assessment && entries.some(i => i.correct == null) ? `<p><a href="/session/${esc(input.sessionId)}">Refresh results</a> · You can leave this page; your answers are saved.</p>` : ''}
     ${input.aiMissing ? `<p class="fine" data-ai-talk-off>${esc(input.aiChildLine || 'Talking it through needs an AI connection. A grown-up can connect one.')}</p>` : `<h2>Want to talk it through?</h2>
     ${results ? `<ul class="breakdown">${results}</ul>` : ""}
     <ol class="thread">${thread}</ol>
@@ -627,8 +645,11 @@ export function sessionPage(input: {
     ${teacher}${reviewNote}`
   }
   const beat = beatOf(String(input.item.beat ?? ""))
+  const skill = measuredSkill(input.itemSubject ?? input.subject)
+  const canRead = !assessment?.open || skill !== 'reading'
+  const canSpeak = !assessment?.open || skill !== 'spelling'
   const helpLabel = input.item.beat === "guided" && Number(input.item.hints_used) === 1 ? "Let’s do this one together" : input.item.beat === "faded" && Number(input.item.hints_used) === 1 ? "A small clue" : `Hint ${esc(String(input.item.hints_used))}`
-  const hint = input.item.hint_text ? `<aside class="hint"><p class="step-tag" data-beat="clue">${helpLabel}</p><div class="say-this"><p>${esc(String(input.item.hint_text))}</p>${input.band === "5-7" ? '<button type="button" class="ghost" data-hear>Hear this</button>' : ''}</div></aside>` : ""
+  const hint = !assessment?.open && input.item.hint_text ? `<aside class="hint"><p class="step-tag" data-beat="clue">${helpLabel}</p><div class="say-this"><p>${esc(String(input.item.hint_text))}</p>${input.band === "5-7" ? '<button type="button" class="ghost" data-hear>Hear this</button>' : ''}</div><p class="fine">This is practice with help. A fresh question later will show what you can do on your own.</p></aside>` : ""
   // A reply that was not a try is asked again kindly; a second one points to the hint, never the answer.
   const reask = input.feedback?.action === "reask" && input.feedback.itemId === String(input.item.id)
   const stuck = reask && Number(input.feedback?.count) >= 2 && !Number(input.item.hints_used)
@@ -646,29 +667,37 @@ export function sessionPage(input: {
     ? `<form method="post" action="/session/${esc(input.sessionId)}/continue" class="panel">${csrfField()}<h2>Take two minutes.</h2><p>Stand up, then come back to the same idea on a new surface.</p><button type="submit">Continue</button></form>`
     : ""
   return `
+  ${assessment?.open ? '<p class="assessment-instructions">Try these questions on your own. Save each answer, or leave a question unanswered. Help and results open after you finish the whole assessment.</p>' : ''}
   <div class="stones-row"><ol class="stones" aria-label="Step ${input.position} of ${input.total}">${Array.from({ length: Math.max(1, input.total) }, (_, i) => `<li data-beat="${beatOf(input.beats?.[i]).key}" data-state="${i + 1 < input.position ? "done" : i + 1 === input.position ? "now" : "next"}"></li>`).join("")}</ol><p class="progress">${input.subject ? `${esc(input.subject)} · ` : ""}${input.position} of ${input.total}</p></div>
   ${feedbackCards || feedback}
   ${correction}
   ${reaskLine}
   ${feedbackReview?.timing === "waiting" ? '<p class="fine">Try this small batch independently. We will pause after three questions to look for patterns.</p>' : ""}
   ${breakBlock}
-  <article class="prompt" ${input.band === "5-7" && measuredSkill(input.itemSubject ?? input.subject) !== "reading" ? "data-autoread" : ""}>
+  <article class="prompt" ${input.band === "5-7" && canRead && skill !== "reading" ? "data-autoread" : ""}>
     <div class="step-head"><span class="step-number" aria-hidden="true">${input.position}</span><div><p class="step-tag" data-beat="${beat.key}">${beat.label}</p><h1>${esc(conceptTitle(String(input.item.concept_id), input.titles))}</h1></div></div>
-    <p class="question-text">${esc(String(input.item.prompt))}</p><button type="button" class="ghost" data-hear>Read aloud</button>${input.band === "5-7" && measuredSkill(input.itemSubject ?? input.subject) !== "reading" ? `<label class="check autoread-toggle"><input type="checkbox" data-autoread-toggle checked> Read questions to me</label>` : ""}
+    <p class="question-text">${esc(String(input.item.prompt))}</p>${canRead ? '<button type="button" class="ghost" data-hear>Read aloud</button>' : ''}${input.band === "5-7" && canRead && skill !== "reading" ? `<label class="check autoread-toggle"><input type="checkbox" data-autoread-toggle checked> Read questions to me</label>` : ""}
   </article>
   ${hint}
   <form method="post" action="/session/${esc(input.sessionId)}/answer" class="answer" data-started="${Date.now()}">
     ${csrfField()}
     <input type="hidden" name="itemId" value="${esc(String(input.item.id))}">
+    <input type="hidden" name="revision" value="${esc(String(input.item.revision_id ?? ''))}">
     <input type="hidden" name="timeMs" value="0">
-    ${answerField(input.item, Boolean(input.onBreak))}${beat.key === "own" && !input.onBreak && input.askSure !== false ? sureField() : ""}<button type="submit" ${stuck ? 'class="ghost"' : ""} ${input.onBreak ? "disabled" : ""}>Check</button>
+    <input type="hidden" name="activeMs" value="">
+    ${answerField(input.item, Boolean(input.onBreak), canSpeak)}${beat.key === "own" && !input.onBreak && input.askSure !== false ? sureField() : ""}<button type="submit" ${stuck ? 'class="ghost"' : ""} ${input.onBreak ? "disabled" : ""}>${assessment?.open ? input.position === input.total ? 'Save and finish assessment' : 'Save and continue' : 'Check'}</button>
+    ${assessment?.open ? '<button type="submit" name="skip" value="1" formnovalidate class="ghost">Leave unanswered</button>' : ''}
+    <p class="fine" role="status" data-draft-status>${input.item.draft_answer ? 'Draft saved.' : ''}</p>
+    <button type="button" class="ghost" data-retry-draft hidden>Try saving again</button>
+    <details data-format-help><summary>How to enter an answer</summary><p>${input.item.format === 'choice' ? 'Select one option, then use the button to save it.' : input.item.format === 'steps' ? 'Write your steps in the box. You can use a new line for each step, then use the button to save.' : /^(?:number|fraction)$/.test(String(input.item.format)) ? 'Type your number in the box. Use / to type a fraction. Then use the button to save.' : 'Write your response in the box, then use the button to save.'}</p></details>
   </form>
-  ${input.showHint === false ? "" : `<form method="post" action="/session/${esc(input.sessionId)}/hint">
+  ${input.showHint === false || assessment?.open ? "" : `<form method="post" action="/session/${esc(input.sessionId)}/hint">
     ${csrfField()}
     <input type="hidden" name="itemId" value="${esc(String(input.item.id))}">
-    <button class="${stuck ? "" : "ghost"}" type="submit">Hint</button>
+    <button class="${stuck ? "" : "ghost"}" type="submit">${Number(input.item.hints_used) > 0 ? 'Another hint' : 'Hint'}</button><p class="fine">Try your idea, or ask for a clue. Getting help is part of learning.</p>
   </form>`}
   ${reviewNote}
+  ${finishCheck}
   `
 }
 
@@ -678,27 +707,37 @@ export function beatOf(beat: string | undefined) {
 }
 
 /** The first step of a practice arc: the idea and one example, then a question done together. */
-export function lessonCard(sessionId: string, concept: { conceptId?: string; title: string; recall?: string; example?: string }) {
+export function lessonCard(sessionId: string, concept: { conceptId?: string; title: string; recall?: string; example?: string; teaching?: ApprovedTeaching }, scaffold?: Scaffold | null) {
   const example = String(concept.example ?? "").trim()
-  return `<article class="lesson-card prompt" aria-labelledby="lesson-title">
-    <h1 id="lesson-title">${esc(concept.title)}</h1><p class="step-tag" data-beat="together">First, the idea</p>
+  const teaching = concept.teaching
+  const route = teaching ? TEACHING_ROUTE[teaching.dimension] : null
+  return `<article class="lesson-card prompt" aria-labelledby="lesson-title" ${teaching ? `data-teaching-route="${teaching.dimension}"` : ''}>
+    <h1 id="lesson-title">${esc(concept.title)}</h1><p class="step-tag" data-beat="together">${esc(route?.label ?? 'First, the idea')}</p>
     <p class="question-text">${esc(String(concept.recall ?? "").trim())}</p><button type="button" class="ghost" data-hear>Read aloud</button>
-    ${example ? `<p><strong>For example:</strong> ${esc(example)}</p>${mathPicture(example)}` : ""}
-    ${concept.conceptId ? manipulative(concept.conceptId, example || concept.title) : ""}
+    ${route ? `<p>${esc(route.cue)}</p>` : ''}
+    ${scaffold ? `<section class="worked-example" aria-label="Worked example"><h2>A worked example</h2><p>${esc(scaffold.worked.problem)}</p><ol>${scaffold.worked.steps.map(step => `<li><strong>${esc(step.work)}</strong><p>${esc(step.reason)}</p></li>`).join('')}</ol><p><strong>Check:</strong> ${esc(scaffold.worked.check)}</p><p>Next, finish a different example with some of the work started.</p></section>` : ''}
+    ${teaching ? `<div class="teaching-contrast"><p><strong>Fits the idea:</strong> ${esc(teaching.contrast.example)}</p><p><strong>Does not fit:</strong> ${esc(teaching.contrast.nonExample)}</p></div>
+      ${teaching.misconceptions.slice(0, 1).map(m => `<details><summary>${esc(m.probe)}</summary><p>A tempting idea: ${esc(m.belief)}</p><p>${esc(m.fix)}</p></details>`).join('')}`
+      : example && !scaffold ? `<p><strong>For example:</strong> ${esc(example)}</p>${mathPicture(example)}` : ""}
+    ${concept.conceptId ? manipulative(concept.conceptId, scaffold?.worked.problem ?? (example || concept.title)) : ""}
   </article>
   <form method="post" action="/session/${esc(sessionId)}/lesson" class="lesson-start">${csrfField()}<button type="submit">Let’s try one together</button></form>`
 }
 
 /** Multiple-choice questions from a learning pack get one large option per choice; everything else keeps the typed answer and voice typing. */
-function answerField(item: Record<string, unknown>, onBreak: boolean) {
+function answerField(item: Record<string, unknown>, onBreak: boolean, canSpeak = true) {
   const draft = String(item.draft_answer ?? "")
+  // In a spelling assessment, browser writing assistance can supply the measured skill too.
+  const spellingAttrs = canSpeak ? '' : ' spellcheck="false" autocorrect="off" autocapitalize="off"'
   let choices: string[] = []
   try { const parsed = item.format === "choice" && item.choices_json ? JSON.parse(String(item.choices_json)) : []; choices = Array.isArray(parsed) ? parsed.map(String) : [] } catch { choices = [] }
   if (choices.length) {
     return `<fieldset class="choices"><legend>Answer: choose one</legend>${choices.map((choice, i) => `<label class="choice"><input type="radio" name="answer" value="${esc(choice)}" required ${draft === choice ? "checked" : ""} ${onBreak ? "disabled" : ""}><span class="choice-letter" aria-hidden="true">${"ABCDEF"[i]}</span><span>${esc(choice)}</span></label>`).join("")}</fieldset>`
   }
-  return `<label>Answer <input name="answer" autocomplete="off" value="${esc(draft)}" required ${onBreak ? "disabled" : ""}></label>
-    ${onBreak ? "" : microphoneControls()}`
+  const written = item.format === 'written' || item.format === 'steps' || /^rubric:/i.test(String(item.answer ?? '')) || Number(item.bloom_level) >= 4
+  return written
+    ? `<label for="written-answer">${item.format === 'steps' ? 'Your steps' : 'Answer'}</label><textarea id="written-answer" name="answer" rows="4" maxlength="4000" autocomplete="off"${spellingAttrs} required ${onBreak ? 'disabled' : ''}>${esc(draft)}</textarea><p class="fine">${canSpeak ? 'Type or say your response in your own words.' : 'Type your response in your own words.'}</p>${onBreak || !canSpeak ? '' : microphoneControls()}`
+    : `<label>Answer <input name="answer" autocomplete="off"${spellingAttrs} value="${esc(draft)}" required ${onBreak ? "disabled" : ""}></label>${onBreak || !canSpeak ? "" : microphoneControls()}`
 }
 
 /** Optional: how sure the child is before checking. Compared later with the result, never graded. */
@@ -720,7 +759,7 @@ function missionLine(summary: { independent: number; supported: number; unresolv
     summary.supported ? `${summary.independent ? "and " : "You solved "}${summary.supported} with a little help` : "",
   ].filter(Boolean).join(" ")
   const lead = parts ? `${parts}.` : "You showed up and tried. That counts."
-  return `${lead}${summary.unresolved ? ` We’re still checking ${summary.unresolved === 1 ? "one answer" : `${summary.unresolved} answers`}.` : ""} Take a break whenever you like; your work is saved.`
+  return `${lead}${summary.unresolved ? ` ${summary.unresolved === 1 ? "One answer is" : `${summary.unresolved} answers are`} saved and awaiting review.` : ""} Take a break whenever you like; your work is saved.`
 }
 
 export function historyPage(
@@ -773,13 +812,14 @@ function progressSection(progress: { ladders: ConceptLadder[]; gain: Gain; audit
        <p>Size of the change: <strong>${gain.effect}</strong> (${esc(gain.size ?? "")}). ${esc(gain.note)}</p>`
     : `<p>${esc(gain.note || "Not enough fair checks yet.")}</p>`
   return `<section class="panel progress-ladder" aria-labelledby="ladder-title"><h2 id="ladder-title">How far the thinking has climbed</h2>
-    <p>${summary.concepts} topic${summary.concepts === 1 ? "" : "s"}: ${summary.bands.judge} judging and creating, ${summary.bands.use} using it, ${summary.bands.foundations} on the basics. ${summary.goalMet} meet the full goal: solved on their own at the top level, remembered after a month and used somewhere new.</p>
+    <p>${summary.concepts} topic${summary.concepts === 1 ? "" : "s"}: ${summary.bands.judge} judging and creating, ${summary.bands.use} using it, ${summary.bands.foundations} on the basics. ${summary.goalMet} meet the full goal: solved on their own, checked again after a month and used somewhere new at the same thinking level.</p>
+    <p class="fine">Later checks match topic, thinking demand and task role. Without a validated parallel form they are historical proxies. These steps alone cannot prove an interval without refresher practice.</p>
     ${ladderTable}
   </section>
   <section class="panel gain" aria-labelledby="gain-title"><h2 id="gain-title">Progress on fair checks</h2>
     ${gainBody}
     ${audit ? `<p><a href="/students/${esc(studentId)}/grading">Check the tutor’s grading</a>${audit.unsure ? ` · <strong>${audit.unsure} the tutor isn’t sure about</strong>` : ""}${audit.waiting ? ` · ${audit.waiting} to spot-check` : ""}${audit.checked ? ` · you agreed with ${audit.agreed} of ${audit.checked}` : ""}</p>` : ""}
-    <p class="fine">A fair check is a question your child had not seen, answered without a hint and graded with confidence. This describes your child against their own start; it does not show what caused the change, and the topics in each group can differ. The size is Cohen's h, a measure for the change between two percentages (0.2 small, 0.5 medium, 0.8 large). It is not on the same scale as Bloom's “2 sigma” finding, which compared tutored students with a classroom group, so the two numbers cannot be compared.</p>
+    <p class="fine">A fair check is a question your child had not seen, answered without a hint and graded with confidence. This describes your child against their own start; it does not show what caused the change, and only matched topic, demand, task-role and response-form conditions are compared. The size is Cohen's h, a measure for the change between two percentages (0.2 small, 0.5 medium, 0.8 large). It is not on the same scale as Bloom's “2 sigma” finding, which compared tutored students with a classroom group, so the two numbers cannot be compared.</p>
   </section>`
 }
 
@@ -814,13 +854,17 @@ export function scoreboardPage(name: string, studentId: string, board: Scoreboar
   const ratio = board.justRightRatio == null ? "Not enough items yet" : `${Math.round(board.justRightRatio * 100)}%`
   const retention = (bucket: { checked: number; held: number }) =>
     bucket.checked ? `${bucket.held} of ${bucket.checked} held` : "No retest yet"
+  const evidenceNote = (days: 7 | 30) => {
+    const quality = board.retentionEvidence?.[days]
+    return quality ? `${quality.validated} validated form matches; ${quality.proxies} historical proxies. ${quality.unrefreshed} have a recorded gap without in-app refresher practice.` : 'Comparable later checks; exposure history is incomplete.'
+  }
   return `
   <p class="links"><a href="/students/${esc(studentId)}/parent">${esc(name)}’s overview</a></p>
   <h1>This week</h1>
   <div class="metrics">
     <section><h2>Just-right ratio</h2><p class="metric">${esc(ratio)}</p><p class="fine">Share of items whose last six landed from 70% to under 90%.</p></section>
-    <section><h2>Retention, 7 days</h2><p class="metric">${esc(retention(board.retention7))}</p></section>
-    <section><h2>Retention, 30 days</h2><p class="metric">${esc(retention(board.retention30))}</p></section>
+    <section><h2>Comparable checks, 7 days</h2><p class="metric">${esc(retention(board.retention7))}</p><p class="fine">${esc(evidenceNote(7))}</p></section>
+    <section><h2>Comparable checks, 30 days</h2><p class="metric">${esc(retention(board.retention30))}</p><p class="fine">${esc(evidenceNote(30))}</p></section>
   </div>
   ${measuresSection(measures)}
   ${progressSection(progress, titles, studentId)}
@@ -839,22 +883,27 @@ export function scoreboardPage(name: string, studentId: string, board: Scoreboar
 
 export function sheetPage(input: {
   sheetId: string
+  studentId?: string
   studentName: string
   spec: {
     boxes: Array<{ boxIndex: number; x: number; y: number; w: number; h: number }>
     cornerMarks: Array<{ x: number; y: number; size: number }>
   }
-  items: Array<{ itemId: string; prompt: string; conceptId: string }>
+  items: Array<{ itemId: string; prompt: string; conceptId: string; choices?: string[] }>
   qrSvg: string
   titles?: Record<string, string>
+  photoIds?: string[]
+  results?: Array<{ boxIndex: number; correct: boolean; confidence: number; speak: boolean; pendingReview?: boolean; reviewSessionId?: string; unanswered?: boolean; disputed?: boolean }> | null
+  paperConditions?: import('./paper-work.ts').PaperConditions
 }): string {
   const marks = `<i class="corner c1"></i><i class="corner c2"></i><i class="corner c3"></i><i class="corner c4"></i>`
   const rows = input.items
     .map((item, index) => {
       const box = input.spec.boxes[index]
+      const inlineChoices = item.choices?.every((choice, index) => choice === String.fromCharCode(65 + index) && item.prompt.includes(choice + ')'))
       return `<section class="sheet-item">
         <p class="num">${index + 1}</p>
-        <div><p class="fine">${esc(conceptTitle(item.conceptId, input.titles))}</p><pre>${esc(item.prompt)}</pre></div>
+        <div><p class="fine">${esc(conceptTitle(item.conceptId, input.titles))}</p><pre>${esc(item.prompt)}</pre>${item.choices?.length && !inlineChoices ? `<ol type="A">${item.choices.map(choice => `<li>${esc(choice)}</li>`).join('')}</ol>` : ''}</div>
         <div class="box" data-box="${box.boxIndex}" style="width:${box.w}px;height:${box.h}px">Box ${box.boxIndex}</div>
       </section>`
     })
@@ -863,10 +912,13 @@ export function sheetPage(input: {
 <html lang="en">
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Sheet ${esc(input.sheetId)}</title>
   <link rel="stylesheet" href="/app.css">
 </head>
-<body class="sheet-body">
+<body class="sheet-body" data-paper-sheet="${esc(input.sheetId)}" data-paper-submitted="${input.results ? '1' : '0'}">
+  <main id="main">
+  <section class="panel no-print"><h1>Paper practice</h1><p>Print the questions and work offline. Keep your paper. When connected, save a photo or copy your answers below. Checking starts after you submit the whole sheet.</p>${input.studentId ? `<a href="/students/${esc(input.studentId)}">Back to practice</a>` : ''}</section>
   <article class="sheet">
     ${marks}
     <header class="sheet-head">
@@ -876,41 +928,48 @@ export function sheetPage(input: {
     ${rows}
   </article>
   <form class="no-print" method="post" action="/sheet/${esc(input.sheetId)}/pdf">${csrfField()}<button type="submit">Download a PDF</button></form>
-  <form method="post" action="/sheet/${esc(input.sheetId)}/score" class="panel no-print">
-    <h2>Score the boxes</h2>
+  ${input.results ? `<section class="panel no-print">${scoreResultPage(input.results)}<p>Paper conditions are self-reported. ${input.paperConditions?.help === 'none' && input.paperConditions.confirmed ? 'You reported working without content help.' : input.paperConditions?.help === 'content' ? 'You reported content help; these answers count as supported work.' : 'Help conditions are unknown, so this work cannot establish new independent success.'}</p>${input.studentId ? `<a class="button" href="/students/${esc(input.studentId)}">Continue with fresh practice</a>` : ''}</section>` : `<form method="post" action="/sheet/${esc(input.sheetId)}/score" class="panel no-print" data-paper-score>
+    <h2>Confirm your paper answers</h2><p>Copy what you wrote. Check each entry against your paper or saved photo. Leave an unanswered box empty. Correct an unreadable entry or retake the photo before submitting.</p>
     ${csrfField()}
     ${input.spec.boxes
       .map(
         (box) =>
-          `<label>Box ${box.boxIndex} <input name="box-${box.boxIndex}" autocomplete="off"></label>`,
+          `<label>Box ${box.boxIndex} <textarea name="box-${box.boxIndex}" rows="2" autocomplete="off"></textarea></label>`,
       )
       .join("")}
-    <button type="submit">Score</button>
-  </form>
+    <label>Help while doing this paper<select name="paperHelp" required><option value="">Choose one</option><option value="none">I worked without content help</option><option value="content">Someone or something helped me with the work</option><option value="unknown">I am not sure</option></select></label>
+    <label><input type="checkbox" name="completed" value="1" required> I have finished this paper check, including any boxes I left unanswered.</label>
+    <label><input type="checkbox" name="confirmed" value="1" required> These entries match what I wrote.</label>
+    <p data-paper-draft-status role="status">Not submitted yet.</p><p data-paper-submit-status role="status"></p>
+    <button type="submit">Submit paper check</button>
+  </form>`}
+  ${input.photoIds?.length ? `<section class="panel no-print"><h2>Saved paper photos</h2><p role="status">Your photos are saved in your private family account.</p>${input.photoIds.map((id, index) => `<a href="/uploads/${esc(id)}"><img src="/uploads/${esc(id)}" alt="Saved paper photo ${index + 1}" style="max-width:100%;height:auto"></a>`).join('')}</section>` : ''}
   <form method="post" action="/sheet/${esc(input.sheetId)}/upload" class="panel no-print" id="upload-form">
     <h2>Or keep a photo</h2>
-    <p class="fine">The photo is stored on this computer. Type the answer above if the box is hard to read. Nothing is sent to a grading service.</p>
+    <p class="fine">Save a photo to your private family account when connected. Selecting a photo does not save it here. To keep a photo for later, use your device’s camera or photos app, then choose it below. ${input.results ? 'Your submitted answers remain attached to this sheet.' : 'Type the answers above to submit the work for checking.'}</p>
     ${csrfField()}
-    <input type="file" accept="image/png,image/jpeg" id="photo">
+    <label>Choose a paper photo<input type="file" accept="image/png,image/jpeg" capture="environment" id="photo" required></label>
     <input type="hidden" name="mime">
     <input type="hidden" name="base64">
+    <div data-paper-photo-preview></div><p data-paper-photo-status role="status">No photo selected.</p>
     <button type="submit">Save photo</button>
   </form>
+  </main>
   <script src="/session.js"></script>
 </body>
 </html>`
 }
 
-export function scoreResultPage(results: Array<{ boxIndex: number; correct: boolean; confidence: number; speak: boolean; pendingReview?: boolean; reviewSessionId?: string }>): string {
+export function scoreResultPage(results: Array<{ boxIndex: number; correct: boolean; confidence: number; speak: boolean; pendingReview?: boolean; reviewSessionId?: string; unanswered?: boolean; disputed?: boolean }>): string {
   const rows = results
     .map(
       (result) =>
-        result.pendingReview
-          ? `<li>Box ${result.boxIndex}: waiting for <a href="/session/${esc(result.reviewSessionId ?? "")}">parent review</a></li>`
-          : `<li>Box ${result.boxIndex}: ${result.correct ? "holds" : "not yet"}${result.speak ? " · say this answer aloud before it counts as confident" : ""}</li>`,
+        result.unanswered ? `<li>Box ${result.boxIndex}: left unanswered; not scored</li>` : result.disputed ? `<li>Box ${result.boxIndex}: grade questioned; not counted toward progress</li>` : result.pendingReview
+          ? `<li>Box ${result.boxIndex}: answer saved, awaiting a check. <a href="/session/${esc(result.reviewSessionId ?? "")}">Open checking status</a></li>`
+          : `<li>Box ${result.boxIndex}: ${result.correct ? "holds" : "not yet"}</li>`,
     )
     .join("")
-  return `<h1>Sheet scored</h1><ul>${rows}</ul><p><a href="/students">Back to students</a></p>`
+  return `<h2>Paper submitted</h2><ul>${rows}</ul>`
 }
 
 function breakdownList(results: Array<{ title: string; correct: boolean }>) {

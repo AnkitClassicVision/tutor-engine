@@ -47,7 +47,7 @@ test('ages 5–7 hear the question on arrival, answer first checks with tiles, a
   await expect(page.getByLabel('Read questions to me', { exact: true })).not.toBeChecked()
   // Find a number question in this first check: it is answered with large tiles.
   for (let i = 0; i < 6 && !(await page.locator('fieldset.choices').count()) && await page.locator('form.answer').count(); i++) {
-    await page.getByLabel('Answer', { exact: true }).fill('7')
+    await page.getByRole('textbox', { name: /^(Answer|Your steps)$/ }).fill('7')
     await page.getByRole('button', { name: 'Check', exact: true }).click()
     const ready = page.getByRole('button', { name: 'Ready for a fresh question', exact: true })
     if (await ready.count()) await ready.click()

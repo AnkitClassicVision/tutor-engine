@@ -61,7 +61,7 @@ test('a child asks in their own words, watches it being made, gets a short lesso
   expect(question).toMatch(/7 × \d+/)
   const n = Number(question.match(/7 × (\d+)/)![1])
   if (await page.locator('fieldset.choices').count()) await page.getByRole('radio', { name: new RegExp(`^[A-C] ?${7 * n}$`) }).check()
-  else await page.getByLabel('Answer', { exact: true }).fill(String(7 * n))
+  else await page.getByRole('textbox', { name: /^(Answer|Your steps)$/ }).fill(String(7 * n))
   await page.getByRole('button', { name: 'Check', exact: true }).click()
   await expect(page.locator('.question-text')).not.toHaveText(question)
   // Back home, the lesson is not offered again.

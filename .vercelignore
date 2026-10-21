@@ -10,3 +10,6 @@ playwright-report/
 *.sqlite-journal
 *.sqlite-wal
 *.sqlite-shm
+
+# Private membership research must never enter a deployment artifact.
+/private-learning/

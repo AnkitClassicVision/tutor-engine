@@ -34,7 +34,7 @@ test('two homework misses stop drilling, show correction and retain the original
  const f=await fixture('homework');try{
   for(let i=0;i<2;i++){const item=(await sessionItems(f.db,f.session)).find(i=>i.answered===0)!;await submitAnswer(f.db,f.owner,f.session,{itemId:String(item.id),answer:'5'})}
   const session=await getOwnedSession(f.db,f.owner,f.session),feedback=JSON.parse(String(session.pending_feedback))
-  assert.match(feedback.corrective.move,/Worked example/);assert.equal(feedback.action,'teach')
+  assert.match(feedback.corrective.move,/Example:/);assert.equal(feedback.action,'teach')
   assert.equal((await sessionItems(f.db,f.session)).length,2)
   assert.equal((await f.db.prepare('SELECT count(*) n FROM session_items WHERE session_id = ?').get(f.session))!.n,6)
   assert.equal((await f.db.prepare('SELECT count(*) n FROM attempts WHERE session_id = ?').get(f.session))!.n,2)
@@ -78,5 +78,5 @@ test('fresh practice contract rejects past wording, duplicate items and unsuppor
 test('lesson feedback teaches the idea rather than calling a numeric key the idea to remember',async()=>{
  const {lessonOpening,lessonFallback}=await import('../src/talk.ts')
  const results=[{title:'Fraction addition',prompt:'Add 1/2 and 1/2.',answer:'1',correct:false,recall:'Use equal-sized parts before adding their counts.',example:'1/2 + 1/3 = 3/6 + 2/6 = 5/6.'}]
- for(const reply of [lessonOpening(results),lessonFallback(results)]){assert.match(reply,/equal-sized parts/);assert.match(reply,/Worked example/);assert.doesNotMatch(reply,/idea to keep is "1/)}
+ for(const reply of [lessonOpening(results),lessonFallback(results)]){assert.match(reply,/equal-sized parts/);assert.match(reply,/Example:/);assert.doesNotMatch(reply,/idea to keep is "1/)}
 })

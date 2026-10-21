@@ -22,20 +22,34 @@ Reading subjects are not read aloud automatically for ages 5–7; the Read aloud
 
 ## Before and after
 
-For each child, the first six fair checks are compared with the latest six, at least a week apart, once there are twelve. The change is reported as accuracy before and after, the change in average Bloom level of the questions, Cohen's h with its size (under 0.2 too small to call, 0.2 small, 0.5 medium, 0.8 large), and 80% Wilson ranges. When the ranges overlap, the page says more checks are needed.
+For each child, the first six fair checks are matched to the latest six, at least a week apart, once there are twelve. All six must match by concept, Bloom demand, practice/transfer role and compatible response form. Known outcome or parallel-form conflicts cannot match. If a window changes from basic questions to higher-demand reasoning, the page withholds the change and effect-size labels and reports the matched count. Twelve answers alone are insufficient.
 
-This describes a child against their own start. It does not show cause, and the topics in each window can differ. Cohen's h measures a change between two proportions; Bloom's 2-sigma result compared tutored students with a classroom group on standardized scores. The two scales are different, so an h value is never compared with 2 sigma, and the app never claims the benchmark.
+For complete matched windows, the change is reported as accuracy before and after, the change in average Bloom level of the questions, Cohen's h with its size (under 0.2 too small to call, 0.2 small, 0.5 medium, 0.8 large), and 80% Wilson ranges. When the ranges overlap, the page says more checks are needed.
+
+This describes a child against their own start. It does not show cause: school exposure, elapsed time and other practice can change even with matched tasks. Cohen's h measures a change between two proportions; Bloom's 2-sigma result compared tutored students with a classroom group on standardized scores. The two scales are different, so an h value is never compared with 2 sigma, and the app never claims the benchmark.
 
 The average Bloom level of each window describes the kind of thinking the questions asked for. It is not a measure of difficulty, and a rise in it is not reported as harder work.
+
+## Comparable forms and delayed checks
+
+An approved authored outcome/form identity means that the delivered prompt, key, controls and rubric match a bounded specification. It does not mean the variants have been empirically equated for difficulty. Other compatible same-topic/demand/role pairs remain historical proxies. A model cannot approve its own form merely by returning an ID.
+
+The authored fractions route distinguishes equivalence, magnitude, like-unit addition, unlike-unit addition and choosing an operation. Its numeric cases use positive proper fractions, a denominator factor of two and a sum below one. Unlike-fraction addition requires one renaming. Analysis, judgment and construction use distinct tasks and explicit rubrics. The unfamiliar capacity task has a separate transfer form; it is excluded from calculation-retention pairs. See the original templates in `src/engine/fraction-forms.ts` and the live route test in `test/browser/learning-routes.spec.ts`.
+
+A delayed measurement pairs with a prior eligible independent success at the same outcome, demand and role. Its interval ends when the question or sealed assessment starts, before feedback. A claim of an unrefreshed interval also needs recorded exposure coverage and a sufficiently long gap since related instruction, hints, worked examples, questions or feedback. Recent or unknown exposure does not become an exposure-free week. Report actual delay, matching status, support, missingness and sample counts; keep seven-day and longer follow-ups separate.
+
+Confidence calibration uses answers that remained independent through submission and a revision-bound confidence capture. A hint after the confidence choice makes the response supported. Historical unknown capture order cannot establish independent calibration. Save acknowledgment, checker wait/run, visible feedback and estimated foreground work are separate timing observations; missing values stay missing, and foreground time is not measured thinking time.
 
 ## Is a fun feature helping?
 
 A parent can switch on a week-on, week-off comparison for one feature at a time (now: the confidence choice or challenge missions). Every comparison alternates on the same weeks, so running two together could not separate them. The result is exploratory: order, carry-over, school, topics and time of year can all explain a difference. The rule is fixed in advance:
 
-- **Enough data:** at least 2 whole weeks and 10 fair checks with the feature on, and the same with it off.
+- **Enough data:** at least 2 whole weeks and 10 matched fair checks with the feature on, and the same with it off. Report unmatched checks separately; match topic, demand, role and compatible form before calculating the rates.
 - **Keep:** missions per week no more than 10% lower with the feature on, and fair-check accuracy no more than 5 points lower.
 - **Looks helpful:** as keep, and missions per week at least 10% higher.
 - **Needs a rethink:** anything else. A feature that raises return but lowers learning is redesigned before it is offered more widely.
+
+Enrollment records the comparison policy, decision rule and start timestamp. A missing or changed policy withholds a verdict; earlier and later policies are not pooled. These thresholds and delays are fixed implementation rules for an exploratory comparison, not evidence of an optimal schedule or universal success target.
 
 ## Is the AI doing its job?
 

@@ -1,3 +1,4 @@
+import { learningNow } from './learning-clock.ts'
 import { sealFor } from './family-crypto.ts'
 import { UserError } from "./errors.ts"
 import { readPrivateFile } from "./storage.ts"
@@ -48,7 +49,7 @@ export async function createMaterial(db: DatabaseSync, owner: string, student: s
     const id = crypto.randomUUID()
     // Validate page types before creating records. Uploaded originals remain private.
     for (const p of pages) if ((!p || typeof p !== 'object' || (!p.base64 && !p.uploadId && !String(p.transcription ?? '').trim())) || String(p.transcription ?? '').length > 20000) throw new UserError('Add a photo or a transcription for every page.')
-    await db.prepare('INSERT INTO materials (id, student_id, kind, title, subject, work_state, request_key, input_hash, created_at, scope_approved) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(id, student, input.kind, String(input.title || 'Schoolwork').slice(0, 150), String(input.subject || 'Math').slice(0, 80), input.workState, input.requestId ? String(input.requestId).slice(0, 200) : null, inputHash, new Date().toISOString(), parentApproved ? 1 : 0)
+    await db.prepare('INSERT INTO materials (id, student_id, kind, title, subject, work_state, request_key, input_hash, created_at, scope_approved) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(id, student, input.kind, String(input.title || 'Schoolwork').slice(0, 150), String(input.subject || 'Math').slice(0, 80), input.workState, input.requestId ? String(input.requestId).slice(0, 200) : null, inputHash, learningNow().toISOString(), parentApproved ? 1 : 0)
     for (const [index, p] of (pages).entries()) {
       async function uploaded(id: string) {
         const row = await db.prepare('SELECT id FROM uploads WHERE id = ? AND owner_user_id = ? AND student_id = ?').get(id, owner, student)
@@ -71,7 +72,7 @@ export async function materialDetails(db: DatabaseSync, owner: string, id: strin
   }
 }
 export type SchoolSource = { materialId: string; revision: number; learningVersion: number }
-export async function configureMaterialLearning(db: DatabaseSync, owner: string, id: string, input: any, now = new Date()) {
+export async function configureMaterialLearning(db: DatabaseSync, owner: string, id: string, input: any, now = learningNow()) {
   return withWrite(db, async () => {
     const m = await ownedMaterial(db, owner, id)
     const purpose = String(input.purpose ?? '')
@@ -157,7 +158,7 @@ export const REVIEW_HOMEWORK: Contract<SchoolInput, { verdict: string; explanati
   timeoutMs: 120000,
 }
 export const GUIDE_HOMEWORK: Contract<SchoolInput, { reply: string }> = {
-  id: 'guide-school-homework', version: 2, role: 'coach',
+  id: 'guide-school-homework', version: 4, role: 'coach',
   skills: ['review-school-homework', ...SCHOOL_SKILLS, 'coach-through-question'],
   schema: { type: 'object', required: ['reply'], properties: { reply: { type: 'string', minLength: 1, maxLength: 4000 } } },
   selfCheck: [],
@@ -236,7 +237,7 @@ export async function reviewMaterial(db: DatabaseSync, ctx: JobContext, payload:
     }
     await ctx.commit(async () => {
       if ((await ownedMaterial(db, ctx.job.owner_user_id, payload.materialId)).revision !== payload.revision) return
-      await db.prepare('INSERT OR IGNORE INTO homework_reviews (id, question_id, revision, verdict, explanation, provider, model, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(crypto.randomUUID(), q.id, payload.revision, verdict, explanation, ai.provider, ai.model, new Date().toISOString())
+      await db.prepare('INSERT OR IGNORE INTO homework_reviews (id, question_id, revision, verdict, explanation, provider, model, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(crypto.randomUUID(), q.id, payload.revision, verdict, explanation, ai.provider, ai.model, learningNow().toISOString())
       if (verdict === 'needs_work' && q.concept_id) await scheduleFollowups(db, String(material.student_id), String(q.concept_id), String(q.id))
     })
   }
@@ -246,11 +247,11 @@ export async function scheduleFollowups(db: DatabaseSync, student: string, conce
   const count = (await db.prepare('SELECT count(DISTINCT concept_id) n FROM followup_missions WHERE student_id = ? AND completed_session IS NULL').get(student))!
   if (Number(count.n) >= 3 && !(await db.prepare('SELECT id FROM followup_missions WHERE student_id = ? AND concept_id = ?').get(student, concept))) return
   for (const days of [1, 3, 7]) {
-    const due = new Date(Date.now() + days * 86400000).toISOString().slice(0, 10)
+    const due = new Date(learningNow().getTime() + days * 86400000).toISOString().slice(0, 10)
     await db.prepare('INSERT OR IGNORE INTO followup_missions (id, student_id, concept_id, evidence_id, due) VALUES (?, ?, ?, ?, ?)').run(crypto.randomUUID(), student, concept, evidence, due)
   }
   if (!(await db.prepare('SELECT id FROM path_revisions WHERE student_id = ? AND evidence_id = ?').get(student, evidence))) {
-    await db.prepare('INSERT INTO path_revisions (id, student_id, evidence_id, reason, created_at) VALUES (?, ?, ?, ?, ?)').run(crypto.randomUUID(), student, evidence, 'Question-level schoolwork suggests parallel practice this week. Independent checks will establish learning.', new Date().toISOString())
+    await db.prepare('INSERT INTO path_revisions (id, student_id, evidence_id, reason, created_at) VALUES (?, ?, ?, ?, ?)').run(crypto.randomUUID(), student, evidence, 'Question-level schoolwork suggests parallel practice this week. Independent checks will establish learning.', learningNow().toISOString())
     await recordDecision(db, student, 'school_followup', 'Parallel missions were recommended over the coming week; original work and existing strengths remain intact.', { conceptId: concept, evidenceId: evidence, days: [1, 3, 7] })
   }
 }
@@ -288,7 +289,7 @@ export async function startGuidance(db: DatabaseSync, owner: string, question: s
   const { q } = (await ownedQuestion(db, owner, question))
   if (needsConfirm(q)) throw new UserError('Check the question first.')
   if (!q.readable && !q.child_prompt) throw new UserError('Transcribe or correct this question first.')
-  if (!(await db.prepare('SELECT id FROM guided_attempts WHERE question_id = ?').get(question))) await db.prepare('INSERT INTO guided_attempts (id, question_id, role, body, created_at) VALUES (?, ?, ?, ?, ?)').run(crypto.randomUUID(), question, 'tutor', await sealFor(db, owner, q.visible_work ? 'Tell me why you chose your last step. What were you trying to find?' : 'What is this question asking you to find? What do you already know?'), new Date().toISOString())
+  if (!(await db.prepare('SELECT id FROM guided_attempts WHERE question_id = ?').get(question))) await db.prepare('INSERT INTO guided_attempts (id, question_id, role, body, created_at) VALUES (?, ?, ?, ?, ?)').run(crypto.randomUUID(), question, 'tutor', await sealFor(db, owner, q.visible_work ? 'Tell me why you chose your last step. What were you trying to find?' : 'What is this question asking you to find? What do you already know?'), learningNow().toISOString())
 }
 export async function guideQuestion(db: DatabaseSync, ctx: JobContext, payload: { questionId: string; attemptId: string }) {
   const { q, m } = (await ownedQuestion(db, ctx.job.owner_user_id, payload.questionId))
@@ -302,7 +303,7 @@ export async function guideQuestion(db: DatabaseSync, ctx: JobContext, payload: 
   if (typeof raw.reply !== 'string' || !raw.reply.trim()) throw new Error('Invalid guidance.')
   await ctx.commit(async () => {
     await ownedQuestion(db, ctx.job.owner_user_id, payload.questionId)
-    if (!(await db.prepare('SELECT id FROM guided_attempts WHERE id = ?').get(ctx.job.id))) await db.prepare('INSERT INTO guided_attempts (id, question_id, role, body, created_at) VALUES (?, ?, ?, ?, ?)').run(ctx.job.id, q.id, 'tutor', await sealFor(db, ctx.job.owner_user_id, safetyReply(String(raw.reply)) || String(raw.reply).slice(0, 10000)), new Date().toISOString())
+    if (!(await db.prepare('SELECT id FROM guided_attempts WHERE id = ?').get(ctx.job.id))) await db.prepare('INSERT INTO guided_attempts (id, question_id, role, body, created_at) VALUES (?, ?, ?, ?, ?)').run(ctx.job.id, q.id, 'tutor', await sealFor(db, ctx.job.owner_user_id, safetyReply(String(raw.reply)) || String(raw.reply).slice(0, 10000)), learningNow().toISOString())
   })
   return { questionId: q.id }
 }
@@ -333,7 +334,7 @@ export async function saveSchoolResult(db: DatabaseSync, owner: string, student:
       materialId = await createMaterial(db, owner, student, { title, subject, kind: 'returned_test', workState: 'completed', pages }, uploads)
     }
     const id = crypto.randomUUID()
-    await db.prepare('INSERT INTO school_results (id, student_id, material_id, title, date, earned, possible, provenance, notes, request_key, input_hash, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(id, student, materialId, await sealFor(db, owner, title), date, earned, possible, 'parent-entered teacher result', await sealFor(db, owner, notes), requestKey, inputHash, new Date().toISOString())
+    await db.prepare('INSERT INTO school_results (id, student_id, material_id, title, date, earned, possible, provenance, notes, request_key, input_hash, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(id, student, materialId, await sealFor(db, owner, title), date, earned, possible, 'parent-entered teacher result', await sealFor(db, owner, notes), requestKey, inputHash, learningNow().toISOString())
     await recordDecision(db, student, 'school_result_recorded', 'A teacher score was recorded with its own scale and provenance. A total score does not change concept mastery.', { resultId: id, materialId, earned, possible, date })
     return id
   })

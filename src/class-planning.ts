@@ -1,5 +1,6 @@
 import { recordRun } from "./runbook/record.ts"
-import { approvedMap, isBuiltIn, mapBrief, startResearchJob } from "./subject-map.ts"
+import { approvedMapSnapshot, concepts, isBuiltIn, mapBrief, startResearchJob } from "./subject-map.ts"
+import { approvedTeaching } from './engine/teaching.ts'
 import { createHash } from "node:crypto"
 import type { Database as DatabaseSync } from "./database.ts"
 import { createJob, type JobContext } from "./jobs.ts"
@@ -104,7 +105,8 @@ export async function startCurriculumJob(
   source?: SchoolSource,
 ) {
   // A subject the tutor has no course for is researched and approved by the parent before any teaching.
-  const map = isBuiltIn(subject) ? null : await approvedMap(db, studentId, subject)
+  const snapshot = isBuiltIn(subject) ? null : await approvedMapSnapshot(db, studentId, subject)
+  const map = snapshot?.map
   if (!isBuiltIn(subject) && !map) {
     const known = (await db.prepare("SELECT count(*) AS n FROM custom_concepts WHERE student_id = ? AND lower(subject) = lower(?)").get(studentId, subject)) as { n: number }
     if (!Number(known.n)) {
@@ -123,7 +125,7 @@ export async function startCurriculumJob(
     subject, about: savedPlan?.about ?? "", syllabus, direction: latest,
     ageGrade: candidates.ageGrade, mathClass: candidates.mathClass, existing: candidates.topics,
     decisionHistory: (await decisionContext(db, ownerId, studentId)),
-    ...(map ? { map: mapBrief(map) } : {}),
+    ...(map ? { map: mapBrief(map), approvedMapVersion: snapshot!.version, approvedConcepts: concepts(map).slice(0,18).flatMap(c => { const teaching = approvedTeaching(c); return teaching ? [teaching] : [] }) } : {}),
   }
   const revision = createHash("sha256").update(JSON.stringify({ input, source })).digest("hex")
   return (await createJob(db, ownerId, studentId, "curriculum", { subject, input, revision, ...(source ? { materialId: source.materialId, schoolSource: source } : {}) }, `curriculum:${studentId}:${revision}`))

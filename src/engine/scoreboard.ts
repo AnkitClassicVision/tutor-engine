@@ -2,6 +2,7 @@ import { daysBetween } from "./dates.ts"
 import { chronological, freshEvidence, independent, isStuckConcept, masteryMet } from "./mastery.ts"
 import { rollingSuccess } from "./thermostat.ts"
 import type { AttemptRecord, BloomLevel, LearnerConceptState } from "./types.ts"
+import { retentionPairs } from './evidence.ts'
 
 export interface Scoreboard {
   assessmentEvidence?: import("../assessment-evidence.ts").AssessmentEvidence[]
@@ -9,6 +10,7 @@ export interface Scoreboard {
   frontier: Array<{ conceptId: string; bloomLevel: BloomLevel; status: string }>
   retention7: { checked: number; held: number }
   retention30: { checked: number; held: number }
+  retentionEvidence?: Record<7 | 30, { validated: number; proxies: number; unrefreshed: number }>
   justRightRatio: number | null
   timeToMasteryDays: Array<{ conceptId: string; bloomLevel: BloomLevel; days: number }>
   errorTrend: Array<{ errorType: string; count: number }>
@@ -25,8 +27,10 @@ export function weeklyScoreboard(input: {
   const byConcept = group(evidence)
   const masteredThisWeek: Scoreboard["conceptsMasteredThisWeek"] = []
   const timeToMasteryDays: Scoreboard["timeToMasteryDays"] = []
-  const retention7 = { checked: 0, held: 0 }
-  const retention30 = { checked: 0, held: 0 }
+  const seven = retentionPairs(evidence, 7), thirty = retentionPairs(evidence, 30)
+  const counts = (pairs: ReturnType<typeof retentionPairs>) => ({ checked: pairs.length, held: pairs.filter(p => p.after.correct).length })
+  const quality = (pairs: ReturnType<typeof retentionPairs>) => ({ validated: pairs.filter(p => p.comparison === 'validated').length, proxies: pairs.filter(p => p.comparison === 'historical-proxy').length, unrefreshed: pairs.filter(p => p.unrefreshed).length })
+  const retention7 = counts(seven), retention30 = counts(thirty)
   const stuck: Scoreboard["stuck"] = []
 
   for (const [conceptId, attempts] of byConcept) {
@@ -43,8 +47,6 @@ export function weeklyScoreboard(input: {
         bloomLevel: level,
         days: Math.max(0, daysBetween(ordered[0].day, day)),
       })
-      countRetention(ordered, hit, 7, retention7)
-      countRetention(ordered, hit, 30, retention30)
     }
     if (isStuckConcept(ordered)) {
       const latestError = [...ordered].reverse().find((attempt) => attempt.errorType)?.errorType ?? null
@@ -83,6 +85,7 @@ export function weeklyScoreboard(input: {
     frontier,
     retention7,
     retention30,
+    retentionEvidence: { 7: quality(seven), 30: quality(thirty) },
     justRightRatio: windows ? inBand / windows : null,
     timeToMasteryDays,
     errorTrend: [...errorCounts.entries()].map(([errorType, count]) => ({ errorType, count })),
@@ -90,21 +93,13 @@ export function weeklyScoreboard(input: {
   }
 }
 
-function countRetention(
-  ordered: AttemptRecord[],
-  masteredAt: number,
-  gap: number,
-  bucket: { checked: number; held: number },
-) {
-  const start = ordered[masteredAt].day
-  const level = ordered[masteredAt].bloomLevel
-  const later = ordered.slice(masteredAt + 1).find((attempt) => attempt.bloomLevel === level && independent(attempt) && daysBetween(start, attempt.day) >= gap)
-  if (!later) return
-  bucket.checked += 1
-  if (later.correct) bucket.held += 1
-}
-
 function firstMasteryIndex(ordered: AttemptRecord[], level: BloomLevel): number | null {
+  const receipt = ordered.find(a => a.historical?.levels.includes(level))?.historical
+  if (receipt) {
+    const ids = new Set(receipt.attemptIds)
+    const prior = ordered.filter(a => ids.has(a.attemptId)).map(a => ({ ...a, evidencePolicy: undefined, historical: undefined }))
+    for (let index = 0; index < prior.length; index++) if (masteryMet(prior.slice(0, index + 1), level)) return ordered.findIndex(a => a.attemptId === prior[index].attemptId)
+  }
   for (let index = 0; index < ordered.length; index += 1) {
     if (masteryMet(ordered.slice(0, index + 1), level)) return index
   }

@@ -1,3 +1,7 @@
+import { learningNow, withLearningClock, type LearningClock } from './learning-clock.ts'
+import { readPaperWork } from './paper-work.ts'
+import { recordExposure } from "./learning-exposure.ts"
+import { acknowledgeAnswer, pendingReviewStates } from './turn-state.ts'
 import { runOpsCheck, ownerAlertMail } from "./ops-check.ts"
 import { sealFor, sealForStudent } from "./family-crypto.ts"
 import { conceptSubject } from "./engine/access.ts"
@@ -8,7 +12,7 @@ import { ageBand } from "./engine/age.ts"
 import { FreshPracticeRequired, freshPractice } from './fresh-practice.ts'
 import { recordRun } from './runbook/record.ts'
 import { ladders } from "./engine/ladder.ts"
-import { approveMap, approvedMap, concepts, isBuiltIn, mapRow, runResearchJob, startResearchJob, decideMap, subjectMaps } from "./subject-map.ts"
+import { approveMap, approvedMap, approvedMapSnapshot, concepts, isBuiltIn, mapRow, runResearchJob, startResearchJob, decideMap, subjectMaps } from "./subject-map.ts"
 import { mapsSection, subjectMapPage } from "./subject-map-view.ts"
 import { auditPage, auditSample, auditSummary, escalatedItems, recordAudit, raiseConcern, concernItems, resolveConcern, waitingItems } from "./grading-audit.ts"
 import { EXPERIMENTS, armFor, enrolled, experimentReport, setExperiment, type ExperimentKey } from "./experiments.ts"
@@ -22,6 +26,8 @@ import { journeyRoute, authorizeStudentPath, parentReturn, type Auth } from "./j
 import { runPack } from "./pack.ts"
 import { studentHome, parentTools, nav, presentation, learnerAttrs, type ParentView } from "./journey-view.ts"
 import { lessonCard } from "./view.ts"
+import { readScaffold } from './engine/scaffolds.ts'
+import { readLessonContext } from './engine/teaching.ts'
 import { createJob, jobForKey, sendKey, startWorker, runNextJob, type JobContext, type JobHandler } from "./jobs.ts"
 import { enqueueWeeklyDigests, weeklyDigestJob } from "./digest.ts"
 import { queueTalk, processTalk, talkFor, startCurriculumJob } from "./class-planning.ts"
@@ -30,7 +36,8 @@ import { undoStates } from "./undo.ts"
 import { parentSurface, plannerDrawer, plannerStudentFor } from "./planner-view.ts"
 import { extractMaterial, reviewMaterial, guideQuestion, ownedMaterial, ownedQuestion, currentSchoolSource, schoolLearningText, applySchoolLearning, type SchoolSource } from "./schoolwork.ts"
 import { issueAccountToken, flushMail } from "./accounts.ts"
-import { enforceSessionTime, loadAttempts } from "./services.ts"
+import { enforceSessionTime, loadAttempts, assessmentItems } from "./services.ts"
+import { assessmentOpen } from './assessment.ts'
 import { readFileSync } from "node:fs"
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http"
 import { dirname, join, resolve, sep } from "node:path"
@@ -98,6 +105,8 @@ import {
   saveUpload,
   scoreboardFor,
   scoreSheet,
+  saveSheetPhoto,
+  recordSheetExposure,
   sessionItems,
   startTutorSession,
   setPlacement,
@@ -144,6 +153,9 @@ export interface AppOptions {
   onAuthenticated?: (owner: string) => void
   onRecoveryMail?: (owner: string) => void
   judgeResponse?: typeof judgeAnswer
+  generatePractice?: typeof freshPractice
+  /** Supplied by isolated test servers; no HTTP or environment clock controls. */
+  learningClock?: LearningClock
 }
 
 export async function startServer(options: AppOptions & { host: string; port: number }) {
@@ -164,8 +176,9 @@ export async function startServer(options: AppOptions & { host: string; port: nu
 
 export async function handle(req: IncomingMessage, res: ServerResponse, options: AppOptions) {
   if (!(await acceptBody(req, res))) return
-  if (req.url?.split('?')[0].endsWith('/events')) return handleRequest(req, res, options)
-  return withDatabaseScope(options.db, () => handleRequest(req, res, options))
+  return withLearningClock(options.learningClock, () => req.url?.split('?')[0].endsWith('/events')
+    ? handleRequest(req, res, options)
+    : withDatabaseScope(options.db, () => handleRequest(req, res, options)))
 }
 async function handleRequest(req: IncomingMessage, res: ServerResponse, options: AppOptions) {
   const url = new URL(req.url ?? "/", "http://127.0.0.1")
@@ -372,7 +385,7 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse, options:
         student.display_name,
         (await parentTools(options.db, auth!.userId, student.id, view !== "classes" ? "" : studentPage({
           student,
-          today: new Date(),
+          today: learningNow(),
           states: (await listStates(options.db, student.id)),
           concepts: (await studentConcepts(options.db, auth!.userId, student.id)),
           menu: (await topicMenu(options.db, auth!.userId, student.id)),
@@ -405,19 +418,22 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse, options:
       const items = (await sessionItems(options.db, sessionMatch[1]))
       const current = items.find((item) => item.answered === 0) ?? null
       const feedback = session.pending_feedback ? JSON.parse(String(session.pending_feedback)) : null
-      const onBreak = Boolean(session.break_until && String(session.break_until) > new Date().toISOString())
+      const onBreak = Boolean(session.break_until && String(session.break_until) > learningNow().toISOString())
       const workMode = String(session.mode ?? "session")
-      const withhold = workMode === "assessment" && Boolean(current)
+      const isAssessment = workMode === 'assessment'
+      const withhold = assessmentOpen(session, items)
+      const assessmentPaused = withhold && Boolean(session.ended_at || session.paused_at)
+      const checkItems = isAssessment ? await assessmentItems(options.db, sessionMatch[1]) : items
       const titles = (await titleMap(options.db, String(session.student_id)))
-      const ended = Boolean(session.ended_at) || !current
+      const ended = isAssessment ? !withhold : Boolean(session.ended_at) || !current
       const learner = (await assertStudent(options.db, auth!.userId, String(session.student_id)))
-      // A practice arc opens with a short lesson on the idea before the guided item.
-      const lessonConcept = !ended && Number(session.lesson_done ?? 1) === 0 && current && !items.some((item) => item.answered === 1)
-        ? (await studentConcepts(options.db, auth!.userId, String(session.student_id))).find((concept) => concept.conceptId === String(current.concept_id))
+      // A delayed check precedes refresher teaching; the lesson opens at the first supported beat.
+      const lessonConcept = !isAssessment && !ended && Number(session.lesson_done ?? 1) === 0 && current?.beat === 'guided'
+        && !feedbackState(workMode, items, Number(session.feedback_cursor ?? 0)).checkpoint
+        ? current.lesson_json ? readLessonContext(current.lesson_json)
+          : (await studentConcepts(options.db, auth!.userId, String(session.student_id))).find((concept) => concept.conceptId === String(current.concept_id))
         : undefined
-      const results = current
-        ? []
-        : items
+      const results = !ended ? [] : items
             .filter((item) => item.answered === 1 && item.correct != null)
             .map((item) => ({
               title: titles[String(item.concept_id)] ?? String(item.concept_id),
@@ -433,19 +449,32 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse, options:
             (await storePattern(options.db, String(session.student_id), String(session.subject ?? "Math"), sessionMatch[1]))
           : null
       // The first time a question is on screen, for the time-to-first-question measure.
-      if (!lessonConcept && current && !onBreak && !feedbackState(workMode, items, Number(session.feedback_cursor ?? 0)).checkpoint) await options.db.prepare("UPDATE session_items SET shown_at = ? WHERE id = ? AND shown_at IS NULL").run(new Date().toISOString(), String(current.id))
-      if (lessonConcept) return html(res, "Session", `<div ${learnerAttrs(learner)}>${nav(String(session.student_id))}${lessonCard(sessionMatch[1], lessonConcept)}</div>`, csrf)
+      if (current && !assessmentPaused && !ended && !onBreak && !feedbackState(workMode, items, Number(session.feedback_cursor ?? 0)).checkpoint) {
+        if (!lessonConcept) await options.db.prepare("UPDATE session_items SET shown_at = ? WHERE id = ? AND shown_at IS NULL").run(learningNow().toISOString(), String(current.id))
+        await recordExposure(options.db, String(session.student_id), sessionMatch[1], current, lessonConcept ? 'lesson' : 'question')
+      }
+      if (lessonConcept) return html(res, "Session", `<div ${learnerAttrs(learner)}>${nav(String(session.student_id))}${lessonCard(sessionMatch[1], lessonConcept, readScaffold(current?.scaffold_json))}</div>`, csrf)
+      if (!withhold && !assessmentPaused && !onBreak) {
+        const displayed = feedbackState(workMode, items, Number(session.feedback_cursor ?? 0), isAssessment && !withhold).entries
+        for (const entry of displayed) {
+          const item = items.find(i => i.id === entry.id)
+          if (item) await recordExposure(options.db, String(session.student_id), sessionMatch[1], item, 'feedback')
+        }
+      }
+      const connection = await aiSettings(options.db, auth!.userId)
+      const reviewStates = withhold ? new Map() : await pendingReviewStates(options.db, String(session.student_id), items, Boolean(aiConnectionProblem(connection)))
       return html(
         res,
         "Session",
-        `<div ${learnerAttrs(learner)}>${nav(String(session.student_id))}<div class="mission-toolbar"><p data-session-deadline="${new Date(Date.parse(String(session.started_at)) + Number(session.cap_minutes) * 60000).toISOString()}">Your ${session.cap_minutes}-minute mission</p><form action="/session/${sessionMatch[1]}/pause" method="post"><input type="hidden" name="csrf" class="csrf-field" value=""><button class="ghost" type="submit">Save & stop</button></form></div>${ended ? `<p class="celebration" role="status">A little more discovered. Your work is saved.</p>` : url.searchParams.get("saved") === "waiting" ? `<p class="ok" role="status" data-saved-waiting>Saved. A grown-up will check that one.</p>` : ""}` + sessionPage({
+        `<div ${learnerAttrs(learner)}>${nav(String(session.student_id))}${!ended && !assessmentPaused ? `<div class="mission-toolbar"><p data-session-now="${learningNow().toISOString()}" data-session-deadline="${new Date(Date.parse(String(session.started_at)) + Number(session.cap_minutes) * 60000).toISOString()}">Your ${session.cap_minutes}-minute ${isAssessment ? 'assessment' : 'mission'}</p><form action="/session/${sessionMatch[1]}/pause" method="post"><input type="hidden" name="csrf" class="csrf-field" value=""><button class="ghost" type="submit">${isAssessment ? 'Pause assessment' : 'Save & stop'}</button></form></div>` : ''}${ended ? `<p class="${isAssessment ? 'fine' : 'celebration'}" role="status">${isAssessment ? 'Assessment submitted. Your answers are saved.' : 'A little more discovered. Your work is saved.'}</p>` : !assessmentPaused && url.searchParams.has('saved') ? `<p class="fine" role="status" data-saved-waiting>${withhold ? url.searchParams.get('saved') === 'unanswered' ? 'Question left unanswered.' : 'Answer saved.' : url.searchParams.get('saved') === 'waiting' ? 'Saved for a grown-up to check. You can keep going.' : url.searchParams.get('saved') === 'checking-needed' ? 'Answer saved. Checking has not started. You can keep going.' : 'Answer saved.'}</p>` : ''}` + sessionPage({
+          assessment: isAssessment ? { open: withhold, paused: assessmentPaused, unanswered: checkItems.filter(i => i.answered === 0).length } : undefined,
           summary: ended ? await missionSummary(options.db, auth!.userId, sessionMatch[1]) : undefined,
           sessionId: sessionMatch[1],
           continuity: String(session.continuity),
-          item: session.ended_at ? null : current,
-          position: current ? items.indexOf(current) + 1 : items.length,
-          feedbackReview: feedbackState(workMode, items, Number(session.feedback_cursor ?? 0)),
-          total: items.length,
+          item: ended || assessmentPaused ? null : current,
+          position: current ? checkItems.findIndex(i => i.id === current.id) + 1 : checkItems.length,
+          feedbackReview: feedbackState(workMode, items, Number(session.feedback_cursor ?? 0), isAssessment && !withhold),
+          total: checkItems.length,
           beats: items.map((item) => String(item.beat ?? '')),
           feedback: withhold || feedbackState(workMode, items, Number(session.feedback_cursor ?? 0)).timing === "waiting" ? null : feedback,
           onBreak,
@@ -453,15 +482,16 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse, options:
           capMinutes: Number(session.cap_minutes),
           subject: String(session.subject ?? ""),
           titles,
-          showHint: !withhold,
+          showHint: !isAssessment,
           speak: url.searchParams.get("voice") === "1",
           lesson: ended || feedbackState(workMode, items, Number(session.feedback_cursor ?? 0)).checkpoint ? (await listLesson(options.db, auth!.userId, sessionMatch[1])) : [],
           teacher: auth!.parentUnlocked ? teacher : null,
           results,
-          pendingReviews: auth!.parentUnlocked ? items.filter((item) => item.answered === 1 && item.correct == null) : [],
+          reviewStates,
+          pendingReviews: auth!.parentUnlocked && !withhold ? items.filter((item) => item.answered === 1 && item.correct == null && !Number(item.disputed)) : [],
           band: ageBand(learner),
-          aiMissing: Boolean(aiConnectionProblem(await aiSettings(options.db, auth!.userId))),
-          aiChildLine: aiChildLine(await aiSettings(options.db, auth!.userId)) || undefined,
+          aiMissing: Boolean(aiConnectionProblem(connection)),
+          aiChildLine: aiChildLine(connection) || undefined,
           itemSubject: current ? conceptSubject(current.concept_id, new Map(((await options.db.prepare('SELECT concept_id, subject FROM custom_concepts WHERE student_id = ?').all(String(session.student_id))) as Array<{ concept_id: string; subject: string }>).map(row => [String(row.concept_id), String(row.subject)])), session.subject) : undefined,
           askSure: armFor(learner.experiments, "confidence-check") === "on",
           feedbackConceptId: feedback?.itemId ? String(items.find((item) => item.id === feedback.itemId)?.concept_id ?? "") || undefined : undefined,
@@ -477,15 +507,42 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse, options:
   if (sheetMatch && method === "GET") {
     try {
       const row = (await getSheet(options.db, auth!.userId, sheetMatch[1]))
+      await recordSheetExposure(options.db, auth!.userId, sheetMatch[1])
       const payload = JSON.parse(String(row.spec_json))
+      const work = readPaperWork(payload.work)
+      const results = row.score_results ? JSON.parse(String(row.score_results)) : null
+      if (results) for (const result of results) {
+        if (result.unanswered) continue
+        const itemId = payload.spec.boxes.find((box: { boxIndex: number }) => box.boxIndex === result.boxIndex)?.itemId
+        const checked = await options.db.prepare('SELECT correct, disputed, session_id FROM session_items WHERE id = ? AND answered = 1').get(itemId ?? '')
+        if (checked) {
+          result.disputed = checked.disputed === 1
+          result.pendingReview = checked.correct == null && !result.disputed
+          result.reviewSessionId = String(checked.session_id)
+          result.correct = !result.disputed && !result.pendingReview && checked.correct === 1
+          result.speak = false
+        } else if (result.pendingReview && result.reviewSessionId) {
+          // Historical sheets used different item IDs; retain their saved review-session mapping.
+          const legacy = await options.db.prepare('SELECT correct, disputed FROM session_items WHERE session_id = ? AND position = ? AND answered = 1').get(result.reviewSessionId, result.boxIndex)
+          if (legacy) {
+            result.disputed = legacy.disputed === 1
+            result.pendingReview = legacy.correct == null && !result.disputed
+            result.correct = !result.disputed && legacy.correct === 1
+            result.speak = false
+          }
+        }
+      }
       const qrSvg = await qrSvgFor(String(row.id))
       const htmlDoc = sheetPage({
         sheetId: String(row.id),
+        studentId: String(row.student_id),
         studentName: String(row.display_name),
         spec: payload.spec,
         items: payload.items,
         qrSvg,
         titles: (await titleMap(options.db, String(row.student_id))),
+        photoIds: work?.photos.map(photo => photo.id), results,
+        paperConditions: work?.conditions ?? undefined,
       }).replaceAll('name="csrf" class="csrf-field" value=""', `name="csrf" value="${esc(csrf)}"`)
       return send(res, 200, "text/html; charset=utf-8", htmlDoc)
     } catch {
@@ -742,7 +799,7 @@ async function post(
       const sent = sendId ? await jobForKey(options.db, auth.userId, jobKey) : undefined
       if (sent) return wantsJson ? send(res, 202, "application/json", JSON.stringify({ jobId: sent, location: `/jobs/${sent}` })) : redirect(res, `/jobs/${sent}`)
       const items = (await sessionItems(options.db, askMatch[1]))
-      if (check.mode === "assessment" && items.some(i=>i.answered===0)) throw new UserError("Finish these questions on your own first, then ask for help.")
+      if (assessmentOpen(check, items)) throw new UserError("Finish these questions on your own first, then ask for help.")
       const titles = (await titleMap(options.db, String((await getOwnedSession(options.db, auth.userId, askMatch[1])).student_id)))
       const lessonConcepts=new Map((await studentConcepts(options.db,auth.userId,String(check.student_id))).map(c=>[c.conceptId,c]))
       const results = items
@@ -753,6 +810,7 @@ async function post(
           answer: String(item.answer),
           correct: item.correct === 1,
           recall:lessonConcepts.get(String(item.concept_id))?.recall,example:lessonConcepts.get(String(item.concept_id))?.example,
+          teaching: lessonConcepts.get(String(item.concept_id))?.teaching, workedExample: readScaffold(item.scaffold_json)?.worked,
         }))
       await addLesson(options.db, auth.userId, askMatch[1], "student", message)
       const prior = (await listLesson(options.db, auth.userId, askMatch[1])).slice(0, -1).slice(-8)
@@ -800,14 +858,14 @@ async function post(
       if (data.materialId && (await ownedMaterial(options.db, auth.userId, data.materialId)).student_id !== startMatch[1]) throw new UserError("Material belongs to another learner.")
       if (data.questionId && (await ownedQuestion(options.db, auth.userId, data.questionId)).m.student_id !== startMatch[1]) throw new UserError("Question belongs to another learner.")
       let id:string
-      try { id = (await startTutorSession(options.db, auth.userId, startMatch[1], new Date(), {
+      try { id = (await startTutorSession(options.db, auth.userId, startMatch[1], learningNow(), {
         mode, subject, durationMinutes: data.durationMinutes ? Number(data.durationMinutes) : undefined, goal: data.goal, materialId: data.materialId, questionId: data.questionId, focusConceptId: data.focusConceptId, targetId: data.targetId, intent: data.intent === "practice" && mode === "assessment" ? "skip_lesson_check" : data.intent,
       }))
       } catch(error) {
         if(!(error instanceof FreshPracticeRequired)) throw error
         // New questions are written by the AI; without one, say so plainly instead of starting a job that cannot finish.
-        if (aiConnectionProblem(await aiSettings(options.db, auth.userId))) throw new UserError("This topic needs new questions, and writing them needs an AI connection. Pick another topic, or ask a grown-up to connect an AI.")
-        const input=await practiceRefreshContext(options.db,auth.userId,startMatch[1],error.conceptId)
+        if (aiConnectionProblem(await aiSettings(options.db, auth.userId))) throw new UserError(error.comparison ? 'A comparable check is still due. Writing a matching fresh question needs an AI connection. Your progress is saved; choose another topic, or ask a grown-up to connect an AI.' : "This topic needs new questions, and writing them needs an AI connection. Pick another topic, or ask a grown-up to connect an AI.")
+        const input=await practiceRefreshContext(options.db,auth.userId,startMatch[1],error.conceptId,error.comparison)
         const requested={mode,subject,durationMinutes:data.durationMinutes ? Number(data.durationMinutes) : undefined,focusConceptId:error.conceptId,targetId:data.targetId,goal:data.goal,intent:data.intent}
         const revision=createHash('sha256').update(JSON.stringify({input,requested})).digest('hex')
         const job=await createJob(options.db,auth.userId,startMatch[1],'fresh_practice',{input,options:requested},`fresh:${startMatch[1]}:${revision}`)
@@ -824,21 +882,33 @@ async function post(
     if (answerMatch) {
       const submitted = (await submitAnswer(options.db, auth.userId, answerMatch[1], {
         itemId: data.itemId ?? "",
-        answer: data.answer ?? "",
+        revision: data.revision,
+        activeMs: data.activeMs === undefined || data.activeMs === '' ? undefined : Number(data.activeMs),
+        answer: data.skip === '1' ? '' : data.answer ?? "",
         timeMs: Number(data.timeMs || 0),
         frustrated: data.frustrated === "1",
         errorType: ERRORS.has(data.errorType) ? (data.errorType as ErrorType) : undefined,
         confidence: data.confidence,
       }))
+      const session = await getOwnedSession(options.db, auth.userId, answerMatch[1])
+      const receipt = await acknowledgeAnswer(options.db, answerMatch[1], data.itemId ?? '')
+      const respond = (location: string, jobId?: string) => data.receipt === '1'
+        ? send(res, jobId ? 202 : 200, 'application/json', JSON.stringify({ ...receipt, location, ...(jobId ? { jobId } : {}), discardDraft: receipt.saved || 'skipped' in submitted || 'reask' in submitted }))
+        : jobId && wantsJson ? send(res, 202, 'application/json', JSON.stringify({ jobId, location })) : redirect(res, location)
       if ("pendingReview" in submitted && submitted.pendingReview) {
         // With no AI connected, a written answer is kept for a grown-up to check and the child carries on;
         // a grading job here could only fail.
-        if (aiConnectionProblem(await aiSettings(options.db, auth.userId))) return redirect(res, `/session/${answerMatch[1]}?saved=waiting`)
-        const session = (await getOwnedSession(options.db, auth.userId, answerMatch[1]))
-        const jobId = (await createJob(options.db, auth.userId, String(session.student_id), "grade", { sessionId: answerMatch[1], itemIds: [data.itemId] }, `grade:${data.itemId}`))
-        return wantsJson ? send(res, 202, "application/json", JSON.stringify({ jobId, location: `/jobs/${jobId}` })) : redirect(res, `/jobs/${jobId}`)
+        if (aiConnectionProblem(await aiSettings(options.db, auth.userId))) return respond(`/session/${answerMatch[1]}?saved=${session.mode === 'assessment' ? 'answer' : 'waiting'}`)
+        let jobId: string
+        try { jobId = await createJob(options.db, auth.userId, String(session.student_id), "grade", { sessionId: answerMatch[1], itemIds: [data.itemId] }, `grade:${data.itemId}`) }
+        catch (error) {
+          if (!(error instanceof UserError)) throw error
+          return respond(`/session/${answerMatch[1]}?saved=${session.mode === 'assessment' ? 'answer' : 'checking-needed'}`)
+        }
+        if (session.mode === 'assessment') return respond(`/session/${answerMatch[1]}?saved=answer`)
+        return respond(`/jobs/${jobId}`, jobId)
       }
-      return redirect(res, `/session/${answerMatch[1]}`)
+      return respond(`/session/${answerMatch[1]}${session.mode === 'assessment' && !submitted.ended ? `?saved=${'skipped' in submitted ? 'unanswered' : 'answer'}` : ''}`)
     }
     const reviewMatch = url.pathname.match(/^\/session\/([0-9a-f-]{36})\/review$/i)
     if (reviewMatch) {
@@ -876,33 +946,39 @@ async function post(
     }
     const scoreMatch = url.pathname.match(/^\/sheet\/([0-9a-f-]{36})\/score$/i)
     if (scoreMatch) {
+      if (data.confirmed !== '1' || data.completed !== '1' || !['none', 'content', 'unknown'].includes(data.paperHelp ?? ''))
+        throw new UserError('Confirm the entries match your completed paper and choose whether you had help.')
       const boxes = Object.entries(data)
         .filter(([key]) => key.startsWith("box-"))
         .map(([key, value]) => ({ boxIndex: Number(key.slice(4)), answer: value }))
-      const results = (await scoreSheet(options.db, auth.userId, scoreMatch[1], boxes))
+      const results = (await scoreSheet(options.db, auth.userId, scoreMatch[1], boxes, learningNow(),
+        { version: 1, basis: 'self-reported', help: data.paperHelp as 'none' | 'content' | 'unknown', confirmed: true }))
       const gradingSession = results.find((result) => result.reviewSessionId)?.reviewSessionId
-      if (gradingSession) {
+      if (gradingSession && !aiConnectionProblem(await aiSettings(options.db, auth.userId))) {
         const session = (await getOwnedSession(options.db, auth.userId, gradingSession))
-        const jobId = (await createJob(options.db, auth.userId, String(session.student_id), "grade", { sessionId: gradingSession }, `grade-sheet:${gradingSession}`))
-        return wantsJson ? send(res, 202, "application/json", JSON.stringify({ jobId, location: `/jobs/${jobId}` })) : redirect(res, `/jobs/${jobId}`)
+        await createJob(options.db, auth.userId, String(session.student_id), "grade", { sessionId: gradingSession }, `grade-sheet:${gradingSession}`)
       }
-      return html(res, "Sheet score", scoreResultPage(results), auth.csrf)
+      const location = `/sheet/${scoreMatch[1]}`
+      return wantsJson ? send(res, 200, 'application/json', JSON.stringify({ submitted: true, location })) : redirect(res, location)
     }
     const uploadMatch = url.pathname.match(/^\/sheet\/([0-9a-f-]{36})\/upload$/i)
     if (uploadMatch) {
-      const sheet = (await getSheet(options.db, auth.userId, uploadMatch[1]))
-      const id = (await saveUpload(
+      const id = (await saveSheetPhoto(
         options.db,
         auth.userId,
-        String(sheet.student_id),
+        uploadMatch[1],
         { mime: data.mime ?? "", base64: data.base64 ?? "" },
         options.uploadsDir,
       ))
-      return redirect(res, `/uploads/${id}`)
+      const location = `/sheet/${uploadMatch[1]}`
+      return wantsJson ? send(res, 201, 'application/json', JSON.stringify({ saved: true, uploadId: id, location })) : redirect(res, location)
     }
     return send(res, 404, "text/plain", "Not found.")
   } catch (error) {
     const message = userMessage(error)
+    if (wantsJson && /^\/sheet\/[0-9a-f-]{36}\/(score|upload)$/i.test(url.pathname))
+      return send(res, error instanceof UserError ? 400 : 500, 'application/json', JSON.stringify({ error: message }))
+    if (data.receipt === '1' && /^\/session\/[0-9a-f-]{36}\/answer$/i.test(url.pathname)) return send(res, error instanceof UserError ? 400 : 500, 'application/json', JSON.stringify({ error: message }))
     const ask = url.pathname.match(/^\/session\/([0-9a-f-]{36})\/ask$/i)
     if (ask) return redirect(res, `/session/${ask[1]}?error=${encodeURIComponent(message)}`)
     const talk = url.pathname.match(/^\/students\/([0-9a-f-]{36})\/(?:talk|build)$/i)
@@ -949,18 +1025,24 @@ export async function gradePendingResponses(
   const titles = (await titleMap(db, studentId))
   const pending = (await sessionItems(db, sessionId)).filter((item) => item.answered === 1 && item.correct == null && !item.grading_doubt && !Number(item.disputed)
     && (!itemIds || itemIds.includes(String(item.id))))
-  const judged = await Promise.all(pending.map(async (item) => ({
-    item,
-    judgment: !String(item.given_answer ?? "").trim() || /^(?:\?|unreadable|unclear|illegible)$/i.test(String(item.given_answer).trim()) ? { kind: "failed" as const } : await judge({
+  const judged = await Promise.all(pending.map(async (item) => {
+    const begin = async () => { await db.prepare('UPDATE session_items SET grading_started_at = ?, grading_finished_at = NULL WHERE id = ? AND correct IS NULL').run(learningNow().toISOString(), item.id) }
+    if (ctx) { if (!(await ctx.commit(begin))) return null } else await begin()
+    const judgment = !String(item.given_answer ?? "").trim() || /^(?:\?|unreadable|unclear|illegible)$/i.test(String(item.given_answer).trim()) ? { kind: "failed" as const } : await judge({
       concept: titles[String(item.concept_id)] ?? String(item.concept_id),
       bloomLevel: Number(item.bloom_level) as BloomLevel,
       prompt: String(item.prompt), key: String(item.answer), response: String(item.given_answer ?? ""), rubric: readRubric(item.rubric_json),
-    }, ai, { grounding: await groundingFor(db, ownerId, studentId, String(item.concept_id)), record: report => recordRun(db, ownerId, studentId, report) }).catch(() => ({ kind: "failed" as const })),
-  })))
-  for (const { item, judgment } of judged) {
+    }, ai, { grounding: await groundingFor(db, ownerId, studentId, String(item.concept_id)), record: report => recordRun(db, ownerId, studentId, report) }).catch(() => ({ kind: "failed" as const }))
+    return { item, judgment, finishedAt: learningNow().toISOString() }
+  }))
+  for (const result of judged) {
+    if (!result) continue
+    const { item, judgment, finishedAt } = result
     const saveVerdict = async () => {
       const current = (await sessionItems(db, sessionId)).find((row) => row.id === item.id)
-      if (!current || current.correct != null) return
+      if (!current || current.correct != null || current.revision_id !== item.revision_id || current.submitted_revision !== item.submitted_revision
+        || current.prompt !== item.prompt || current.answer !== item.answer || current.rubric_json !== item.rubric_json) return
+      await db.prepare('UPDATE session_items SET grading_finished_at = ? WHERE id = ?').run(finishedAt, item.id)
       if (judgment.kind === "failed") {
         await recordDecision(db, studentId, "grading_pending", "The selected AI did not return a usable grade. The response remains pending and has not been counted as a success or failure.", {
           sessionId, itemId: item.id, conceptId: item.concept_id, graderProvider: ai.provider, graderModel: ai.model,
@@ -984,7 +1066,7 @@ export async function gradePendingResponses(
         return
       }
       await reviewAnswer(db, ownerId, sessionId, {
-        itemId: String(item.id), correct: judgment.verdict.correct, errorType: judgment.verdict.errorType ?? undefined,
+        itemId: String(item.id), revision: item.submitted_revision ? String(item.submitted_revision) : undefined, correct: judgment.verdict.correct, errorType: judgment.verdict.errorType ?? undefined,
         grader: `model:${ai.provider}`, graderModel: ai.model, reason: judgment.verdict.reason,
       })
       if (judgment.path === "grounded") await recordDecision(db, studentId, "grading_grounded", "The first grade was uncertain or disputed; a grounding pass settled it from the topic's own material.", { sessionId, itemId: item.id, conceptId: item.concept_id })
@@ -995,6 +1077,11 @@ export async function gradePendingResponses(
 }
 
 export function jobHandlers(options: AppOptions): Record<string, JobHandler> {
+  return Object.fromEntries(Object.entries(learningJobHandlers(options)).map(([kind, handler]) => [kind,
+    (ctx: JobContext, payload: any) => withLearningClock(options.learningClock, () => handler(ctx, payload)),
+  ]))
+}
+function learningJobHandlers(options: AppOptions): Record<string, JobHandler> {
   const db = options.db
   return {
     pdf: async (ctx, payload) => (await renderSheetPdf(db, options.uploadsDir, ctx, payload)),
@@ -1047,7 +1134,7 @@ export function jobHandlers(options: AppOptions): Record<string, JobHandler> {
       const reply = await answerLesson({ results: payload.results, transcript: payload.prior, question: payload.message, schoolLevel:gradeLabel(Number(learner.grade)) }, (await aiConfigFor(db, ctx.job.owner_user_id)), 25000, { record: report => recordRun(db, ctx.job.owner_user_id, ctx.job.student_id ?? null, report) })
       await ctx.commit(async () => {
         if (!(await db.prepare("SELECT id FROM lesson_messages WHERE id = ?").get(ctx.job.id))) {
-          await db.prepare("INSERT INTO lesson_messages (id, session_id, role, body, created_at) VALUES (?, ?, 'tutor', ?, ?)").run(ctx.job.id, payload.sessionId, await sealFor(db, ctx.job.owner_user_id, reply), new Date().toISOString())
+          await db.prepare("INSERT INTO lesson_messages (id, session_id, role, body, created_at) VALUES (?, ?, 'tutor', ?, ?)").run(ctx.job.id, payload.sessionId, await sealFor(db, ctx.job.owner_user_id, reply), learningNow().toISOString())
           if (payload.signal) await recordDecision(db, ctx.job.student_id!, "learner_question", "Use this learner-requested clarification when designing relevant upcoming practice. Preserve parent scope, strengths and scheduled reviews; this is not a failed check or mastery evidence.", { ...payload.signal, sessionId:payload.sessionId, jobId:ctx.job.id })
         }
       })
@@ -1056,16 +1143,16 @@ export function jobHandlers(options: AppOptions): Record<string, JobHandler> {
     research_subject: async (ctx, payload) => runResearchJob(db, ctx, payload),
     fresh_practice: async(ctx,payload)=>{
       await ctx.stage('Preparing different questions for your next try')
-      const questions=await freshPractice(payload.input,await aiConfigFor(db,ctx.job.owner_user_id),{record:report=>recordRun(db,ctx.job.owner_user_id,ctx.job.student_id??null,report)})
+      const questions=await (options.generatePractice ?? freshPractice)(payload.input,await aiConfigFor(db,ctx.job.owner_user_id),{record:report=>recordRun(db,ctx.job.owner_user_id,ctx.job.student_id??null,report)})
       let sessionId:string|undefined
       await ctx.commit(async()=>{
         const concept=payload.input.concept
         const previous=await db.prepare('SELECT i.prompt FROM session_items i JOIN tutor_sessions s ON s.id = i.session_id WHERE s.student_id = ? AND i.concept_id = ? UNION ALL SELECT prompt FROM practice_items WHERE student_id = ? AND concept_id = ?').all(ctx.job.student_id,concept.conceptId,ctx.job.student_id,concept.conceptId)
         const used=new Set(previous.map(i=>promptIdentity(String(i.prompt))))
         if(questions.some(q=>used.has(promptIdentity(q.prompt))))throw new Error('Question generation repeated earlier work. Retry for genuinely fresh questions.')
-        const added=await applyCurriculum(db,ctx.job.owner_user_id,ctx.job.student_id!,concept.subject,[{title:concept.title,recall:concept.recall,example:concept.example,nonExample:concept.nonExample,questions}])
+        const added=await applyCurriculum(db,ctx.job.owner_user_id,ctx.job.student_id!,concept.subject,[{conceptId:concept.conceptId,title:concept.title,recall:concept.recall,example:concept.example,nonExample:concept.nonExample,questions}])
         if(added.questions!==4)throw new Error('Fresh questions were already used. Retry for a different set.')
-        sessionId=await startTutorSession(db,ctx.job.owner_user_id,ctx.job.student_id!,new Date(),payload.options)
+        sessionId=await startTutorSession(db,ctx.job.owner_user_id,ctx.job.student_id!,learningNow(),payload.options)
       })
       return{sessionId,freshQuestions:questions.length}
     },
@@ -1100,6 +1187,10 @@ export function jobHandlers(options: AppOptions): Record<string, JobHandler> {
       }
       await ctx.commit(async () => {
         if (!await isNewest()) return
+        if (payload.input.approvedMapVersion && (await approvedMapSnapshot(db, ctx.job.student_id!, payload.subject))?.version !== payload.input.approvedMapVersion) {
+          await markPlanBuild(db, ctx.job.student_id!, payload.subject, 'failed', 'The approved map changed. Rebuild practice from the current map.')
+          return
+        }
         if (payload.schoolSource && !await currentSchoolSource(db, ctx.job.owner_user_id, payload.schoolSource)) {
           await markPlanBuild(db, ctx.job.student_id!, payload.subject, 'failed', 'School pages changed. Use the current pages to rebuild the learning plan.')
           return

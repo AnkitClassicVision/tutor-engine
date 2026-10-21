@@ -1,7 +1,7 @@
 ---
 name: assess-learning
 description: Design and judge Tutor Engine assessments that check the requested concept and actual Bloom demand, separate practice from testing, and require evidence over time before mastery.
-version: 1
+version: 2
 role: verifier
 ---
 
@@ -13,7 +13,9 @@ Match the demand to Bloom: Remember retrieves; Understand explains or distinguis
 
 Use fresh prompts on the same concept for homework and assessment. Keep answer keys and rubrics separate from the student question. A school test identifies coverage and pitfalls; write original items rather than copying it. Include relevant figures with the actual data needed to answer. A chart mentioned in a syllabus does not justify inventing its measurements.
 
-Checks use a new setting and withhold coaching until the response. Homework provides immediate corrective feedback and the ordered hint ladder. Lessons may alternate opening/immediate feedback with a short batch review after early success; misses interrupt the batch for teaching. Two confirmed misses call for a new teaching approach, not another repeated drill. A creation opportunity may be scaffolded for a shaky student, but does not award mastery at Create by itself.
+Assessments use fresh questions and withhold all coaching, hints, correctness feedback and rewards until the entire declared assessment is submitted. Saving an answer, grading privately, pausing or reaching an attention limit does not open feedback. Show only neutral saved/progress messages. After final submission, feedback and teaching can open, but that assessment cannot be resumed using the revealed answers. Questions left unanswered are not failed attempts. Access supports must not supply the skill being measured (for example, reading a decoding question aloud or dictating a spelling answer).
+
+Homework provides immediate corrective feedback and the ordered hint ladder. Lessons may alternate opening/immediate feedback with a short batch review after early success; misses interrupt the batch for teaching. Two confirmed misses call for a new teaching approach, not another repeated drill. Keep Bloom demand separate from degree of support: preserve comparison, reasoning and creation during supported practice, then fade help and check fresh unaided performance. A scaffolded creation does not award mastery at Create by itself. Delayed retention and transfer are separate evidence, not implied by immediate practice success.
 
 Objective keys may be scored locally. Open explanations, Analyze justifications, Evaluate, and Create need an explicit rubric and substantive judgment. The parent has chosen automatic model grading: the account's selected AI judges the actual response against the key/rubric, including reasoning and originality. A valid verdict with confidence at least 0.8 counts automatically; malformed, uncertain, or failed calls stay pending with a parent-review fallback. Local keyword matches never substitute for this judgment. Preserve the grading reason and provider with the response.
 

@@ -8,10 +8,11 @@ import { registerUser } from "../src/auth.ts"
 import { createStudent, nextLearningAction, retireUnusedQuestions, startTutorSession, sessionItems, submitAnswer } from "../src/services.ts"
 import { runNextJob } from "../src/jobs.ts"
 import { briefFromWords, checkAndRepair, makePlannedPack, packRow, publishPack, qaRules, requestPack, runPack, setPackSettings, topicFrom, PackLimit, PackScope, type PackAsk, type PackBrief } from "../src/pack.ts"
-import { checkItem, evaluate, type PackDraft, type PackItem } from "../src/pack-qa.ts"
+import { checkItem, checkDraft, checkLesson, evaluate, type PackDraft, type PackItem } from "../src/pack-qa.ts"
 import { runbook } from "../src/pack-runbooks.ts"
 import { scoreItem } from "../src/engine/score.ts"
 import { undoDecision } from "../src/undo.ts"
+import { startMapRow, saveResearch, approveMap, type SubjectMap } from '../src/subject-map.ts'
 
 async function family(grade = 5) {
   const dir = mkdtempSync(join(tmpdir(), "tutor-pack-"))
@@ -39,7 +40,7 @@ const choice: PackItem = {
 }
 const goodDraft = (): PackDraft => ({
   interpretation: "Adding fractions with unlike denominators, ready for Friday's quiz.",
-  lesson: { hook: "Recipes add fractions all the time.", steps: ["Find a common denominator.", "Rewrite each fraction.", "Add the numerators."], workedExample: "1/3 + 1/4: twelfths, 4/12 + 3/12 = 7/12.", quickCheck: { question: "1/2 + 1/4?", answer: "3/4" } },
+  lesson: { hook: "Recipes add fractions all the time.", steps: ["Find a common denominator.", "Rewrite each fraction.", "Add the numerators."], workedExample: "1/3 + 1/4: twelfths, 4/12 + 3/12 = 7/12.", quickCheck: { question: "3/7 + 1/2?", answer: "13/14" } },
   skills: [{ title: "Add fractions with unlike denominators", recall: "Make the denominators match before adding.", example: "1/2 + 1/3 = 5/6", nonExample: "1/2 + 1/3 = 2/5", items: [fraction(1, 2, 1, 4, 1), fraction(1, 3, 1, 6, 2), choice, fraction(2, 3, 1, 4, 3), fraction(3, 4, 1, 6, 3), fraction(2, 5, 1, 3, 3)] }],
 })
 
@@ -277,5 +278,57 @@ test("a child's request that names a test never sets a dated target", async () =
     assert.equal(pack!.status, "published")
     const targets = await f.db.prepare("SELECT kind, deadline FROM targets WHERE student_id = ? AND kind != 'program'").all(f.student) as any[]
     assert.ok(targets.length && targets.every((t) => t.kind === "curiosity"), "the test date stays a curiosity until a parent sets it")
+  } finally { f.db.close() }
+})
+
+test('teaching directions and wrong worked calculations are rejected, and equivalent copies cannot pass a repair', async () => {
+  const draft = goodDraft(), rules = qaRules(runbook('pack-math-procedure'), { grade: 5 } as PackBrief)
+  assert.ok(checkLesson({ ...draft.lesson, workedExample: 'Find the denominator. Rewrite the fractions. Add them.' }).some(i => i.block && i.rule === 'worked_steps'))
+  assert.ok(checkLesson({ ...draft.lesson, workedExample: '1/3 + 1/4 = 2/7 because the denominators add.' }).some(i => i.block && i.rule === 'worked_key'))
+  draft.skills[0].items[0] = fraction(2, 6, 2, 8, 3)
+  const report = checkDraft(draft, rules)
+  assert.ok(report.items[0].issues.some(i => i.rule === 'taught_copy' && i.block), 'equivalent notation still copies the worked calculation')
+  const { ask } = stubAsk(draft, { repair: ids => Object.fromEntries(ids.map(id => [id, fraction(3, 12, 3, 9, 3)])) })
+  const checked = await checkAndRepair(draft, { request: 'fraction addition', subject: 'Math', grade: 5 } as PackBrief, runbook('pack-math-procedure'), rules, { provider: 'openai', model: 'synthetic', apiKey: '' }, ask)
+  assert.ok(checked.dropped.some(i => i.reasons.some(r => /teaching|calculation/i.test(r))))
+  assert.equal(checked.final.skills.flatMap(s => s.items).some(i => i.prompt === draft.skills[0].items[0].prompt), false)
+})
+
+test('approved pack identity survives writing and publishing, and a stale map cannot receive generated questions', async () => {
+  const f = await family()
+  try {
+    const map: SubjectMap = structuredClone(JSON.parse(readFileSync(new URL('../eval/golden/research-subject.json', import.meta.url), 'utf8'))[0].replies.write)
+    map.subject = 'Math'
+    const selected = map.groups[0].concepts[0], oldKey = selected.key
+    Object.assign(selected, { key: 'fraction-addition', title: goodDraft().skills[0].title, dimension: 'procedural', idea: 'Rename the fractions with equal-sized parts before adding.' })
+    selected.contrast = { example: '1/2 + 1/3 = 5/6', nonExample: '1/2 + 1/3 = 2/5' }
+    for (const group of map.groups) for (const entry of group.concepts) entry.prereqs = entry.prereqs.map(key => key === oldKey ? selected.key : key)
+    const install = async () => {
+      const id = await startMapRow(f.db, f.student, 'Math')
+      await saveResearch(f.db, f.student, id, { map, web: false })
+      await approveMap(f.db, f.owner, f.student, id)
+    }
+    await install()
+    const concept = String((await f.db.prepare('SELECT concept_id FROM custom_concepts WHERE student_id=? AND map_key=?').get(f.student, selected.key))!.concept_id)
+    const draft = goodDraft(); draft.skills[0].mapKey = selected.key
+    const stub = stubAsk(draft)
+    const request = () => requestPack(f.db, f.owner, f.student, { text: '6 questions on adding fractions', subject: 'Math', by: 'parent', mode: 'review', requestId: rid(), conceptId: concept })
+    const result = await request(); assert.equal(result.kind, 'pack'); if (result.kind !== 'pack') throw new Error('No pack')
+    const ctx = { job: { owner_user_id: f.owner, student_id: f.student }, stage: async () => {}, active: async () => true, commit: async (fn: () => Promise<any>) => { await fn(); return true } }
+    await runPack({ db: f.db }, ctx as any, { packId: result.pack.id }, stub.ask)
+    const write = JSON.parse(stub.calls.find(c => c.kind === 'write')!.prompt)
+    assert.equal(write.subjectMap.key, selected.key); assert.equal(write.subjectMap.dimension, 'procedural')
+    assert.equal(write.subjectMap.misconceptions[0].fix, selected.misconceptions[0].fix)
+    await publishPack(f.db, f.owner, result.pack.id)
+    const written = await f.db.prepare('SELECT concept_id FROM practice_items WHERE pack_id=?').all(result.pack.id)
+    assert.ok(written.length >= 4 && written.every(i => i.concept_id === concept))
+    const second = await request(); assert.equal(second.kind, 'pack'); if (second.kind !== 'pack') throw new Error('No pack')
+    // A new request is held with the already checked synthetic draft so the publication version fence is exercised directly.
+    const prior = await packRow(f.db, result.pack.id)
+    await f.db.prepare("UPDATE packs SET status='review', check_json=? WHERE id=?").run(prior!.check_json, second.pack.id)
+    selected.idea = 'Use the same-sized parts and explain why each renamed fraction has the same value.'
+    await install()
+    await assert.rejects(publishPack(f.db, f.owner, second.pack.id), /approved topic changed/i)
+    assert.equal((await f.db.prepare('SELECT count(*) n FROM practice_items WHERE pack_id=?').get(second.pack.id))!.n, 0)
   } finally { f.db.close() }
 })

@@ -1,4 +1,16 @@
+import { learningNow } from './learning-clock.ts'
+import { newPaperWork, readPaperWork, readPaperConditions, type PaperConditions } from './paper-work.ts'
+import { fractionCheck, fractionCheckQueue, fractionGap, fractionPracticeDemand, fractionOutcome, dueFraction, checkLabel } from './engine/fraction-cycle.ts'
+import { FRACTION_FORM_CASES } from './engine/fraction-forms.ts'
+import { recordExposure } from "./learning-exposure.ts"
+import { approvedTeaching, lessonContext, readLessonContext } from './engine/teaching.ts'
+import { fractionCaseKeys, fractionScaffold, readScaffold, copiesTeaching } from './engine/scaffolds.ts'
+import type { QueueSlot } from "./engine/types.ts"
+import { mixedRelation, componentReady, componentDemand, eligiblePartner, mixedArc, readMixed, MIXED_POLICY } from "./engine/mixed.ts"
+import { prerequisiteClosure } from "./engine/graph.ts"
+import { stampTask, taskEvidence, snapshotAttempt, readTask, taskMatches, readConfidence, replaceUnseenTask, responseForm } from "./task-evidence.ts"
 import { noteChangedMind } from "./museum.ts"
+import { assessmentOpen, openAssessment } from './assessment.ts'
 import { currentHealth, HEALTH_CHILD, HEALTH_PARENT, type AiHealth } from "./ai-health.ts"
 import { conceptSubject, measuredSkill, supportSuppliesSkill } from "./engine/access.ts"
 import type { Rubric } from "./rubric.ts"
@@ -8,18 +20,19 @@ import { validateImage, stripImageMetadata } from "./image-validation.ts"
 import { reserveUpload } from "./upload-reservations.ts"
 import { UserError } from "./errors.ts"
 import { childAnswer, childReasonText } from "./child-words.ts"
-import { FreshPracticeRequired, type FreshContext } from './fresh-practice.ts'
+import { FreshPracticeRequired, type FreshContext, type ComparableRequest } from './fresh-practice.ts'
 import { feedbackState, promptIdentity } from './session-feedback.ts'
 import { learningMilestones } from "./engine/adventure.ts"
 import { cloudStorage, storePrivateFile, deletePrivateFile } from "./storage.ts"
 import { onWriteRollback } from "./transaction.ts"
 import { withWrite, lockFamily, withDatabaseScope } from './transaction.ts'
+import { observedDuration } from './turn-state.ts'
 import { encryptSecret, decryptSecret } from "./secrets.ts"
 import { missionArc } from "./engine/arc.ts"
 import { PRESENTATIONS, ageBand, numberChoices } from "./engine/age.ts"
 import { ChatGptError, chatgptAccessToken, chatgptConfig, distrustChatGptToken, readCredential, type ChatGptCredential, type ChatGptModel } from "./chatgpt.ts"
 import type { AiProvider } from "./ai.ts"
-import { randomInt, randomBytes } from "node:crypto"
+import { randomInt, randomBytes, createHash } from "node:crypto"
 import { mkdirSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import type { Database as DatabaseSync } from "./database.ts"
@@ -42,14 +55,14 @@ import { gradeFromBirthday, gradeLabel, nextGradeChange } from "./engine/grade.t
 import { buildGraph, loadBackbone, probeFailures, type ConceptGraph } from "./engine/graph.ts"
 import { designQuestion, generateItem } from "./engine/items.ts"
 import { readPatterns } from "./engine/patterns.ts"
-import { emptyState, estimatedRetention, freshEvidence, initialState, projectState, workingBloom } from "./engine/mastery.ts"
+import { emptyState, estimatedRetention, freshEvidence, independent, initialState, projectState, workingBloom, masteryMet } from "./engine/mastery.ts"
 import { needsJudgment, nonAttempt, requiresJudgment, scoreAnswer, scoreItem, type Gradable } from "./engine/score.ts"
 import { weeklyScoreboard } from "./engine/scoreboard.ts"
 import { buildQueue } from "./engine/select.ts"
 import { buildSheet } from "./engine/sheets.ts"
 import { activeFocus } from "./engine/targets.ts"
 import { nextThermostat } from "./engine/thermostat.ts"
-import { BLOOM_NAME, type AttemptRecord, type BloomLevel, type ConceptNode, type ErrorType, type LearnerConceptState, type Mode } from "./engine/types.ts"
+import { BLOOM_NAME, type AttemptRecord, type BloomLevel, type ConceptNode, type ErrorType, type Item, type LearnerConceptState, type Mode } from "./engine/types.ts"
 import { lessonOpening, type ClassProposal, type ScoreLine } from "./talk.ts"
 
 const graph = loadBackbone()
@@ -72,7 +85,7 @@ export async function createStudent(
   db: DatabaseSync,
   ownerUserId: string,
   input: { displayName: string; grade?: number; birthDate?: string; gradeHold?: boolean; sessionCapMinutes: number },
-  now = new Date(),
+  now = learningNow(),
 ) {
   return withWrite(db, async () => {
     await lockFamily(db, ownerUserId)
@@ -111,6 +124,7 @@ export async function createStudent(
       "INSERT INTO targets (id, student_id, kind, title, deadline, concept_ids, priority, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
     )
     await insertStudent.run(id, ownerUserId, await sealFor(db, ownerUserId, name), grade, cap, now.toISOString(), await sealFor(db, ownerUserId, birthday), hold)
+    await db.prepare('UPDATE students SET evidence_policy = 1 WHERE id = ?').run(id)
     const yearIds: string[] = []
     for (const concept of graph.nodes.values()) {
       const state = initialState(concept, grade, today)
@@ -142,7 +156,7 @@ export async function createStudent(
   })
 }
 
-export async function assertStudent(db: DatabaseSync, ownerUserId: string, studentId: string, now = new Date()): Promise<StudentRow> {
+export async function assertStudent(db: DatabaseSync, ownerUserId: string, studentId: string, now = learningNow()): Promise<StudentRow> {
   await lockFamily(db, ownerUserId)
   const row = (await db.prepare("SELECT * FROM students WHERE id = ? AND owner_user_id = ?").get(studentId, ownerUserId)) as
     | StudentRow
@@ -155,10 +169,10 @@ export async function listStudents(db: DatabaseSync, ownerUserId: string) {
   return (await db.prepare("SELECT * FROM students WHERE owner_user_id = ? ORDER BY created_at").all(ownerUserId)) as unknown as StudentRow[]
 }
 
-export async function listStates(db: DatabaseSync, studentId: string): Promise<LearnerConceptState[]> {
+export async function listStates(db: DatabaseSync, studentId: string, now = learningNow()): Promise<LearnerConceptState[]> {
   const rows = (await db.prepare("SELECT * FROM learner_states WHERE student_id = ?").all(studentId)) as Array<Record<string, SQLInputValue>>
   const attempts = await loadAttempts(db, studentId)
-  const today = dayStamp(new Date())
+  const today = dayStamp(now)
   const byConcept = new Map<string, AttemptRecord[]>()
   for (const attempt of attempts) {
     const group = byConcept.get(attempt.conceptId) ?? []
@@ -173,7 +187,7 @@ export async function createTarget(
   ownerUserId: string,
   studentId: string,
   input: { title: string; deadline: string; conceptIds: string[]; kind?: "target" | "curiosity"; notBefore?: string },
-  now = new Date(),
+  now = learningNow(),
 ) {
   await assertStudent(db, ownerUserId, studentId)
   const known = (await studentGraph(db, studentId))
@@ -233,7 +247,7 @@ export async function startTutorSession(
   db: DatabaseSync,
   ownerUserId: string,
   studentId: string,
-  now = new Date(),
+  now = learningNow(),
   options: {
     mode?: "session" | "assessment" | "homework"
     subject?: string
@@ -251,15 +265,22 @@ export async function startTutorSession(
 ): Promise<string> {
   return withWrite(db, async (): Promise<string> => {
     const mode = options.mode ?? "session"
+    const check = fractionCheck(options.goal)
+    if (check && mode !== 'assessment') throw new UserError('This check must use assessment mode. Help and results open after submission.')
     const subject = (options.subject ?? "Math").trim() || "Math"
     let student = (await assertStudent(db, ownerUserId, studentId, now))
+    const unfinishedCheck = await openAssessment(db, ownerUserId, studentId)
+    if (unfinishedCheck) {
+      if (mode === 'assessment') return unfinishedCheck.id
+      throw new UserError('Finish your assessment before starting learning with help. You can resume it or finish it early.')
+    }
     if (sameSubject(subject, "Math")) student = (await maybeAdvanceCourse(db, student))
     const requested = options.durationMinutes ?? Number((student as any).last_duration ?? 10)
     if (![3, 5, 10, 15, 20, 25].includes(requested)) throw new UserError("Choose 3, 5, 10, 15, 20, or 25 minutes.")
     const duration = [3, 5, 10, 15, 20, 25].filter(n => n <= Math.min(requested, student.session_cap_minutes, 25)).at(-1) ?? 3
     const known = (await studentGraph(db, studentId))
     const today = dayStamp(now)
-    const states = (await listStates(db, studentId))
+    const states = (await listStates(db, studentId, now))
     const byId = Object.fromEntries(states.map((state) => [state.conceptId, state]))
     const targets = (await loadTargets(db, studentId))
     const selected = options.targetId ? targets.find(t => t.id === options.targetId && t.kind === 'target' && t.deadline && t.deadline >= today) : null
@@ -276,12 +297,27 @@ export async function startTutorSession(
       [...known.nodes.values()].filter((concept) => sameSubject(concept.subject, subject)).map((concept) => concept.conceptId),
     )
     const weak = (await weakConceptIds(db, studentId, now)).filter((id) => subjectIds.has(id))
+    const attempts = await loadAttempts(db, studentId)
+    const scope = new Set(prerequisiteClosure(known, roots))
+    const readyRoots = roots.filter(id => known.nodes.get(id)!.prereqs.every(prereq => componentDemand(attempts, known.nodes.get(prereq)!) !== null))
+    const rotating = (readyRoots.length ? readyRoots : [...scope].filter(id => known.nodes.get(id)!.prereqs.every(prereq => componentDemand(attempts, known.nodes.get(prereq)!) !== null)))
+      .sort((a, b) => {
+        const wins = (id: string) => freshEvidence(attempts).filter(row => row.conceptId === id && row.bloomLevel === 2 && row.correct).length
+        const earned = (id: string) => (byId[id]?.bloomLevel ?? 0) >= 2 ? 1 : 0
+        const last = (id: string) => attempts.filter(row => row.conceptId === id).at(-1)?.createdAt ?? ''
+        return earned(a) - earned(b) || wins(a) - wins(b) || last(a).localeCompare(last(b))
+      })
     const openCourse = roots.filter((id) => byId[id]?.status !== "mastered" || (byId[id]?.bloomLevel ?? 0) < 3)
     const preferred = options.focusConceptId && subjectIds.has(options.focusConceptId) ? options.focusConceptId : null
     const relevantGap = weak.find(id => roots.includes(id) || roots.some(root => known.nodes.get(root)?.prereqs.includes(id)))
-    const frontierId = preferred ?? (relevantGap && mode !== 'assessment' ? relevantGap : openCourse[0] ?? roots[0])
+    const frontierId = preferred ?? (relevantGap && mode !== 'assessment' ? relevantGap : rotating[0] ?? openCourse[0] ?? roots[0])
     const frontier = (subjectIds.has(frontierId) ? known.nodes.get(frontierId) : undefined) ?? known.nodes.get(roots[0])
     if (!frontier) throw new UserError("No concept is available for this student.")
+    const dueAttempts = freshEvidence(attempts).filter(a => scope.has(a.conceptId) && a.correct && a.kind !== 'transfer')
+    const latestByConcept = new Map<string, AttemptRecord>()
+    for (const a of dueAttempts) latestByConcept.set(a.conceptId, a)
+    const comparableDue = [...latestByConcept.values()].filter(a => daysBetween(a.day, today) >= 7)
+      .sort((a, b) => a.day.localeCompare(b.day))[0]
     const review = states
       .filter((state) => (subjectIds.has(state.conceptId) || mode === "session") && state.conceptId !== frontier.conceptId && state.nextDue <= today && (state.status === "mastered" || state.status === "review_due" || weak.includes(state.conceptId)))
       .sort((a, b) => a.nextDue.localeCompare(b.nextDue) || a.stabilityDays - b.stabilityDays)
@@ -291,8 +327,8 @@ export async function startTutorSession(
     const pace = mode === "assessment" ? { itemCount: 6, frontier: 4, review: 1, stretch: 1 } : paceFor(comparable.length >= 6 ? comparable.filter(Boolean).length / comparable.length : null)
     const queued = buildQueue({
       frontierConceptId: frontier.conceptId,
-      frontierBloom: options.goal === "parallel_practice" ? 3 : preferred && byId[preferred]?.nextDue <= today && (byId[preferred]?.status === "mastered" || byId[preferred]?.status === "review_due")
-        ? Math.max(1, byId[preferred].bloomLevel) as BloomLevel : workingBloom(byId[frontier.conceptId]),
+      frontierBloom: fractionPracticeDemand(known, attempts, frontier.conceptId) ?? (options.goal === "parallel_practice" ? 3 : (byId[frontier.conceptId]?.independentChecks ?? 0) >= 2 && workingBloom(byId[frontier.conceptId]) <= 2 && (byId[frontier.conceptId]?.bloomLevel ?? 0) < 2 ? 2 : preferred && byId[preferred]?.nextDue <= today && (byId[preferred]?.status === "mastered" || byId[preferred]?.status === "review_due")
+        ? Math.max(1, byId[preferred].bloomLevel) as BloomLevel : workingBloom(byId[frontier.conceptId])),
       review,
       stretchConceptId: stretch,
       itemCount: pace.itemCount,
@@ -328,12 +364,52 @@ export async function startTutorSession(
       beat: 'warmup', conceptId: review[0].conceptId, bloomLevel: review[0].bloom,
       interleaved: false, partnerConceptId: null, scored: true,
     }
-    if (arcMission) queue = missionArc(queue, duration)
+    if (arcMission) {
+      const main = queue.find(slot => slot.beat === 'frontier') ?? queue[0]
+      const independent = freshEvidence(attempts).filter(a => a.conceptId === main?.conceptId && a.bloomLevel === main?.bloomLevel && a.kind !== 'transfer').slice(-2)
+      const gap = attempts.filter(a => a.conceptId === main?.conceptId && a.bloomLevel === main?.bloomLevel && !a.correct).at(-1)
+      const demonstrated = independent.length === 2 && independent.every(a => a.correct)
+        && (!gap || (gap.createdAt ?? gap.day) < (independent[0].createdAt ?? independent[0].day))
+      queue = missionArc(queue, duration, !demonstrated)
+    }
+    // A due measurement comes before relevant refresher teaching and survives short-mission truncation.
+    if (mode === 'session' && comparableDue) {
+      const dueSlot: QueueSlot = { beat: 'review', conceptId: comparableDue.conceptId, bloomLevel: comparableDue.bloomLevel, interleaved: false, partnerConceptId: null, scored: true }
+      const existingReview = queue.findIndex(slot => slot.beat === 'review')
+      const replacement = existingReview >= 0 ? existingReview : queue.findIndex(slot => ['frontier', 'stretch', 'warmup'].includes(slot.beat))
+      if (replacement >= 0) { queue.splice(replacement, 1); queue.unshift(dueSlot) }
+    }
+    if (arcMission) {
+      let targetSlot = queue.find(slot => slot.beat === 'frontier')
+      let partner = targetSlot ? eligiblePartner(known, scope, attempts, targetSlot.conceptId, targetSlot.bloomLevel) : null
+      // The due task can serve as the first component. Reverse the pair when it is the selected target,
+      // so the delayed measurement remains before any related refresher and no third task is added.
+      const due = queue.find(slot => slot.beat === 'review')
+      if (targetSlot && partner && due?.conceptId === targetSlot.conceptId && componentReady(attempts, due.conceptId, due.bloomLevel)) {
+        targetSlot = { ...targetSlot, conceptId: partner.conceptId, bloomLevel: partner.bloom }
+        partner = { ...partner, conceptId: due.conceptId, bloom: due.bloomLevel }
+      }
+      if (targetSlot) queue = mixedArc(queue, targetSlot, partner, duration)
+    }
+    if (check) {
+      queue = fractionCheckQueue(known, attempts, frontier.conceptId, check, today)
+      if (!queue.length) throw new UserError(check === 'delayed_check' ? 'A comparable delayed check is not due yet.' : 'Choose a supported fractions outcome for this check.')
+    }
     const continuity = options.picked?.reason
       ? `${options.picked.reason} ${(await continuityLine(db, studentId, today))}`
       : (await continuityLine(db, studentId, today))
     const sessionId = crypto.randomUUID()
     const seen = (await seenPrompts(db, studentId))
+    const taughtCases = new Set<string>()
+    const taughtContent = new Map<string, string[]>()
+    const teaching = await db.prepare('SELECT i.scaffold_json, i.lesson_json FROM session_items i JOIN tutor_sessions s ON s.id = i.session_id WHERE s.student_id = ? AND (i.scaffold_json IS NOT NULL OR i.lesson_json IS NOT NULL)').all(studentId)
+    for (const row of teaching) for (const key of readScaffold(row.scaffold_json)?.caseKeys ?? []) taughtCases.add(key)
+    for (const row of teaching) {
+      const context = readLessonContext(row.lesson_json)
+      if (context) taughtContent.set(context.conceptId, [...(taughtContent.get(context.conceptId) ?? []), context.example, context.nonExample])
+    }
+    const allCases = new Set([...seen].flatMap(fractionCaseKeys))
+    for (const key of taughtCases) allCases.add(key)
     const recallChecks = new Set<string>()
     const job = mode === "assessment" ? "assessment" : "homework"
     await db.prepare(
@@ -343,16 +419,24 @@ export async function startTutorSession(
     ).run(sessionId, studentId, now.toISOString(), duration, continuity, mode, subject)
     await db.prepare("UPDATE students SET last_duration = ? WHERE id = ?").run(requested, studentId)
     await db.prepare("UPDATE tutor_sessions SET requested_at = ? WHERE id = ?").run(now.toISOString(), sessionId)
-    await db.prepare("UPDATE tutor_sessions SET goal = ?, material_id = ?, question_id = ?, lesson_done = ? WHERE id = ?").run(options.goal ?? (probeMission ? "probe" : options.intent ?? mode), options.materialId ?? null, options.questionId ?? null, arcMission ? 0 : 1, sessionId)
+    await db.prepare("UPDATE tutor_sessions SET goal = ?, material_id = ?, question_id = ?, lesson_done = ? WHERE id = ?").run(options.goal ?? (probeMission ? "probe" : options.intent ?? mode), options.materialId ?? null, options.questionId ?? null, arcMission && queue.some(slot => slot.beat === "guided") ? 0 : 1, sessionId)
     for (const [index, slot] of (queue).entries()) {
       const concept = known.nodes.get(slot.conceptId)!
+      const supported = ['guided', 'faded'].includes(slot.beat)
+      const lesson = slot.beat === 'guided' ? lessonContext(concept) : null
       const partner = slot.partnerConceptId ? known.nodes.get(slot.partnerConceptId) ?? null : null
-      const item = generateItem(concept, slot.bloomLevel, randomInt(1, 1_000_000_000), {
+      const seed = randomInt(1, 1_000_000_000)
+      const item = generateItem(concept, slot.bloomLevel, seed, {
         interleaved: slot.interleaved,
         partner,
         itemId: crypto.randomUUID(),
+        role: check === 'transfer_check' ? 'transfer' : 'practice',
       })
-      const practice = (await claimPractice(db, studentId, slot.conceptId, now, slot.bloomLevel, seen))
+      const scaffold = supported
+        ? fractionScaffold(concept, slot.bloomLevel, randomInt(1, 1_000_000_000), slot.beat === 'faded', allCases) : null
+      const practice = scaffold || check ? null : (await claimPractice(db, studentId, slot.conceptId, now, slot.bloomLevel, seen, false,
+        slot.beat === 'review' || Boolean(slot.partnerConceptId), slot.beat === 'review' && comparableDue?.conceptId === slot.conceptId ? comparableDue.task?.responseForm : undefined,
+        supported ? [] : taughtContent.get(concept.conceptId) ?? []))
       const fresh = practice && !isGenericDrill(practice.prompt)
       const designed = concept.conceptId.startsWith("math.") || (slot.bloomLevel !== 3 && slot.bloomLevel !== 6)
         ? null
@@ -373,15 +457,35 @@ export async function startTutorSession(
           ? ["What is this question asking you to do?", "Write the first step or one relevant observation and explain it.", `Compare your work with this key or rubric: ${answer}. Then try a new parallel example.`]
           : item.hintLadder
       let selectedPrompt = prompt, selectedAnswer = answer, selectedBloom = bloom, selectedHints = hints
-      let selectedFormat = fresh ? practice.format : "text", selectedChoices = fresh ? practice.choices : null, selectedExplanation = fresh ? practice.explanation : ""
-      for (let tries = 0; seen.has(promptIdentity(selectedPrompt)) && tries < 24; tries++) {
-        const alternative = generateItem(concept, slot.bloomLevel, randomInt(1, 1_000_000_000), { itemId:item.itemId, interleaved:slot.interleaved, partner })
-        selectedPrompt=alternative.prompt; selectedAnswer=alternative.answer; selectedBloom=alternative.bloomLevel; selectedHints=alternative.hintLadder
-        selectedFormat="text"; selectedChoices=null; selectedExplanation=""
+      let selectedFormat = fresh ? practice.format : designed ? 'text' : item.responseFormat ?? "text", selectedChoices = fresh ? practice.choices : designed ? null : item.choices ?? null, selectedExplanation = fresh ? practice.explanation : ""
+      let selectedRubric = fresh ? practice.rubric ?? null : item.rubric ? JSON.stringify(item.rubric) : null
+      let selectedRole = fresh ? practice.kind : item.evidenceKind ?? 'practice'
+      if (scaffold) {
+        selectedPrompt = scaffold.task.prompt; selectedAnswer = scaffold.task.answer; selectedBloom = scaffold.task.bloom
+        selectedHints = scaffold.task.hints; selectedFormat = scaffold.task.format; selectedChoices = scaffold.task.choices ?? null
+        selectedExplanation = 'This completion problem supplied part of the work. A fresh independent question follows.'
+        selectedRubric = null; selectedRole = 'practice'
       }
-      if (tiles && selectedFormat === "text" && !selectedChoices) {
+      const taughtCopy = () => !scaffold && (fractionCaseKeys(selectedPrompt).some(key => allCases.has(key))
+        || !supported && copiesTeaching(selectedPrompt, taughtContent.get(concept.conceptId) ?? []))
+      for (let tries = 0; !scaffold && (seen.has(promptIdentity(selectedPrompt)) || taughtCopy()) && tries < (check ? FRACTION_FORM_CASES : 48); tries++) {
+        const alternative = generateItem(concept, slot.bloomLevel, check ? seed + tries + 1 : randomInt(1, 1_000_000_000), { itemId:item.itemId, interleaved:slot.interleaved, partner, role: check === 'transfer_check' ? 'transfer' : 'practice' })
+        selectedPrompt=alternative.prompt; selectedAnswer=alternative.answer; selectedBloom=alternative.bloomLevel; selectedHints=alternative.hintLadder
+        selectedFormat=alternative.responseFormat ?? "text"; selectedChoices=alternative.choices ?? null; selectedExplanation=""
+        selectedRubric=alternative.rubric ? JSON.stringify(alternative.rubric) : null; selectedRole=alternative.evidenceKind ?? 'practice'
+      }
+      if (check && (taughtCopy() || seen.has(promptIdentity(selectedPrompt)))) throw new UserError('This check has no unused authored questions left. Your progress is saved. Choose another topic for now.')
+      if (taughtCopy()) throw new FreshPracticeRequired(slot.conceptId, subject)
+      if (scaffold) for (const key of scaffold.caseKeys) { taughtCases.add(key); allCases.add(key) }
+      if (lesson && !scaffold) taughtContent.set(concept.conceptId, [...(taughtContent.get(concept.conceptId) ?? []), lesson.example, lesson.nonExample])
+      for (const key of fractionCaseKeys(selectedPrompt)) allCases.add(key)
+      if ((tiles || slot.beat === 'review' && comparableDue?.task?.responseForm === 'choice') && selectedFormat === "text" && !selectedChoices) {
         const choices = numberChoices(String(selectedAnswer), String(selectedPrompt), parseInt(item.itemId.replace(/-/g, "").slice(0, 8), 16))
         if (choices) { selectedFormat = "choice"; selectedChoices = choices }
+      }
+      const requiredForm = slot.beat === 'review' && comparableDue?.conceptId === slot.conceptId ? comparableDue.task?.responseForm : undefined
+      if (requiredForm && requiredForm !== 'unknown' && responseForm({format:selectedFormat,answer:selectedAnswer}) !== requiredForm) {
+        throw new FreshPracticeRequired(slot.conceptId, subject, { demand: slot.bloomLevel, responseForm: requiredForm })
       }
       const recallKey = `${item.conceptId}:${selectedAnswer}`
       const repeated = seen.has(promptIdentity(selectedPrompt)) || (mode !== "assessment" && selectedBloom === 1 && recallChecks.has(recallKey))
@@ -410,15 +514,21 @@ export async function startTutorSession(
         selectedExplanation,
       )
       if (repeated) await db.prepare("UPDATE session_items SET skipped = 1, skip_reason = 'repeated_prompt' WHERE id = ?").run(item.itemId)
+      if (scaffold) await db.prepare('UPDATE session_items SET scaffold_json = ? WHERE id = ?').run(JSON.stringify(scaffold), item.itemId)
+      if (lesson) await db.prepare('UPDATE session_items SET lesson_json = ? WHERE id = ?').run(JSON.stringify(lesson), item.itemId)
       // A question written to use the idea somewhere new is transfer evidence when answered unaided.
-      if (fresh && practice.kind === "transfer" && selectedPrompt === practice.prompt) await db.prepare("UPDATE session_items SET evidence_kind = 'transfer' WHERE id = ?").run(item.itemId)
+      if (selectedRole === "transfer") await db.prepare("UPDATE session_items SET evidence_kind = 'transfer' WHERE id = ?").run(item.itemId)
       // The rubric written with the question travels with it, so grading marks against it.
-      if (fresh && practice.rubric && selectedPrompt === practice.prompt) await db.prepare("UPDATE session_items SET rubric_json = ? WHERE id = ?").run(practice.rubric, item.itemId)
+      if (selectedRubric) await db.prepare("UPDATE session_items SET rubric_json = ? WHERE id = ?").run(selectedRubric, item.itemId)
       // Guided work starts with the fuller hint showing and faded work with the first one; both count as help.
       if (slot.beat === "guided" || slot.beat === "faded") {
         const shown = slot.beat === "guided" ? selectedHints[1] ?? selectedHints[0] : selectedHints[0]
         if (shown) await db.prepare("UPDATE session_items SET hint_text = ?, hints_used = 1 WHERE id = ?").run(shown, item.itemId)
       }
+      // All claims belong to this final delivered version after replacement/fallback/control selection.
+      await db.prepare('UPDATE session_items SET interleaved = 0, partner_concept_id = NULL WHERE id = ?').run(item.itemId)
+      await db.prepare('UPDATE session_items SET evidence_purpose = ? WHERE id = ?').run(slot.beat === 'review' ? 'delayed-check' : slot.partnerConceptId ? 'mixed-check' : 'learning', item.itemId)
+      await stampTask(db, item.itemId, fresh && selectedPrompt === practice.prompt ? 'practice' : designed && selectedPrompt === designed.prompt ? 'designed' : 'builtin', fresh && selectedPrompt === practice.prompt ? practice.sourceId : null)
     }
     if (!(await sessionItems(db, sessionId)).length) throw new FreshPracticeRequired(frontier.conceptId, subject)
     await recordDecision(db, studentId, "session_started", unfamiliar ? "Start with two brief probes, then practice and a fresh independent check. Placement remains provisional." : continuity, {
@@ -431,11 +541,11 @@ export async function startTutorSession(
   })
 }
 
-export async function nextLearningAction(db: DatabaseSync, ownerId: string, studentId: string, now = new Date()) {
+export async function nextLearningAction(db: DatabaseSync, ownerId: string, studentId: string, now = learningNow()) {
   const student = (await assertStudent(db, ownerId, studentId, now))
   const known = (await studentGraph(db, studentId))
   const today = dayStamp(now)
-  const states = (await listStates(db, studentId))
+  const states = (await listStates(db, studentId, now))
   const focus = activeFocus((await loadTargets(db, studentId)), today)
   const pack = await packFocus(db, studentId, known, now)
   let conceptId = pack?.conceptId ?? (focus?.kind === "target" ? focus.conceptIds[0] : undefined)
@@ -456,11 +566,42 @@ export async function nextLearningAction(db: DatabaseSync, ownerId: string, stud
       ?? focus?.conceptIds[0]
     reason = newest ? "The newest school material sets the next focus; the standing course stays." : "This is the next open concept in the standing course."
   }
+  let checkGoal: ReturnType<typeof fractionCheck> = null
+  if (conceptId && fractionOutcome(conceptId) && !pack && focus?.kind === 'target') {
+    const attempts = await loadAttempts(db, studentId), evidence = freshEvidence(attempts).filter(a => a.conceptId === conceptId)
+    const gap = fractionGap(known, attempts, conceptId)
+    if (!evidence.length) {
+      checkGoal = 'diagnostic_check'; reason += ' A short check will show which parts are ready and where to start learning.'
+    } else if (gap) {
+      conceptId = gap; reason = 'This foundation needs practice before the next fraction idea.'
+      if (!freshEvidence(attempts).some(a => a.conceptId === gap)) checkGoal = 'diagnostic_check'
+    } else if (dueFraction(attempts, conceptId, today)) {
+      checkGoal = 'delayed_check'; reason = 'Try fresh questions like the ones you solved earlier, before a refresher.'
+    } else {
+      const delayed = await db.prepare(`SELECT s.id, s.ended_at FROM tutor_sessions s WHERE s.student_id = ? AND s.goal = 'delayed_check'
+        AND s.end_reason = 'assessment_submitted' AND EXISTS (SELECT 1 FROM session_items i WHERE i.session_id = s.id AND i.concept_id = ?)
+        AND NOT EXISTS (SELECT 1 FROM session_items i WHERE i.session_id = s.id AND (i.correct IS NULL OR i.correct = 0 OR i.skipped = 1))
+        ORDER BY s.ended_at DESC LIMIT 1`).get(studentId, conceptId)
+      const transferred = delayed && attempts.some(a => a.conceptId === conceptId && a.kind === 'transfer' && (a.createdAt ?? a.day) >= String(delayed.ended_at))
+      if (delayed && !transferred && ['math.5.nf.a.1', 'math.fractions.operation-choice'].includes(conceptId)) {
+        checkGoal = 'transfer_check'; reason = 'Use the idea in a different situation and explain your decision.'
+      } else {
+        const lesson = await db.prepare(`SELECT s.id, s.started_at FROM tutor_sessions s WHERE s.student_id = ?
+          AND s.mode = 'session' AND (s.end_reason IS NULL OR s.end_reason <> 'continued')
+          AND EXISTS (SELECT 1 FROM session_items i WHERE i.session_id = s.id AND i.concept_id = ? AND i.hints_used > 0 AND i.answered = 1)
+          AND NOT EXISTS (SELECT 1 FROM session_items i WHERE i.session_id = s.id AND i.answered = 0 AND i.skipped = 0)
+          ORDER BY s.started_at DESC LIMIT 1`).get(studentId, conceptId)
+        const checked = lesson && await db.prepare(`SELECT s.id FROM tutor_sessions s JOIN session_items i ON i.session_id = s.id
+          WHERE s.student_id = ? AND s.goal = 'independent_check' AND i.concept_id = ? AND s.requested_at >= ? LIMIT 1`).get(studentId, conceptId, lesson.started_at)
+        if (lesson && !checked) { checkGoal = 'independent_check'; reason = 'Try a fresh check on your own to see what stayed with you.' }
+      }
+    }
+  }
   const concept = conceptId ? known.nodes.get(conceptId) : null
   const state = states.find((row) => row.conceptId === conceptId)
   const last = (await db.prepare("SELECT day FROM attempts WHERE student_id = ? AND concept_id = ? ORDER BY created_at DESC LIMIT 1").get(studentId, conceptId ?? ""))
   const retentionEstimate = state && last ? estimatedRetention(state.stabilityDays, daysBetween(String(last.day), today)) : null
-  return concept ? { conceptId: concept.conceptId, title: concept.title, subject: concept.subject, reason, retentionEstimate, packId: pack?.conceptId === concept.conceptId ? pack.packId : null, lessonFirst: Boolean(pack?.lessonFirst && pack.conceptId === concept.conceptId) } : null
+  return concept ? { conceptId: concept.conceptId, title: concept.title, subject: concept.subject, reason, retentionEstimate, checkGoal, checkLabel: checkGoal ? checkLabel(checkGoal) : null, packId: pack?.conceptId === concept.conceptId ? pack.packId : null, lessonFirst: Boolean(pack?.lessonFirst && pack.conceptId === concept.conceptId) } : null
 }
 
 /**
@@ -491,7 +632,7 @@ export async function findConceptByTitle(db: DatabaseSync, studentId: string, su
 }
 
 /** Adds a one-off topic for a learning pack. It does not join the standing course and creates no test date. */
-export async function addPackConcept(db: DatabaseSync, studentId: string, input: { subject: string; title: string; recall: string; example: string; nonExample: string }, now = new Date()) {
+export async function addPackConcept(db: DatabaseSync, studentId: string, input: { subject: string; title: string; recall: string; example: string; nonExample: string }, now = learningNow()) {
   const student = (await db.prepare("SELECT grade FROM students WHERE id = ?").get(studentId)) as { grade: number } | undefined
   if (!student) throw new UserError("Student not found.")
   const conceptId = `custom.${crypto.randomUUID()}`
@@ -509,7 +650,7 @@ export async function addPackConcept(db: DatabaseSync, studentId: string, input:
 
 /** Stores one checked learning-pack question with its format, options, hints and explanation. */
 export async function insertPackItem(db: DatabaseSync, studentId: string, packId: string, conceptId: string,
-  item: { prompt: string; answer: string; bloom: number; format: string; choices: string[] | null; hints: string[]; explanation: string; rubric?: Rubric | null }, now = new Date()) {
+  item: { prompt: string; answer: string; bloom: number; format: string; choices: string[] | null; hints: string[]; explanation: string; rubric?: Rubric | null }, now = learningNow()) {
   await db.prepare(
     "INSERT INTO practice_items (id, student_id, concept_id, prompt, answer, bloom_level, created_at, pack_id, format, choices_json, hints_json, explanation, rubric_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
   ).run(crypto.randomUUID(), studentId, conceptId, item.prompt, item.answer, item.bloom, now.toISOString(), packId, item.format, item.choices ? JSON.stringify(item.choices) : null, JSON.stringify(item.hints), item.explanation, item.rubric ? JSON.stringify(item.rubric) : null)
@@ -538,12 +679,29 @@ export async function submitAnswer(
   db: DatabaseSync,
   ownerUserId: string,
   sessionId: string,
-  input: { itemId: string; answer: string; timeMs?: number; errorType?: ErrorType; frustrated?: boolean; confidence?: string },
-  now = new Date(),
+  input: { itemId: string; answer: string; revision?: string; activeMs?: number; timeMs?: number; errorType?: ErrorType; frustrated?: boolean; confidence?: string },
+  now = learningNow(),
 ) {
   return withWrite(db, async () => {
+    await lockFamily(db, ownerUserId)
     let session = (await getOwnedSession(db, ownerUserId, sessionId))
-    if (session.ended_at) return { ended: true as const, reason: String(session.end_reason ?? "done") }
+    const submittedItem = await db.prepare('SELECT revision_id FROM session_items WHERE id = ? AND session_id = ?').get(input.itemId, sessionId)
+    if (input.revision !== undefined && input.revision !== String(submittedItem?.revision_id ?? '')) throw new UserError('This question changed. Reload your saved work before submitting.')
+    const rememberStoppedDraft = async () => {
+      if (session.mode !== 'assessment' || String(input.answer ?? '').length > 4000) return
+      const current = (await sessionItems(db, sessionId)).find(i => i.answered === 0)
+      if (current?.id === input.itemId) await db.prepare('UPDATE session_items SET draft_answer = ? WHERE id = ? AND answered = 0')
+        .run(await sealForStudent(db, String(session.student_id), String(input.answer ?? '')), current.id)
+    }
+    if (session.ended_at) {
+      if (session.end_reason === 'attention') await rememberStoppedDraft()
+      // A retried final submission may still need its idempotent grading job after a lost response.
+      const prior = session.mode === 'assessment' ? (await sessionItems(db, sessionId)).find(i => i.id === input.itemId && i.answered === 1) : null
+      return { ended: true as const, reason: String(session.end_reason ?? "done"), ...(prior ? { duplicate: true, pendingReview: prior.correct == null } : {}) }
+    }
+    const assessment = session.mode === 'assessment'
+    const activeCheck = await openAssessment(db, ownerUserId, String(session.student_id))
+    if (activeCheck && activeCheck.id !== sessionId) throw new UserError('Finish your assessment before returning to learning with help.')
     if (session.paused_at) {
       // Answering after a pause picks the clock up where it stopped; time away never counts.
       const away = Math.max(0, now.getTime() - Date.parse(String(session.paused_at)))
@@ -554,6 +712,7 @@ export async function submitAnswer(
     const started = new Date(String(session.started_at)).getTime()
     const minutes = (now.getTime() - started) / 60000
     if (minutes >= Number(session.cap_minutes)) {
+      await rememberStoppedDraft()
       await endSession(db, sessionId, "attention", now)
       return { ended: true as const, reason: "attention" }
     }
@@ -564,17 +723,27 @@ export async function submitAnswer(
     const current = items.find((item) => item.answered === 0)
     const priorSubmission = items.find(item => item.id === input.itemId && item.answered === 1)
     if (priorSubmission) return { ended: false as const, duplicate: true, pendingReview: priorSubmission.correct == null }
+    if (assessment && current?.id !== input.itemId && await db.prepare("SELECT id FROM session_items WHERE id = ? AND session_id = ? AND skip_reason = 'assessment_unanswered'").get(input.itemId, sessionId)) {
+      return { ended: false as const, duplicate: true, skipped: true as const }
+    }
     if (feedbackState(String(session.mode), items, Number(session.feedback_cursor ?? 0)).checkpoint) throw new UserError("Review your feedback before the next question.")
     if (!current || current.id !== input.itemId) throw new UserError("That item is not the current one.")
+    await recordExposure(db, String(session.student_id), sessionId, current, 'answer', now, true)
     const raw = input.answer ?? ""
-    // How sure the child said they were. Optional; stored beside the answer to compare with the result.
-    if (["sure", "think", "guess"].includes(String(input.confidence))) await db.prepare("UPDATE session_items SET confidence = ? WHERE id = ?").run(input.confidence!, current.id)
+    // Preserve an earlier capture when the same value is submitted; answer-time help is checked separately.
+    if (["sure", "think", "guess"].includes(String(input.confidence))) await saveConfidence(db, session, current, input.confidence!, now)
     const expected = String(current.answer)
     const gradable = itemGradable(current)
     const scored = scoreItem(gradable, raw)
     const timeMs = Math.max(0, Math.min(input.timeMs ?? 0, 30 * 60 * 1000))
     // Not a try at the question: ask again without scoring, diagnosing, grading or spending the prompt.
     const notTried = nonAttempt(gradable, raw)
+    if (notTried && assessment) {
+      // A check must allow an honest non-answer, without hints or repeated guesses. It supplies no scored evidence.
+      await db.prepare("UPDATE session_items SET skipped = 1, skip_reason = 'assessment_unanswered', draft_answer = NULL WHERE id = ?").run(current.id)
+      if (!(await sessionItems(db, sessionId)).some(i => i.answered === 0)) await finishAssessment(db, ownerUserId, sessionId, now)
+      return { ended: false as const, skipped: true as const }
+    }
     if (notTried) {
       let earlier = 0
       try { const pending = session.pending_feedback ? JSON.parse(String(session.pending_feedback)) : null; if (pending?.action === "reask" && pending.itemId === current.id) earlier = Number(pending.count) || 1 } catch { earlier = 0 }
@@ -586,6 +755,9 @@ export async function submitAnswer(
       }, now)
       return { ended: false as const, reask: true as const, count }
     }
+    if (Number(current.evidence_policy) === 1 && !taskMatches(current)) throw new UserError('This question changed. Reload your saved work before submitting.')
+    await captureMixedEvidence(db, session, current, now)
+    await db.prepare('UPDATE session_items SET submitted_revision = revision_id, active_work_ms = ? WHERE id = ?').run(observedDuration(input.activeMs), current.id)
     if (needsJudgment(gradable, Number(current.bloom_level)) || !raw.trim() || /^(?:\?|unreadable|unclear|illegible)$/i.test(raw.trim())) {
       await db.prepare("UPDATE session_items SET answered = 1, given_answer = ?, time_ms = ?, submitted_at = ?, correct = NULL WHERE id = ?")
         .run(await sealForStudent(db, String(session.student_id), raw), timeMs, now.toISOString(), current.id)
@@ -593,6 +765,7 @@ export async function submitAnswer(
       await recordDecision(db, String(session.student_id), "answer_submitted", "Written reasoning requires a rubric verdict before it can count.", {
         sessionId, itemId: current.id, conceptId: current.concept_id, bloomLevel: current.bloom_level,
       }, now)
+      if (assessment && !(await sessionItems(db, sessionId)).some(i => i.answered === 0)) await finishAssessment(db, ownerUserId, sessionId, now)
       return { ended: false as const, pendingReview: true as const, correct: null }
     }
     const previousTimes = items.filter((item) => item.answered === 1 && item.time_ms != null).map((item) => Number(item.time_ms))
@@ -638,13 +811,14 @@ export async function submitAnswer(
       now.toISOString(),
     )
     await db.prepare(
-      "UPDATE session_items SET answered = 1, correct = ?, error_type = ?, time_ms = ?, given_answer = ?, submitted_at = ? WHERE id = ?",
-    ).run(scored.correct ? 1 : 0, errorType, timeMs, await sealForStudent(db, String(session.student_id), raw), now.toISOString(), current.id)
+      "UPDATE session_items SET answered = 1, correct = ?, error_type = ?, time_ms = ?, given_answer = ?, submitted_at = ?, graded_at = ? WHERE id = ?",
+    ).run(scored.correct ? 1 : 0, errorType, timeMs, await sealForStudent(db, String(session.student_id), raw), now.toISOString(), now.toISOString(), current.id)
+    await snapshotAttempt(db, (await db.prepare('SELECT * FROM session_items WHERE id = ?').get(current.id))!)
     if (scored.correct) await noteChangedMind(db, sessionId, String(current.id), now)
     const teachingConcept = (await studentGraph(db, String(session.student_id))).nodes.get(String(current.concept_id))
     const recovery = scored.correct ? null : childCorrection(errorType ? corrective(errorType).label : "Let’s check the idea", current, teachingConcept)
     const flags = (await rollingSix(db, String(session.student_id), String(current.concept_id), Number(current.bloom_level)))
-    const action = nextThermostat({
+    const action = assessment ? { type: 'hold' as const } : nextThermostat({
       recentCorrect: flags,
       consecutiveStepDowns: Number(session.consecutive_step_downs),
       modality: session.modality as Mode,
@@ -681,7 +855,7 @@ export async function submitAnswer(
       )
       if (action.type === "step_up" || action.type === "step_down") {
         const next = (await sessionItems(db, sessionId)).find((item) => item.answered === 0 && item.concept_id === current.concept_id && item.bloom_level === current.bloom_level)
-        if (next) await rewriteItem(db, next, action.type === "step_up" ? 1 : -1)
+        if (next) await rewriteItem(db, next, action.type === "step_up" ? 1 : -1, now)
       }
       if (action.type === "change_modality") {
         const next = (await sessionItems(db, sessionId)).find((item) => item.answered === 0 && item.concept_id === current.concept_id && item.bloom_level === current.bloom_level)
@@ -694,12 +868,14 @@ export async function submitAnswer(
       const node = prerequisite ? (await studentGraph(db, String(session.student_id))).nodes.get(prerequisite) : null
       if (next && node && Number(current.position) <= 2) {
         const probe = generateItem(node, 1, randomInt(1, 1_000_000_000), { itemId: String(next.id) })
-        await db.prepare("UPDATE session_items SET concept_id = ?, bloom_level = 1, prompt = ?, answer = ?, hints_json = ?, beat = 'warmup', interleaved = 0, partner_concept_id = NULL WHERE id = ?").run(node.conceptId, probe.prompt, probe.answer, JSON.stringify(probe.hintLadder), next.id)
+        await replaceUnseenTask(db, next, { concept_id: node.conceptId, bloom_level: 1, prompt: probe.prompt, answer: probe.answer,
+          hints_json: JSON.stringify(probe.hintLadder), beat: 'warmup', format: probe.responseFormat ?? 'text', choices_json: probe.choices ? JSON.stringify(probe.choices) : null, explanation: '' }, 'builtin')
         await recordDecision(db, String(session.student_id), "prerequisite_probe", "An early miss suggests checking one foundation before returning to the chosen topic; the cause is unresolved.", { sessionId, conceptId: node.conceptId, sourceConceptId: current.concept_id }, now)
       }
     }
     await recordTeachingOutcome(db, session, current, scored.correct, scored.correct ? "That matches the answer." : "That is not the answer yet.", now)
     const unfinished = (await sessionItems(db, sessionId)).some((item) => item.answered === 0)
+    if (assessment && !unfinished) await finishAssessment(db, ownerUserId, sessionId, now)
     if (!unfinished) await completeFollowup(db, String(session.student_id), sessionId, today)
     if (!unfinished && (session.mode === "homework" || session.mode === "assessment")) {
       await reviseAgenda(db, String(session.student_id), String(session.subject ?? "Math"), sessionId)
@@ -720,20 +896,73 @@ export async function submitAnswer(
   })
 }
 
+async function captureMixedEvidence(db: DatabaseSync, session: Record<string, SQLInputValue>, item: Record<string, SQLInputValue>, now: Date) {
+  if (Number(item.evidence_policy) !== 1) return
+  item.interleaved = 0
+  await db.prepare('UPDATE session_items SET interleaved = 0, mixed_evidence = NULL WHERE id = ?').run(item.id)
+  if (!item.visible_at || Number(item.hints_used) || session.mode === 'homework' || !taskMatches(item)) return
+  const known = await studentGraph(db, String(session.student_id))
+  const target = known.nodes.get(String(item.concept_id))
+  if (!target || supportSuppliesSkill(measuredSkill(target.subject), String(item.access_support ?? '').split(',').filter(Boolean))) return
+  const attempts = await loadAttempts(db, String(session.student_id))
+  if (attempts.some(a => a.promptKey === promptIdentity(String(item.prompt)))) return
+  const shown = new Date(String(item.visible_at)), shownDay = dayStamp(shown)
+  if (!Number.isFinite(shown.getTime()) || shown > now) return
+  const rows = await db.prepare('SELECT * FROM session_items WHERE session_id = ? AND position < ? AND visible_at IS NOT NULL AND skipped = 0 ORDER BY position DESC').all(session.id, item.position)
+  for (const partner of rows.slice(0, 3)) {
+    const win = attempts.find(a => a.attemptId === partner.id && a.correct && a.evidenceCertainty === 'confirmed' && independent(a))
+    if (!win || !partner.revision_id || !taskMatches(partner) || partner.answered !== 1 || partner.correct !== 1 || win.day !== shownDay) continue
+    const elapsed = shown.getTime() - Date.parse(String(partner.submitted_at))
+    if (elapsed < 0 || elapsed > 30 * 60000) continue
+    const relation = mixedRelation(known, String(item.concept_id), String(partner.concept_id))
+    const prior = attempts.filter(a => (a.createdAt ?? '') < String(partner.visible_at))
+    if (!relation || !componentReady(prior, String(item.concept_id), Number(item.bloom_level)) || !componentReady(prior, String(partner.concept_id), Number(partner.bloom_level))) continue
+    const proof = { rule: MIXED_POLICY, kind: 'sequence', ...relation, targetRevision: String(item.revision_id), partnerItemId: String(partner.id),
+      partnerRevision: String(partner.revision_id), partnerConceptId: String(partner.concept_id), partnerDemand: Number(partner.bloom_level), targetDemand: Number(item.bloom_level),
+      partnerPosition: Number(partner.position), targetPosition: Number(item.position), partnerAnsweredAt: String(partner.submitted_at), targetShownAt: shown.toISOString(), day: shownDay }
+    await db.prepare('UPDATE session_items SET interleaved = 1, mixed_evidence = ? WHERE id = ?').run(JSON.stringify(proof), item.id)
+    item.interleaved = 1
+    return
+  }
+}
+
+async function saveConfidence(db: DatabaseSync, session: Record<string, SQLInputValue>, item: Record<string, SQLInputValue>, value: string, now: Date) {
+  if (item.confidence === value && item.confidence_revision === item.revision_id && item.confidence_at) return
+  const known = await studentGraph(db, String(session.student_id))
+  const supplied = Number(item.hints_used) > 0 || session.mode === 'homework'
+    || supportSuppliesSkill(measuredSkill(known.nodes.get(String(item.concept_id))?.subject ?? String(session.subject)), String(item.access_support ?? '').split(',').filter(Boolean))
+  await db.prepare('UPDATE session_items SET confidence = ?, confidence_at = ?, confidence_revision = ?, confidence_support = ? WHERE id = ?')
+    .run(value, now.toISOString(), item.revision_id ?? null, supplied ? 1 : 0, item.id)
+}
+
+export async function captureConfidence(db: DatabaseSync, owner: string, sessionId: string, itemId: string, value: string, revision: string, now = learningNow()) {
+  return withWrite(db, async () => {
+    if (!['sure', 'think', 'guess'].includes(value)) throw new UserError('Choose how sure you feel, or leave it blank.')
+    const session = await getOwnedSession(db, owner, sessionId)
+    const current = (await sessionItems(db, sessionId)).find(item => !item.answered)
+    if (!current || current.id !== itemId || current.revision_id !== revision || session.ended_at || session.paused_at) throw new UserError('That question is no longer current.')
+    await saveConfidence(db, session, current, value, now)
+  })
+}
+
 export async function reviewAnswer(
   db: DatabaseSync, ownerUserId: string, sessionId: string,
-  input: { itemId: string; correct: boolean; errorType?: ErrorType | null; grader?: string; graderModel?: string; reason?: string }, now = new Date(),
+  input: { itemId: string; correct: boolean; revision?: string; errorType?: ErrorType | null; grader?: string; graderModel?: string; reason?: string }, now = learningNow(),
 ) {
   return withWrite(db, async () => {
+    await lockFamily(db, ownerUserId)
     const session = (await getOwnedSession(db, ownerUserId, sessionId))
     const item = (await sessionItems(db, sessionId)).find((row) => row.id === input.itemId)
-    if (!item || item.answered !== 1 || item.correct != null) throw new UserError("That answer is not waiting for review.")
+    if (!item || item.answered !== 1) throw new UserError("That answer is not waiting for review.")
+    if (input.revision && input.revision !== item.submitted_revision) throw new UserError('This grade belongs to a different question revision.')
+    if (Number(item.evidence_policy) === 1 && (!taskMatches(item) || item.submitted_revision !== item.revision_id)) throw new UserError('This question changed after submission; its grade remains pending.')
+    if (item.correct != null && await db.prepare('SELECT id FROM attempts WHERE id = ?').get(item.id)) return
     const submitted = item.submitted_at ? new Date(String(item.submitted_at)) : now
     const error = input.correct ? null : input.errorType ?? null
     const latest = (await db.prepare("SELECT correct FROM session_items WHERE id = ?").get(item.id))
     if (latest?.correct != null) {  return }
-    await db.prepare("UPDATE session_items SET correct = ?, error_type = ?, grader = ?, grading_reason = ? WHERE id = ?")
-      .run(input.correct ? 1 : 0, error, input.grader ?? "parent", input.reason ?? "Parent reviewed the stored key or rubric.", item.id)
+    await db.prepare("UPDATE session_items SET correct = ?, error_type = ?, grader = ?, grading_reason = ?, graded_at = ? WHERE id = ?")
+      .run(input.correct ? 1 : 0, error, input.grader ?? "parent", input.reason ?? "Parent reviewed the stored key or rubric.", now.toISOString(), item.id)
     await db.prepare(`INSERT INTO attempts (
       id, student_id, session_id, concept_id, bloom_level, day, correct, hints_used,
       interleaved, time_ms, error_type, modality, created_at
@@ -741,10 +970,11 @@ export async function reviewAnswer(
       .run(item.id, session.student_id, sessionId, item.concept_id, item.bloom_level,
         dayStamp(submitted), input.correct ? 1 : 0, item.hints_used, item.interleaved,
         item.time_ms ?? 0, error, item.surface, submitted.toISOString())
+    await snapshotAttempt(db, item)
     const items = (await sessionItems(db, sessionId))
     const next = items.find((row) => row.answered === 0)
     let adjustment = "no_unanswered_work"
-    if (next && !session.ended_at) {
+    if (next && !session.ended_at && session.mode !== 'assessment') {
       const action = nextThermostat({
         recentCorrect: (await rollingSix(db, String(session.student_id), String(item.concept_id), Number(item.bloom_level))),
         consecutiveStepDowns: Number(session.consecutive_step_downs), modality: session.modality as Mode,
@@ -757,7 +987,7 @@ export async function reviewAnswer(
       await db.prepare("UPDATE tutor_sessions SET consecutive_step_downs = ?, modality = ? WHERE id = ?")
         .run(consecutive, action.type === "change_modality" ? action.to : session.modality, sessionId)
       if (action.type === "end_session") await endSession(db, sessionId, "attention", now)
-      if ((action.type === "step_up" || action.type === "step_down") && next.concept_id === item.concept_id && next.bloom_level === item.bloom_level) await rewriteItem(db, next, action.type === "step_up" ? 1 : -1)
+      if ((action.type === "step_up" || action.type === "step_down") && next.concept_id === item.concept_id && next.bloom_level === item.bloom_level) await rewriteItem(db, next, action.type === "step_up" ? 1 : -1, now)
       if (action.type === "change_modality" && next.concept_id === item.concept_id && next.bloom_level === item.bloom_level) await db.prepare("UPDATE session_items SET surface = ? WHERE id = ?").run(action.to, next.id)
     }
     await recordTeachingOutcome(db, session, item, input.correct, input.reason ?? 'Reviewed against the stored key or rubric.', now)
@@ -774,6 +1004,7 @@ export async function reviewAnswer(
         title: known.nodes.get(String(row.concept_id))?.title ?? String(row.concept_id),
         prompt: String(row.prompt), answer: String(row.answer), correct: row.correct === 1,
         recall: known.nodes.get(String(row.concept_id))?.recall, example: known.nodes.get(String(row.concept_id))?.example,
+        teaching: known.nodes.get(String(row.concept_id))?.teaching, workedExample: readScaffold(row.scaffold_json)?.worked,
       }))
       await db.prepare("UPDATE lesson_messages SET body = ? WHERE id = ?").run(await sealForStudent(db, String(session.student_id), lessonOpening(results)), opening.id)
     }
@@ -789,16 +1020,22 @@ export async function reviewAnswer(
 }
 
 export async function useHint(db: DatabaseSync, ownerUserId: string, sessionId: string, itemId: string) {
-  await getOwnedSession(db, ownerUserId, sessionId)
+  const owned = await getOwnedSession(db, ownerUserId, sessionId)
+  if (owned.mode === 'assessment' || await openAssessment(db, ownerUserId, String(owned.student_id))) {
+    throw new UserError('Hints are available during learning. Finish your assessment before asking for help.')
+  }
+  if (owned.ended_at) throw new UserError('This session has ended. Start fresh practice for more help.')
   const item = (await db.prepare("SELECT * FROM session_items WHERE id = ? AND session_id = ?").get(itemId, sessionId)) as
     | Record<string, SQLInputValue>
     | undefined
-  if (!item || item.answered === 1) throw new UserError("That item cannot take a hint.")
+  const current = (await sessionItems(db, sessionId)).find(row => row.answered === 0)
+  if (!item || item.id !== current?.id || item.answered === 1) throw new UserError("That item cannot take a hint.")
   const ladder = JSON.parse(String(item.hints_json)) as string[]
   const used = Number(item.hints_used)
   if (used >= ladder.length) return { exhausted: true as const, text: "The ladder is finished. Try a parallel problem." }
   const text = ladder[used]
   await db.prepare("UPDATE session_items SET hints_used = ?, hint_text = ? WHERE id = ?").run(used + 1, text, itemId)
+  await recordExposure(db, String(owned.student_id), sessionId, { ...item, hints_used: used + 1 }, 'hint')
   const session = (await db.prepare("SELECT student_id FROM tutor_sessions WHERE id = ?").get(sessionId))!
   await recordDecision(db, String(session.student_id), "hint_requested", "The student chose the next scaffold in the hint ladder.", { sessionId, itemId, stage: used + 1 })
   return { exhausted: false as const, text, stage: used + 1 }
@@ -824,7 +1061,7 @@ export async function patternForSession(db: DatabaseSync, sessionId: string): Pr
   return { overt: row.overt, subtle: row.subtle, trend: row.trend, nextMove: row.next_move }
 }
 
-export async function storePattern(db: DatabaseSync, studentId: string, subject: string, sessionId: string, now = new Date()) {
+export async function storePattern(db: DatabaseSync, studentId: string, subject: string, sessionId: string, now = learningNow()) {
   if ((await patternForSession(db, sessionId))) return (await patternForSession(db, sessionId))
   const items = (await sessionItems(db, sessionId))
     .filter((item) => item.answered === 1 && item.correct != null)
@@ -883,7 +1120,7 @@ export async function reviseAgenda(db: DatabaseSync, studentId: string, subject:
     `INSERT INTO subject_plans (student_id, subject, about, question_types, syllabus_text, syllabus_name, build_status, build_note, agenda, updated_at)
      VALUES (?, ?, ?, '', '', '', 'ready', '', ?, ?)
      ON CONFLICT(student_id, subject) DO UPDATE SET agenda = excluded.agenda, updated_at = excluded.updated_at`,
-  ).run(studentId, subject, subject, agenda, new Date().toISOString())
+  ).run(studentId, subject, subject, agenda, learningNow().toISOString())
   return agenda
 }
 
@@ -899,9 +1136,10 @@ export async function saveRecap(
   ownerUserId: string,
   sessionId: string,
   input: { learned: string; hard: string; tellFriend: string; productionSuccess: boolean },
-  now = new Date(),
+  now = learningNow(),
 ) {
   const session = (await getOwnedSession(db, ownerUserId, sessionId))
+  if (await openAssessment(db, ownerUserId, String(session.student_id))) throw new UserError('Finish your assessment before opening its learning review.')
   const learned = input.learned.trim()
   const hard = input.hard.trim()
   const tellFriend = input.tellFriend.trim()
@@ -916,27 +1154,53 @@ export async function saveRecap(
   return { sheetId }
 }
 
-export async function createSheet(db: DatabaseSync, ownerUserId: string, studentId: string, now = new Date()) {
-  await assertStudent(db, ownerUserId, studentId)
-  const states = (await listStates(db, studentId))
-  const due = states.find((state) => state.status === "frontier" || state.status === "stuck") ?? states[0]
-  const concept = (await studentGraph(db, studentId)).nodes.get(due.conceptId)
-  if (!concept) throw new UserError("No concept is available for a sheet.")
-  const items = ([1, 2, 3, 4] as BloomLevel[]).map((bloom) =>
-    generateItem(concept, bloom, randomInt(1, 1_000_000_000), { itemId: crypto.randomUUID() }),
-  )
-  const sheetId = crypto.randomUUID()
-  const spec = buildSheet(
-    sheetId,
-    items.map((item) => item.itemId),
-  )
-  await db.prepare("INSERT INTO sheets (id, student_id, spec_json, created_at) VALUES (?, ?, ?, ?)").run(
-    sheetId,
-    studentId,
-    JSON.stringify({ spec, items }),
-    now.toISOString(),
-  )
-  return sheetId
+function paperItem(item: Item) {
+  return { id: item.itemId, concept_id: item.conceptId, bloom_level: item.bloomLevel, prompt: item.prompt, answer: item.answer,
+    format: item.responseFormat ?? 'text', choices_json: item.choices ? JSON.stringify(item.choices) : null,
+    rubric_json: item.rubric ? JSON.stringify(item.rubric) : null, evidence_kind: item.evidenceKind ?? 'practice' }
+}
+
+export async function createSheet(db: DatabaseSync, ownerUserId: string, studentId: string, now = learningNow()) {
+  return withWrite(db, async () => {
+    await lockFamily(db, ownerUserId)
+    await assertStudent(db, ownerUserId, studentId)
+    if (await openAssessment(db, ownerUserId, studentId)) throw new UserError('Finish your assessment before opening paper practice.')
+    const states = (await listStates(db, studentId))
+    const due = states.find((state) => state.status === "frontier" || state.status === "stuck") ?? states[0]
+    const next = await nextLearningAction(db, ownerUserId, studentId, now)
+    const concept = (await studentGraph(db, studentId)).nodes.get(next?.conceptId ?? due?.conceptId)
+    if (!concept) throw new UserError("No concept is available for a sheet.")
+    const seen = await seenPrompts(db, studentId)
+    const items = ([1, 2, 3, 4] as BloomLevel[]).map(bloom => {
+      const seed = randomInt(1, 1_000_000_000), itemId = crypto.randomUUID()
+      let item = generateItem(concept, bloom, seed, { itemId })
+      const limit = fractionOutcome(concept.conceptId) ? FRACTION_FORM_CASES : 48
+      for (let index = 1; index < limit && seen.has(promptIdentity(item.prompt)); index++)
+        item = generateItem(concept, bloom, seed + index, { itemId })
+      seen.add(promptIdentity(item.prompt))
+      return item
+    })
+    const sheetId = crypto.randomUUID()
+    const spec = buildSheet(
+      sheetId,
+      items.map((item) => item.itemId),
+    )
+    await db.prepare("INSERT INTO sheets (id, student_id, spec_json, created_at) VALUES (?, ?, ?, ?)").run(
+      sheetId,
+      studentId,
+      JSON.stringify({ spec, items, work: newPaperWork(), tasks: Object.fromEntries(items.map(item => [item.itemId, taskEvidence(paperItem(item), 'paper', sheetId)])) }),
+      now.toISOString(),
+    )
+    await recordSheetExposure(db, ownerUserId, sheetId, now)
+    return sheetId
+  })
+}
+
+/** A sheet may be printed and studied later. Its off-screen exposure cannot be certified absent. */
+export async function recordSheetExposure(db: DatabaseSync, owner: string, sheetId: string, now = learningNow()) {
+  const sheet = await getSheet(db, owner, sheetId), payload = JSON.parse(String(sheet.spec_json))
+  for (const item of payload.items as Item[]) await recordExposure(db, String(sheet.student_id), sheetId,
+    { ...paperItem(item), revision_id: payload.tasks?.[item.itemId]?.revision ?? null }, 'question', now, false)
 }
 
 export async function getSheet(db: DatabaseSync, ownerUserId: string, sheetId: string) {
@@ -956,61 +1220,119 @@ export async function scoreSheet(
   ownerUserId: string,
   sheetId: string,
   boxes: Array<{ boxIndex: number; answer: string }>,
-  now = new Date(),
+  now = learningNow(),
+  conditions?: PaperConditions,
 ) {
-  const sheet = (await getSheet(db, ownerUserId, sheetId))
-  if (sheet.score_results) return JSON.parse(String(sheet.score_results)) as Array<{ boxIndex: number; correct: boolean; confidence: number; speak: boolean; pendingReview: boolean; reviewSessionId: string }>
-  const payload = JSON.parse(String(sheet.spec_json)) as {
-    spec: { boxes: Array<{ boxIndex: number; itemId: string }> }
-    items: Array<{ itemId: string; conceptId: string; bloomLevel: BloomLevel; prompt: string; answer: string; hintLadder: string[]; interleaved: boolean }>
-  }
-  const results = payload.spec.boxes.map((box) => {
-    const item = payload.items.find((candidate) => candidate.itemId === box.itemId)
-    const given = boxes.find((entry) => entry.boxIndex === box.boxIndex)?.answer ?? ""
-    const score = scoreAnswer(item?.answer ?? "", given)
-    const pendingReview = requiresJudgment(item?.answer ?? "", item?.bloomLevel ?? 0) || !given.trim() || /^(?:\?|unreadable|unclear|illegible)$/i.test(given.trim()) || score.confidence < 0.8
-    return { boxIndex: box.boxIndex, correct: score.correct, confidence: score.confidence, speak: score.confidence < 0.9, pendingReview, reviewSessionId: "" }
-  })
-  const today = dayStamp(now)
-  const sessionId = crypto.randomUUID()
-  await db.prepare(
-    `INSERT INTO tutor_sessions (id, student_id, started_at, ended_at, end_reason, modality, consecutive_step_downs, cap_minutes, continuity)
-     VALUES (?, ?, ?, ?, 'sheet', 'paper', 0, 25, 'Sheet check')`,
-  ).run(sessionId, sheet.student_id, now.toISOString(), now.toISOString())
-  for (const result of results) {
-    const box = payload.spec.boxes.find((entry) => entry.boxIndex === result.boxIndex)!
-    const item = payload.items.find((candidate) => candidate.itemId === box.itemId)!
-    if (result.pendingReview) {
-      result.reviewSessionId = sessionId
-      const given = boxes.find((entry) => entry.boxIndex === result.boxIndex)?.answer ?? ""
-      await db.prepare(`INSERT INTO session_items (
-        id, session_id, position, beat, concept_id, bloom_level, prompt, answer, hints_json, surface,
-        interleaved, hints_used, answered, given_answer, time_ms, submitted_at
-      ) VALUES (?, ?, ?, 'frontier', ?, ?, ?, ?, ?, 'paper', 0, 0, 1, ?, 0, ?)`)
-        .run(crypto.randomUUID(), sessionId, result.boxIndex, item.conceptId, item.bloomLevel,
-          item.prompt, item.answer, JSON.stringify(item.hintLadder ?? []), await sealForStudent(db, String(sheet.student_id), given), now.toISOString())
-      continue
+  return withWrite(db, async () => {
+    await lockFamily(db, ownerUserId)
+    const sheet = (await getSheet(db, ownerUserId, sheetId))
+    if (await openAssessment(db, ownerUserId, String(sheet.student_id))) throw new UserError('Finish your assessment before checking paper practice.')
+    if (sheet.score_results) return JSON.parse(String(sheet.score_results)) as Array<{ boxIndex: number; correct: boolean; confidence: number; speak: boolean; pendingReview: boolean; reviewSessionId: string; unanswered?: boolean }>
+    const payload = JSON.parse(String(sheet.spec_json)) as {
+      spec: { boxes: Array<{ boxIndex: number; itemId: string }> }
+      items: Item[]
+      work?: ReturnType<typeof newPaperWork>
+      tasks?: Record<string, import('./engine/evidence.ts').TaskEvidence>
     }
-    const evidenceId = crypto.randomUUID()
-    await db.prepare(`INSERT INTO session_items (id, session_id, position, beat, concept_id, bloom_level, prompt, answer, hints_json, surface, interleaved, hints_used, answered, given_answer, time_ms, submitted_at, correct) VALUES (?, ?, ?, 'frontier', ?, ?, ?, ?, ?, 'paper', 0, 0, 1, ?, 0, ?, ?)`).run(evidenceId, sessionId, result.boxIndex, item.conceptId, item.bloomLevel, item.prompt, item.answer, JSON.stringify(item.hintLadder), await sealForStudent(db, String(sheet.student_id), boxes.find(b => b.boxIndex === result.boxIndex)?.answer ?? ""), now.toISOString(), result.correct ? 1 : 0)
+    const work = readPaperWork(payload.work)
+    const paper = readPaperConditions(conditions) ?? (work ? { version: 1 as const, basis: 'self-reported' as const, help: 'unknown' as const, confirmed: false } : undefined)
+    if (conditions && !readPaperConditions(conditions)) throw new UserError('Choose the paper work conditions again.')
+    for (const entry of boxes) if (/^(?:\?|unreadable|unclear|illegible)$/i.test(entry.answer.trim()))
+      throw new UserError(`Box ${entry.boxIndex} is not readable yet. Correct the entry, retake the photo, or leave it unanswered before submitting.`)
+    const results = payload.spec.boxes.map((box) => {
+      const item = payload.items.find((candidate) => candidate.itemId === box.itemId)
+      const given = boxes.find((entry) => entry.boxIndex === box.boxIndex)?.answer ?? ""
+      const gradable = { answer: item?.answer ?? '', format: item?.responseFormat ?? 'text', choices: item?.choices ?? null }
+      const score = scoreItem(gradable, given)
+      const unanswered = !given.trim()
+      const pendingReview = !unanswered && (needsJudgment(gradable, item?.bloomLevel ?? 0) || score.confidence < 0.8)
+      return { boxIndex: box.boxIndex, correct: score.correct, confidence: score.confidence, speak: score.confidence < 0.9, pendingReview, reviewSessionId: "", unanswered }
+    })
+    if (paper) {
+      payload.work = { ...(work ?? newPaperWork()), completedReportedAt: work?.completedReportedAt ?? now.toISOString(), submittedAt: now.toISOString(), conditions: paper }
+      await db.prepare('UPDATE sheets SET spec_json = ? WHERE id = ?').run(JSON.stringify(payload), sheetId)
+    }
+    const today = dayStamp(now)
+    const sessionId = crypto.randomUUID()
+    const cutover = await db.prepare('SELECT created_at FROM learning_cutovers WHERE student_id = ?').get(sheet.student_id)
+    const legacySheet = Boolean(cutover && String(sheet.created_at) <= String(cutover.created_at))
+    const recordPaperTask = async (itemId: string, item: Item) => {
+      // The printed task's controls and rubric belong to its verdict, including delayed parent review.
+      await db.prepare('UPDATE session_items SET format = ?, choices_json = ?, rubric_json = ?, evidence_kind = ? WHERE id = ?')
+        .run(item.responseFormat ?? 'text', item.choices ? JSON.stringify(item.choices) : null,
+          item.rubric ? JSON.stringify(item.rubric) : null, item.evidenceKind ?? 'practice', itemId)
+      if (legacySheet) await db.prepare('UPDATE session_items SET evidence_policy = 0, revision_id = id, submitted_revision = id WHERE id = ?').run(itemId)
+      else {
+        const delivered = await db.prepare('SELECT * FROM session_items WHERE id = ?').get(itemId)
+        const printed = readTask(JSON.stringify(payload.tasks?.[itemId]))
+        if (printed) {
+          if (!taskMatches({ ...delivered!, revision_id: printed.revision }, printed)) throw new UserError('The printed question changed. Keep your paper and start a fresh sheet.')
+          await db.prepare('UPDATE session_items SET evidence_policy = 1, revision_id = ?, task_evidence = ? WHERE id = ?').run(printed.revision, JSON.stringify(printed), itemId)
+        } else await stampTask(db, itemId, 'paper', sheetId)
+        await db.prepare('UPDATE session_items SET submitted_revision = revision_id WHERE id = ?').run(itemId)
+      }
+      await recordExposure(db, String(sheet.student_id), sessionId, (await db.prepare('SELECT * FROM session_items WHERE id = ?').get(itemId))!, 'answer', now, true)
+    }
     await db.prepare(
-      `INSERT INTO attempts (
-        id, student_id, session_id, concept_id, bloom_level, day, correct, hints_used, interleaved, time_ms, error_type, modality, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, 0, ?, 'paper', ?)`,
-    ).run(
-      evidenceId,
-      sheet.student_id,
-      sessionId,
-      item.conceptId,
-      item.bloomLevel,
-      today,
-      result.correct ? 1 : 0,
-      result.correct ? null : "procedural_slip",
-      now.toISOString(),
-    )
-  }
-  await db.prepare("UPDATE sheets SET score_results = ? WHERE id = ?").run(JSON.stringify(results), sheetId)
-  return results
+      `INSERT INTO tutor_sessions (id, student_id, requested_at, started_at, ended_at, end_reason, modality, mode, consecutive_step_downs, cap_minutes, continuity)
+       VALUES (?, ?, ?, ?, ?, 'sheet', 'paper', 'assessment', 0, 25, 'Sheet check')`,
+    ).run(sessionId, sheet.student_id, sheet.created_at, now.toISOString(), now.toISOString())
+    for (const result of results) {
+      const box = payload.spec.boxes.find((entry) => entry.boxIndex === result.boxIndex)!
+      const item = payload.items.find((candidate) => candidate.itemId === box.itemId)!
+      if (result.unanswered) continue
+      if (result.pendingReview) {
+        result.reviewSessionId = sessionId
+        const pendingId = item.itemId
+        const given = boxes.find((entry) => entry.boxIndex === result.boxIndex)?.answer ?? ""
+        await db.prepare(`INSERT INTO session_items (
+          id, session_id, position, beat, concept_id, bloom_level, prompt, answer, hints_json, surface,
+          interleaved, hints_used, answered, given_answer, time_ms, submitted_at
+        ) VALUES (?, ?, ?, 'frontier', ?, ?, ?, ?, ?, 'paper', 0, 0, 1, ?, 0, ?)`)
+          .run(pendingId, sessionId, result.boxIndex, item.conceptId, item.bloomLevel,
+            item.prompt, item.answer, JSON.stringify(item.hintLadder ?? []), await sealForStudent(db, String(sheet.student_id), given), now.toISOString())
+        await recordPaperTask(pendingId, item)
+        continue
+      }
+      const evidenceId = item.itemId
+      await db.prepare(`INSERT INTO session_items (id, session_id, position, beat, concept_id, bloom_level, prompt, answer, hints_json, surface, interleaved, hints_used, answered, given_answer, time_ms, submitted_at, correct) VALUES (?, ?, ?, 'frontier', ?, ?, ?, ?, ?, 'paper', 0, 0, 1, ?, 0, ?, ?)`).run(evidenceId, sessionId, result.boxIndex, item.conceptId, item.bloomLevel, item.prompt, item.answer, JSON.stringify(item.hintLadder), await sealForStudent(db, String(sheet.student_id), boxes.find(b => b.boxIndex === result.boxIndex)?.answer ?? ""), now.toISOString(), result.correct ? 1 : 0)
+      await recordPaperTask(evidenceId, item)
+      await db.prepare(
+        `INSERT INTO attempts (
+          id, student_id, session_id, concept_id, bloom_level, day, correct, hints_used, interleaved, time_ms, error_type, modality, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, 0, ?, 'paper', ?)`,
+      ).run(
+        evidenceId,
+        sheet.student_id,
+        sessionId,
+        item.conceptId,
+        item.bloomLevel,
+        today,
+        result.correct ? 1 : 0,
+        result.correct ? null : "procedural_slip",
+        now.toISOString(),
+      )
+      await snapshotAttempt(db, (await db.prepare('SELECT * FROM session_items WHERE id = ?').get(evidenceId))!)
+    }
+    await db.prepare("UPDATE sheets SET score_results = ? WHERE id = ?").run(JSON.stringify(results), sheetId)
+    return results
+  })
+}
+
+/** A photo is associated with this printed worksheet; retries never create another learning attempt. */
+export async function saveSheetPhoto(db: DatabaseSync, owner: string, sheetId: string, input: { mime: string; base64: string }, uploadsDir: string, now = learningNow()) {
+  return withWrite(db, async () => {
+    await lockFamily(db, owner)
+    const sheet = await getSheet(db, owner, sheetId), payload = JSON.parse(String(sheet.spec_json)), work = readPaperWork(payload.work) ?? newPaperWork()
+    const hash = createHash('sha256').update(Buffer.from(input.base64, 'base64')).digest('hex')
+    const prior = work.photos.find(photo => photo.hash === hash)
+    if (prior) return prior.id
+    if (work.photos.length >= 12) throw new UserError('This sheet already has twelve photos. Keep any additional pages on your device.')
+    const id = await saveUpload(db, owner, String(sheet.student_id), input, uploadsDir, now)
+    payload.work = { ...work, photos: [...work.photos, { id, hash }] }
+    await db.prepare('UPDATE sheets SET spec_json = ? WHERE id = ?').run(JSON.stringify(payload), sheetId)
+    return id
+  })
 }
 
 export async function saveUpload(
@@ -1019,7 +1341,7 @@ export async function saveUpload(
   studentId: string,
   input: { mime: string; base64: string },
   uploadsDir: string,
-  now = new Date(),
+  now = learningNow(),
 ) {
   return withWrite(db, async () => {
     await assertStudent(db, ownerUserId, studentId)
@@ -1045,7 +1367,7 @@ export async function getUpload(db: DatabaseSync, ownerUserId: string, uploadId:
     | undefined
 }
 
-export async function scoreboardFor(db: DatabaseSync, ownerUserId: string, studentId: string, now = new Date()) {
+export async function scoreboardFor(db: DatabaseSync, ownerUserId: string, studentId: string, now = learningNow()) {
   await assertStudent(db, ownerUserId, studentId)
   const today = dayStamp(now)
   const weekStart = dayStamp(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6))
@@ -1076,7 +1398,7 @@ export async function updateStudentProfile(
   ownerUserId: string,
   studentId: string,
   input: { birthDate?: string; gradeHold?: boolean; grade?: number },
-  now = new Date(),
+  now = learningNow(),
 ) {
   const student = (await assertStudent(db, ownerUserId, studentId, now))
   const birthday = input.birthDate !== undefined ? validBirthday(input.birthDate) : student.birth_date
@@ -1113,7 +1435,7 @@ export async function addLearning(
     problems?: string
     deadline?: string
   },
-  now = new Date(),
+  now = learningNow(),
 ) {
   return withWrite(db, async () => {
     await assertStudent(db, ownerUserId, studentId, now)
@@ -1260,11 +1582,34 @@ export function bloomLabel(level: number) {
 }
 
 export async function loadAttempts(db: DatabaseSync, studentId: string): Promise<AttemptRecord[]> {
-  const rows = (await db.prepare("SELECT * FROM attempts WHERE student_id = ? ORDER BY created_at").all(studentId)) as Array<
+  const rows = (await db.prepare("SELECT * FROM attempts WHERE student_id = ? ORDER BY created_at, id").all(studentId)) as Array<
     Record<string, SQLInputValue>
   >
+  const learnerPolicy = (await db.prepare('SELECT evidence_policy FROM students WHERE id = ?').get(studentId))?.evidence_policy
+  const cutover = await db.prepare('SELECT states_json, milestones_json, created_at FROM learning_cutovers WHERE student_id = ?').get(studentId)
+  const exposures = await db.prepare('SELECT * FROM learning_exposures WHERE student_id = ? ORDER BY at').all(studentId)
+  const sessions = await db.prepare('SELECT id, mode, requested_at, started_at FROM tutor_sessions WHERE student_id = ?').all(studentId)
+  const known = await studentGraph(db, studentId)
+  let historical: Record<string, import('./engine/types.ts').HistoricalEvidence> = {}
+  try {
+    if (cutover) {
+      historical = JSON.parse(String(cutover.states_json))
+      const milestones = JSON.parse(String(cutover.milestones_json)) as import('./engine/adventure.ts').LearningMilestone[]
+      for (const [id, receipt] of Object.entries(historical)) receipt.milestones = milestones.filter(m => m.conceptId === id)
+    }
+  } catch { /* malformed receipts never manufacture claims */ }
   const customSubjects = new Map(((await db.prepare('SELECT concept_id, subject FROM custom_concepts WHERE student_id = ?').all(studentId)) as Array<{ concept_id: string; subject: string }>).map(row => [String(row.concept_id), String(row.subject)]))
   const items = await db.prepare(`SELECT i.*, s.mode, s.subject FROM session_items i JOIN tutor_sessions s ON s.id = i.session_id WHERE s.student_id = ? ORDER BY coalesce(i.submitted_at, s.started_at), s.rowid, i.position`).all(studentId)
+  // A rollback writer may leave shown/answered work without an exposure event. Retain that uncertainty;
+  // an older writer cannot create a fictitious exposure-free interval between two current checks.
+  const exposureSources: Array<Record<string, SQLInputValue>> = [...items, ...rows.map(row => ({ ...row, submitted_at: row.created_at }))]
+  for (const source of exposureSources) {
+    const at = source.submitted_at ?? source.visible_at ?? source.shown_at
+    if (at && !exposures.some(e => e.item_id === source.id && String(e.at) >= String(at))) exposures.push({
+      item_id: String(source.id), concept_id: String(source.concept_id), at: String(at), confirmed: 0,
+    })
+  }
+  exposures.sort((a,b) => String(a.at).localeCompare(String(b.at)))
   const firstByPrompt = new Map<string, string>()
   const byItemId = new Map(items.map(i => [String(i.id), i]))
   const bySubmission = new Map<string, typeof items>()
@@ -1280,23 +1625,47 @@ export async function loadAttempts(db: DatabaseSync, studentId: string): Promise
     const key = String(item.prompt).trim().toLowerCase().replace(/\s+/g, " ")
     if (!firstByPrompt.has(key)) firstByPrompt.set(key, String(item.id))
   }
-  return rows.map((row) => {
+  const projected: AttemptRecord[] = rows.map((row) => {
     const candidates = bySubmission.get(submissionKey(row, String(row.created_at))) ?? []
     // New attempts use the immutable item ID. Older uniquely linked records can be read,
     // but ambiguous historical timestamps cannot establish independent mastery.
     const linked = byItemId.get(String(row.id))
     const item = (linked?.session_id === row.session_id ? linked : undefined) ?? (candidates.length === 1 ? candidates[0] : undefined)
+    let snapshot: any = null
+    try { snapshot = row.evidence_json ? JSON.parse(String(row.evidence_json)) : null } catch { /* unknown stays unknown */ }
+    const task = snapshot?.task ? readTask(JSON.stringify(snapshot.task)) : undefined
+    const paper = readPaperConditions(snapshot?.paper)
+    const validRevision = row.evidence_policy !== 1 || Boolean(item && task && taskMatches(item, task) && item.submitted_revision === task.revision
+      && task.conceptId === row.concept_id && task.demand === Number(row.bloom_level))
+    const session = sessions.find(s => s.id === row.session_id)
+    const boundary = String(session?.mode === 'assessment' ? session.requested_at ?? session.started_at : item?.visible_at ?? item?.shown_at ?? row.created_at)
+    const relevant = exposures.filter(e => String(e.at) < boundary && e.item_id !== item?.id
+      && (e.concept_id === row.concept_id || mixedRelation(known, String(row.concept_id), String(e.concept_id))))
+    const lastExposure = relevant.at(-1)
+    // An unknown related exposure cannot establish a target-free interval. Every historical gap stays a proxy.
+    const historyComplete = Boolean(item?.visible_at && row.evidence_policy === 1 && lastExposure
+      && (learnerPolicy === 1) && Number(lastExposure.confirmed) === 1
+      && (!cutover || String(lastExposure.at) >= String(cutover.created_at)))
     return ({
+    measurementStartedAt: boundary,
+    lastExposureAt: lastExposure ? String(lastExposure.at) : undefined,
+    exposureComplete: historyComplete,
+    historical: historical[String(row.concept_id)],
+    evidencePolicy: row.evidence_policy == null ? learnerPolicy == null ? undefined : "unversioned" as const : Number(row.evidence_policy) === 1 ? 1 as const : Number(row.evidence_policy) === 0 ? 0 as const : 'unversioned' as const,
+    task,
+    paperConditions: paper,
+    mixed: readMixed(snapshot?.mixed),
+    confidenceEvidence: task && snapshot?.confidence && snapshot.confidence.revision === task.revision && typeof snapshot.confidence.at === 'string' && typeof snapshot.confidence.supportAtCapture === 'boolean' ? snapshot.confidence : undefined,
     fresh: item ? firstByPrompt.get(String(item.prompt).trim().toLowerCase().replace(/\s+/g, " ")) === String(item.id) : false,
     promptKey: item ? String(item.prompt).trim().toLowerCase().replace(/\s+/g, " ") : undefined,
     // A grade a parent disputed counts neither way.
-    evidenceCertainty: item ? (Number(item.disputed) === 1 || !String(item.given_answer ?? "").trim() || /^(?:\?|unreadable|unclear|illegible)$/i.test(String(item.given_answer).trim()) ? "unresolved" as const : "confirmed" as const) : "legacy" as const,
-    supportUsed: item?.mode === "homework" ? "homework" as const : Number(row.hints_used) > 0 ? "hint" as const
+    evidenceCertainty: item ? (!validRevision || paper && (!paper.confirmed || paper.help === 'unknown') || Number(item.disputed) === 1 || !String(item.given_answer ?? "").trim() || /^(?:\?|unreadable|unclear|illegible)$/i.test(String(item.given_answer).trim()) ? "unresolved" as const : "confirmed" as const) : "legacy" as const,
+    supportUsed: paper?.help === 'content' ? 'outside' as const : item?.mode === "homework" ? "homework" as const : Number(row.hints_used) > 0 ? "hint" as const
       : supportSuppliesSkill(measuredSkill(conceptSubject(item?.concept_id, customSubjects, item?.subject)), item?.access_support ? String(item.access_support).split(",") : undefined) ? "access" as const : "none" as const,
     accessSupport: item?.access_support ? String(item.access_support).split(",").filter(Boolean) : undefined,
     kind: item?.evidence_kind === "transfer" ? "transfer" as const : "practice" as const,
     confidence: ["sure", "think", "guess"].includes(String(item?.confidence)) ? String(item!.confidence) as "sure" | "think" | "guess" : undefined,
-    decisionReason: item ? "Stored key or reviewed rubric; support and prompt provenance retained." : "Historical evidence lacks linked prompt provenance; retained without a verified claim.",
+    decisionReason: paper ? 'Paper conditions are self-reported; the upload does not certify independent work.' : item ? "Stored key or reviewed rubric; support and prompt provenance retained." : "Historical evidence lacks linked prompt provenance; retained without a verified claim.",
     attemptId: String(row.id),
     createdAt: String(row.created_at),
     studentId: String(row.student_id),
@@ -1311,6 +1680,18 @@ export async function loadAttempts(db: DatabaseSync, studentId: string): Promise
     errorType: (row.error_type as ErrorType | null) ?? null,
     modality: row.modality as Mode,
   })})
+  // A later dispute or correction of the partner also withdraws dependent mixed credit.
+  const byAttempt = new Map(projected.map(a => [a.attemptId, a]))
+  for (const attempt of projected) {
+    const mixed = attempt.mixed
+    if (!mixed) continue
+    const partner = byAttempt.get(mixed.partnerItemId)
+    if (!partner || !partner.correct || partner.evidenceCertainty !== 'confirmed' || !independent(partner)
+      || partner.sessionId !== attempt.sessionId || partner.task?.revision !== mixed.partnerRevision
+      || partner.conceptId !== mixed.partnerConceptId || partner.bloomLevel !== mixed.partnerDemand
+      || mixed.targetRevision !== attempt.task?.revision || mixed.targetDemand !== attempt.bloomLevel) attempt.mixed = undefined
+  }
+  return projected
 }
 
 async function loadTargets(db: DatabaseSync, studentId: string) {
@@ -1345,7 +1726,7 @@ export async function uploadedSourceText(db: DatabaseSync, studentId: string, su
     FROM materials m JOIN material_questions q ON q.material_id = m.id AND q.revision = m.revision
     WHERE m.scope_approved = 1 AND m.student_id = ? AND lower(m.subject) = lower(?) AND q.readable = 1
       AND (m.learning_purpose = 'learning' OR (m.learning_purpose = 'test' AND m.test_date >= ?))
-    ORDER BY m.created_at, q.rowid`).all(studentId, subject, dayStamp(new Date()))
+    ORDER BY m.created_at, q.rowid`).all(studentId, subject, dayStamp(learningNow()))
   const sources = new Map<string, string[]>()
   for (const q of school) {
     const id = String(q.id)
@@ -1384,7 +1765,7 @@ export async function saveSubjectPlan(
        syllabus_text = CASE WHEN excluded.syllabus_text = '' THEN subject_plans.syllabus_text ELSE excluded.syllabus_text END,
        syllabus_name = CASE WHEN excluded.syllabus_name = '' THEN subject_plans.syllabus_name ELSE excluded.syllabus_name END,
        updated_at = excluded.updated_at`,
-  ).run(studentId, subject, about, "", input.syllabusText.trim(), input.syllabusName.trim(), new Date().toISOString())
+  ).run(studentId, subject, about, "", input.syllabusText.trim(), input.syllabusName.trim(), learningNow().toISOString())
   await recordDecision(db, studentId, "course_scope_saved", "The parent supplied or revised the standing course scope.", { subject, about, source: input.syllabusName })
   const subjects = parseSubjects(student.subjects)
   if (!subjects.some((item) => item.toLowerCase() === subject.toLowerCase())) {
@@ -1398,49 +1779,58 @@ export async function applyCurriculum(
   ownerUserId: string,
   studentId: string,
   subject: string,
-  topics: Array<{ title: string; recall: string; example: string; nonExample: string; questions: Array<{ prompt: string; answer: string; bloomLevel?: BloomLevel; transfer?: boolean; rubric?: Rubric }> }>,
-  now = new Date(),
+  topics: Array<{ conceptId?: string; mapKey?: string; title: string; recall: string; example: string; nonExample: string; questions: Array<{ prompt: string; answer: string; bloomLevel?: BloomLevel; transfer?: boolean; rubric?: Rubric; format?: 'text'|'choice'|'steps'; choices?: string[] }> }>,
+  now = learningNow(),
 ) {
-  await assertStudent(db, ownerUserId, studentId, now)
-  let created = 0
-  let questions = 0
-  const conceptIds: string[] = []
-  for (const topic of topics) {
-    const title = topic.title.trim()
-    if (!title) continue
-    const existing = (await db
-      .prepare("SELECT concept_id FROM custom_concepts WHERE student_id = ? AND lower(subject) = lower(?) AND lower(title) = lower(?)")
-      .get(studentId, subject, title)) as { concept_id: string } | undefined
-    const backbone = [...graph.nodes.values()].find((node) => sameSubject(node.subject, subject) && node.title.toLowerCase() === title.toLowerCase())
-    const conceptId =
-      existing?.concept_id ?? backbone?.conceptId ??
-      (await addLearning(db, ownerUserId, studentId, {
-        purpose: "year",
-        subject,
-        title,
-        recall: topic.recall,
-        example: topic.example,
-        nonExample: topic.nonExample,
-      }, now))
-    if (!existing && !backbone) created += 1
-    conceptIds.push(conceptId)
-    if (existing) {
-      await db.prepare("UPDATE custom_concepts SET recall = ?, example = ?, non_example = ? WHERE concept_id = ?")
-        .run(topic.recall, topic.example || topic.recall, topic.nonExample || `Not an example of ${title}`, conceptId)
+  return withWrite(db, async () => {
+    await lockFamily(db, ownerUserId)
+    await assertStudent(db, ownerUserId, studentId, now)
+    let created = 0
+    let questions = 0
+    const conceptIds: string[] = []
+    const known = await studentGraph(db, studentId)
+    for (const topic of topics) {
+      const title = topic.title.trim()
+      if (!title) continue
+      const existing = (await db
+        .prepare("SELECT concept_id FROM custom_concepts WHERE student_id = ? AND lower(subject) = lower(?) AND lower(title) = lower(?)")
+        .get(studentId, subject, title)) as { concept_id: string } | undefined
+      const backbone = [...graph.nodes.values()].find((node) => sameSubject(node.subject, subject) && node.title.toLowerCase() === title.toLowerCase())
+      const keyed = topic.mapKey ? [...known.nodes.values()].filter(c => sameSubject(c.subject, subject) && c.teaching?.key === topic.mapKey) : []
+      if (topic.mapKey && keyed.length !== 1) throw new UserError('The approved topic key is missing or ambiguous.')
+      const explicit = topic.conceptId ? known.nodes.get(topic.conceptId) : keyed[0]
+      if (topic.conceptId && (!explicit || !sameSubject(explicit.subject, subject))) throw new UserError('The requested concept is not in this subject.')
+      if (topic.mapKey && explicit?.conceptId !== keyed[0].conceptId) throw new UserError('The topic key and concept do not match.')
+      const conceptId =
+        explicit?.conceptId ?? existing?.concept_id ?? backbone?.conceptId ??
+        (await addLearning(db, ownerUserId, studentId, {
+          purpose: "year",
+          subject,
+          title,
+          recall: topic.recall,
+          example: topic.example,
+          nonExample: topic.nonExample,
+        }, now))
+      if (!explicit && !existing && !backbone) created += 1
+      conceptIds.push(conceptId)
+      if (existing && !known.nodes.get(conceptId)?.teaching) {
+        await db.prepare("UPDATE custom_concepts SET recall = ?, example = ?, non_example = ? WHERE concept_id = ?")
+          .run(topic.recall, topic.example || topic.recall, topic.nonExample || `Not an example of ${title}`, conceptId)
+      }
+      for (const question of topic.questions) {
+        const duplicate = (await db
+          .prepare("SELECT id FROM practice_items WHERE student_id = ? AND concept_id = ? AND prompt = ?")
+          .get(studentId, conceptId, question.prompt))
+        if (duplicate) continue
+        await insertPractice(db, studentId, conceptId, question.prompt, question.answer, question.bloomLevel ?? 3, now, question.transfer ? "transfer" : "practice", question.rubric, question.format, question.choices)
+        questions += 1
+      }
     }
-    for (const question of topic.questions) {
-      const duplicate = (await db
-        .prepare("SELECT id FROM practice_items WHERE student_id = ? AND concept_id = ? AND prompt = ?")
-        .get(studentId, conceptId, question.prompt))
-      if (duplicate) continue
-      await insertPractice(db, studentId, conceptId, question.prompt, question.answer, question.bloomLevel ?? 3, now, question.transfer ? "transfer" : "practice", question.rubric)
-      questions += 1
-    }
-  }
-  await recordDecision(db, studentId, "curriculum_updated", "A validated curriculum added the current focus while preserving the standing graph and learner evidence.", {
-    subject, created, questions, topics: topics.map((topic) => topic.title),
-  }, now)
-  return { created, questions, conceptIds: [...new Set(conceptIds)] }
+    await recordDecision(db, studentId, "curriculum_updated", "A validated curriculum added the current focus while preserving the standing graph and learner evidence.", {
+      subject, created, questions, topics: topics.map((topic) => topic.title),
+    }, now)
+    return { created, questions, conceptIds: [...new Set(conceptIds)] }
+  })
 }
 
 export async function retireUnusedQuestions(db: DatabaseSync, studentId: string, subject: string) {
@@ -1466,7 +1856,7 @@ export async function addDirection(
   })
   await db.prepare(
     "INSERT INTO subject_sources (id, student_id, subject, kind, name, body, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-  ).run(sourceId, studentId, subject, input.kind, input.name.trim() || input.kind, body.slice(0, 80_000), new Date().toISOString())
+  ).run(sourceId, studentId, subject, input.kind, input.name.trim() || input.kind, body.slice(0, 80_000), learningNow().toISOString())
   const subjects = parseSubjects(student.subjects)
   if (!subjects.some((item) => item.toLowerCase() === subject.toLowerCase())) {
     subjects.push(subject)
@@ -1565,7 +1955,7 @@ export async function aiConfigFor(db: DatabaseSync, userId: string) {
 }
 
 /** Keeps the family's AI state (WF-01). Clearing is a no-op unless a state is set, so working calls stay cheap. */
-export async function recordAiHealth(db: DatabaseSync, userId: string, health: AiHealth | null, now = new Date()) {
+export async function recordAiHealth(db: DatabaseSync, userId: string, health: AiHealth | null, now = learningNow()) {
   if (health) await db.prepare("UPDATE users SET ai_health = ?, ai_health_at = ? WHERE id = ?").run(health, now.toISOString(), userId)
   else await db.prepare("UPDATE users SET ai_health = NULL, ai_health_at = NULL WHERE id = ? AND ai_health IS NOT NULL").run(userId)
 }
@@ -1642,7 +2032,7 @@ export async function addTalk(
     input.role,
     await sealForStudent(db, studentId, body.slice(0, 8000)),
     input.pending ? JSON.stringify({ pending: true }) : input.proposal ? JSON.stringify(input.proposal) : "",
-    new Date().toISOString(),
+    learningNow().toISOString(),
   )
   if (input.role === "parent") await recordDecision(db, studentId, "planning_choice", "The parent changed or clarified the requested course focus.", { subject, message: body.slice(0, 1000) })
 }
@@ -1809,7 +2199,8 @@ export async function listLesson(db: DatabaseSync, ownerUserId: string, sessionI
 }
 
 export async function addLesson(db: DatabaseSync, ownerUserId: string, sessionId: string, role: "student" | "tutor", body: string) {
-  await getOwnedSession(db, ownerUserId, sessionId)
+  const session = await getOwnedSession(db, ownerUserId, sessionId)
+  if (await openAssessment(db, ownerUserId, String(session.student_id))) throw new UserError('Finish your assessment before asking for teaching help.')
   const text = body.trim()
   if (!text) throw new UserError("Ask about one of the questions.")
   await db.prepare("INSERT INTO lesson_messages (id, session_id, role, body, created_at) VALUES (?, ?, ?, ?, ?)").run(
@@ -1817,16 +2208,17 @@ export async function addLesson(db: DatabaseSync, ownerUserId: string, sessionId
     sessionId,
     role,
     await sealFor(db, ownerUserId, text.slice(0, 4000)),
-    new Date().toISOString(),
+    learningNow().toISOString(),
   )
 }
 
 export async function ensureLessonOpening(db: DatabaseSync, ownerUserId: string, sessionId: string, results: ScoreLine[]) {
   const session=await getOwnedSession(db, ownerUserId, sessionId)
+  if (await openAssessment(db, ownerUserId, String(session.student_id))) return
   const row = (await db.prepare("SELECT count(*) AS n FROM lesson_messages WHERE session_id = ?").get(sessionId)) as { n: number }
   if (row.n > 0) return
   const known=await studentGraph(db,String(session.student_id)),items=await sessionItems(db,sessionId)
-  const explained=results.map(result=>{const item=items.find(i=>i.prompt===result.prompt),concept=item?known.nodes.get(String(item.concept_id)):undefined;return{...result,recall:concept?.recall,example:concept?.example}})
+  const explained=results.map(result=>{const item=items.find(i=>i.prompt===result.prompt),concept=item?known.nodes.get(String(item.concept_id)):undefined;return{...result,recall:concept?.recall,example:concept?.example,teaching:concept?.teaching,workedExample:readScaffold(item?.scaffold_json)?.worked}})
   await addLesson(db, ownerUserId, sessionId, "tutor", lessonOpening(explained))
 }
 
@@ -1983,7 +2375,7 @@ function rootsForSubject(known: ConceptGraph, student: StudentRow, subject: stri
 }
 
 async function missCounts(db: DatabaseSync, studentId: string) {
-  const since = new Date(Date.now() - 14 * 86_400_000).toISOString()
+  const since = new Date(learningNow().getTime() - 14 * 86_400_000).toISOString()
   const rows = (await db
     .prepare(
       `SELECT concept_id, error_type FROM attempts
@@ -2000,7 +2392,7 @@ async function missCounts(db: DatabaseSync, studentId: string) {
   return map
 }
 
-async function weakConceptIds(db: DatabaseSync, studentId: string, now = new Date()) {
+async function weakConceptIds(db: DatabaseSync, studentId: string, now = learningNow()) {
   const since = new Date(now.getTime() - 14 * 86_400_000).toISOString()
   const rows = (await db
     .prepare(
@@ -2039,6 +2431,27 @@ async function studentGraph(db: DatabaseSync, studentId: string) {
     example: String(row.example),
     nonExample: String(row.non_example),
   }))
+  const maps = await db.prepare("SELECT id, version, subject, map_json FROM subject_maps WHERE student_id = ? AND status = 'approved' ORDER BY version DESC").all(studentId)
+  const seenSubjects = new Set<string>()
+  for (const row of maps) {
+    const subject = String(row.subject).toLowerCase()
+    if (seenSubjects.has(subject)) continue
+    seenSubjects.add(subject)
+    try {
+      const list = JSON.parse(String(row.map_json)).groups.flatMap((g: any) => g.concepts)
+      const candidates = rows.filter(r => String(r.subject).toLowerCase() === subject && r.map_key)
+      const byKey = new Map(candidates.filter(r => candidates.filter(c => c.map_key === r.map_key).length === 1).map(r => [String(r.map_key), String(r.concept_id)]))
+      for (const entry of list) {
+        if (list.filter((e: any) => e.key === entry.key).length !== 1) continue
+        const node = custom.find(n => n.conceptId === byKey.get(entry.key))
+        if (node) {
+          node.crossLinks = (Array.isArray(entry.crossLinks) ? entry.crossLinks : []).flatMap((key: string) => byKey.has(key) ? [byKey.get(key)!] : [])
+          node.mapVersion = `${row.id}:${row.version}`
+          node.teaching = approvedTeaching(entry) ?? undefined
+        }
+      }
+    } catch { /* malformed or unknown map metadata makes no relation claim */ }
+  }
   return buildGraph([...graph.nodes.values(), ...custom])
 }
 
@@ -2074,7 +2487,16 @@ export async function seenPrompts(db: DatabaseSync, studentId: string) {
        WHERE tutor_sessions.student_id = ?`,
     )
     .all(studentId)) as Array<{ prompt: string }>
-  return new Set(rows.map((row) => promptIdentity(row.prompt)))
+  const seen = new Set(rows.map((row) => promptIdentity(row.prompt)))
+  // Printed work can have been used without a later upload or score submission.
+  const sheets = await db.prepare('SELECT spec_json FROM sheets WHERE student_id = ?').all(studentId)
+  for (const sheet of sheets) {
+    try {
+      const payload = JSON.parse(String(sheet.spec_json))
+      for (const item of payload.items ?? []) if (typeof item.prompt === 'string') seen.add(promptIdentity(item.prompt))
+    } catch { /* A malformed historical sheet supplies no trusted prompt identity. */ }
+  }
+  return seen
 }
 
 function isGenericDrill(prompt: string) {
@@ -2101,10 +2523,12 @@ async function insertPractice(
   now: Date,
   kind: "practice" | "transfer" = "practice",
   rubric?: Rubric,
+  format = 'text',
+  choices?: string[],
 ) {
   await db.prepare(
-    "INSERT INTO practice_items (id, student_id, concept_id, prompt, answer, bloom_level, created_at, evidence_kind, rubric_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-  ).run(crypto.randomUUID(), studentId, conceptId, prompt, answer, bloom, now.toISOString(), kind, rubric ? JSON.stringify(rubric) : null)
+    "INSERT INTO practice_items (id, student_id, concept_id, prompt, answer, bloom_level, created_at, evidence_kind, rubric_json, format, choices_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+  ).run(crypto.randomUUID(), studentId, conceptId, prompt, answer, bloom, now.toISOString(), kind, rubric ? JSON.stringify(rubric) : null, format, choices ? JSON.stringify(choices) : null)
 }
 
 /** A session item as the marker sees it: its key, its format and, for multiple choice, its options. */
@@ -2124,30 +2548,34 @@ export function childCorrection(label: string, item: Record<string, SQLInputValu
   let hints: string[] = []
   try { const parsed = item.hints_json ? JSON.parse(String(item.hints_json)) : []; hints = Array.isArray(parsed) ? parsed.map(String) : [] } catch { hints = [] }
   const ask = hints.find((hint) => hint && !hint.toLowerCase().includes(String(item.answer ?? "").toLowerCase()) && !/key or rubric/i.test(hint)) ?? "What is the question asking you to do?"
-  const explain = item.explanation ? sentence(item.explanation) : [sentence(concept?.recall), concept?.example ? `Worked example: ${sentence(concept.example)}` : ""].filter(Boolean).join(" ")
+  const worked = readScaffold(item.scaffold_json)?.worked
+  const explain = worked ? `${worked.problem} ${worked.steps.map(step => `${step.work} ${step.reason}`).join(' ')} Check: ${worked.check}`
+    : item.explanation ? sentence(item.explanation) : [sentence(concept?.recall), concept?.example ? `Example: ${sentence(concept.example)}` : ""].filter(Boolean).join(" ")
   const answer = childAnswer(String(item.answer ?? ""))
   const next = reset ? "We’ll leave this topic for now. Ask about a step, or take a break." : "Then try a fresh question on your own."
   const reason = /^(That is not the answer yet|That matches the answer)\.?$/.test(why.trim()) ? "" : sentence(childReasonText(why))
   return { label, why: reason, ask, explain, answer, reset, move: `${reason ? `${reason} ` : ""}${explain} The answer: ${sentence(answer)} ${next}`.trim() }
 }
 
-export interface ClaimedPractice { prompt: string; answer: string; bloom: BloomLevel; format: string; choices: string[] | null; hints: string[] | null; explanation: string; packId: string | null; kind?: "practice" | "transfer"; rubric?: string | null }
+export interface ClaimedPractice { sourceId: string; prompt: string; answer: string; bloom: BloomLevel; format: string; choices: string[] | null; hints: string[] | null; explanation: string; packId: string | null; kind?: "practice" | "transfer"; rubric?: string | null }
 
 /** Takes the best unused stored question: learning-pack questions first, then the closest demand, then the oldest. Seen prompts are spent and skipped. */
-async function claimPractice(db: DatabaseSync, studentId: string, conceptId: string, now: Date, bloom: number, seen: Set<string>, packOnly = false): Promise<ClaimedPractice | null> {
+async function claimPractice(db: DatabaseSync, studentId: string, conceptId: string, now: Date, bloom: number, seen: Set<string>, packOnly = false, comparableOnly = false, expectedForm?: string, taught: string[] = []): Promise<ClaimedPractice | null> {
   const rows = (await db
     .prepare(
       `SELECT id, prompt, answer, bloom_level, pack_id, format, choices_json, hints_json, explanation, evidence_kind, rubric_json FROM practice_items
-       WHERE student_id = ? AND concept_id = ? AND used_at IS NULL ${packOnly ? "AND pack_id IS NOT NULL" : ""}
-       ORDER BY CASE WHEN pack_id IS NULL THEN 1 ELSE 0 END, abs(bloom_level - ?), created_at LIMIT 12`,
+       WHERE student_id = ? AND concept_id = ? AND used_at IS NULL ${packOnly ? "AND pack_id IS NOT NULL" : ""} ${comparableOnly ? "AND bloom_level = ? AND evidence_kind = 'practice'" : ""}
+       ORDER BY CASE WHEN pack_id IS NULL THEN 1 ELSE 0 END, abs(bloom_level - ?), created_at`,
     )
-    .all(studentId, conceptId, bloom)) as Array<Record<string, SQLInputValue>>
+    .all(studentId, conceptId, ...(comparableOnly ? [bloom] : []), bloom)) as Array<Record<string, SQLInputValue>>
   for (const row of rows) {
+    if (expectedForm && expectedForm !== 'unknown' && responseForm(row) !== expectedForm) continue
+    if (copiesTeaching(String(row.prompt), taught)) continue
     await db.prepare("UPDATE practice_items SET used_at = ? WHERE id = ?").run(now.toISOString(), row.id)
     if (seen.has(promptIdentity(String(row.prompt)))) continue
     const list = (value: SQLInputValue) => { try { const parsed = value ? JSON.parse(String(value)) : null; return Array.isArray(parsed) ? parsed.map(String) : null } catch { return null } }
     return {
-      prompt: String(row.prompt), answer: String(row.answer), bloom: Number(row.bloom_level) as BloomLevel,
+      sourceId: String(row.id), prompt: String(row.prompt), answer: String(row.answer), bloom: Number(row.bloom_level) as BloomLevel,
       format: String(row.format ?? "text"), choices: list(row.choices_json), hints: list(row.hints_json), explanation: String(row.explanation ?? ""),
       packId: row.pack_id ? String(row.pack_id) : null,
       kind: row.evidence_kind === "transfer" ? "transfer" as const : "practice" as const,
@@ -2213,38 +2641,25 @@ async function endSession(db: DatabaseSync, sessionId: string, reason: string, n
   }
 }
 
-async function rewriteItem(db: DatabaseSync, item: Record<string, SQLInputValue>, delta: number) {
+export async function rewriteItem(db: DatabaseSync, item: Record<string, SQLInputValue>, delta: number, now = learningNow()) {
   const nextBloom = Math.min(6, Math.max(1, Number(item.bloom_level) + delta)) as BloomLevel
-  const owner = (await db.prepare("SELECT student_id FROM tutor_sessions WHERE id = ?").get(String(item.session_id))) as
-    | { student_id: string }
-    | undefined
-  if (!owner) return
-  const known = (await studentGraph(db, owner.student_id))
+  const owner = await db.prepare("SELECT student_id, mode FROM tutor_sessions WHERE id = ?").get(String(item.session_id))
+  if (!owner || owner.mode === 'assessment' || item.beat === 'review' || item.evidence_purpose === 'mixed-check' || item.shown_at || item.visible_at || item.answered || String(item.draft_answer ?? '').trim()) return
+  const known = await studentGraph(db, String(owner.student_id))
   const concept = known.nodes.get(String(item.concept_id))
   if (!concept) return
-  const pack = await claimPractice(db, owner.student_id, concept.conceptId, new Date(), nextBloom, await seenPrompts(db, owner.student_id), true)
-  if (pack) {
-    await db.prepare(
-      "UPDATE session_items SET bloom_level = ?, prompt = ?, answer = ?, hints_json = ?, format = ?, choices_json = ?, explanation = ?, hints_used = 0, hint_text = NULL WHERE id = ?",
-    ).run(pack.bloom, pack.prompt, pack.answer, JSON.stringify(pack.hints ?? []), pack.format, pack.choices ? JSON.stringify(pack.choices) : null, pack.explanation, item.id)
-    await recordDecision(db, owner.student_id, "difficulty_adjusted", delta > 0 ? "The rolling scored answers support a harder task." : "The rolling scored answers call for an easier task or corrective.", {
-      sessionId: item.session_id, itemId: item.id, conceptId: item.concept_id, previousBloom: item.bloom_level, nextBloom: pack.bloom, packId: pack.packId,
-    })
-    return
-  }
-  const partner = item.partner_concept_id ? known.nodes.get(String(item.partner_concept_id)) ?? null : null
-  const generated = generateItem(concept, nextBloom, randomInt(1, 1_000_000_000), {
-    interleaved: item.interleaved === 1,
-    partner,
-    itemId: String(item.id),
-  })
-  await db.prepare(
-    "UPDATE session_items SET bloom_level = ?, prompt = ?, answer = ?, hints_json = ?, surface = ?, format = 'text', choices_json = NULL, explanation = '', hints_used = 0, hint_text = NULL WHERE id = ?",
-  ).run(nextBloom, generated.prompt, generated.answer, JSON.stringify(generated.hintLadder), generated.surface, item.id)
-  await recordDecision(db, owner.student_id, "difficulty_adjusted", delta > 0 ? "The rolling scored answers support a harder task." : "The rolling scored answers call for an easier task or corrective.", {
-    sessionId: item.session_id, itemId: item.id, conceptId: item.concept_id,
-    previousBloom: item.bloom_level, nextBloom, surface: generated.surface,
-  })
+  const pack = await claimPractice(db, String(owner.student_id), concept.conceptId, now, nextBloom, await seenPrompts(db, String(owner.student_id)), true)
+  const generated = pack ? null : generateItem(concept, nextBloom, randomInt(1, 1_000_000_000), { itemId: crypto.randomUUID() })
+  const replacement = pack ? { bloom_level: pack.bloom, prompt: pack.prompt, answer: pack.answer, hints_json: JSON.stringify(pack.hints ?? []),
+    format: pack.format, choices_json: pack.choices ? JSON.stringify(pack.choices) : null, explanation: pack.explanation,
+    evidence_kind: pack.kind ?? 'practice', rubric_json: pack.rubric ?? null }
+    : { bloom_level: generated!.bloomLevel, prompt: generated!.prompt, answer: generated!.answer, hints_json: JSON.stringify(generated!.hintLadder),
+      surface: generated!.surface, format: generated!.responseFormat ?? 'text', choices_json: generated!.choices ? JSON.stringify(generated!.choices) : null,
+      rubric_json: generated!.rubric ? JSON.stringify(generated!.rubric) : null, evidence_kind: generated!.evidenceKind ?? 'practice', explanation: '' }
+  const id = await replaceUnseenTask(db, item, replacement, pack ? 'practice' : 'builtin', pack?.sourceId ?? null)
+  if (id) await recordDecision(db, String(owner.student_id), 'difficulty_adjusted', delta > 0 ? 'The rolling scored answers support a harder task.' : 'The rolling scored answers call for an easier task or corrective.', {
+    sessionId: item.session_id, retiredItemId: item.id, itemId: id, conceptId: item.concept_id, previousBloom: item.bloom_level, nextBloom: replacement.bloom_level,
+  }, now)
 }
 
 function rowToState(row: Record<string, SQLInputValue>): LearnerConceptState {
@@ -2282,7 +2697,7 @@ export async function rollingSix(db: DatabaseSync, studentId: string, conceptId?
   return evidence.filter(a => a.conceptId === (conceptId ?? latest?.conceptId) && a.bloomLevel === (bloomLevel ?? latest?.bloomLevel)).slice(-6).map(a => a.correct)
 }
 
-export async function enforceSessionTime(db: DatabaseSync, owner: string, sessionId: string, now = new Date()) {
+export async function enforceSessionTime(db: DatabaseSync, owner: string, sessionId: string, now = learningNow()) {
   const session = (await getOwnedSession(db, owner, sessionId))
   // Time spent paused does not count against the mission.
   const until = session.paused_at ? Math.min(now.getTime(), Date.parse(String(session.paused_at))) : now.getTime()
@@ -2291,31 +2706,67 @@ export async function enforceSessionTime(db: DatabaseSync, owner: string, sessio
 }
 export async function pauseSession(db: DatabaseSync, owner: string, sessionId: string) {
   await getOwnedSession(db, owner, sessionId)
-  await db.prepare("UPDATE tutor_sessions SET paused_at = ? WHERE id = ?").run(new Date().toISOString(), sessionId)
+  await db.prepare("UPDATE tutor_sessions SET paused_at = coalesce(paused_at, ?) WHERE id = ? AND ended_at IS NULL").run(learningNow().toISOString(), sessionId)
+}
+
+/** Submission closes the entire check, even when the learner deliberately leaves items unanswered. */
+export async function finishAssessment(db: DatabaseSync, owner: string, sessionId: string, now = learningNow()) {
+  return withWrite(db, async () => {
+    const session = await getOwnedSession(db, owner, sessionId)
+    if (session.mode !== 'assessment') throw new UserError('This is not an assessment.')
+    if (session.end_reason === 'assessment_submitted') return
+    const items = await assessmentItems(db, sessionId)
+    await db.prepare("UPDATE tutor_sessions SET ended_at = ?, end_reason = 'assessment_submitted', paused_at = NULL, break_until = NULL WHERE id = ?").run(now.toISOString(), sessionId)
+    await recordDecision(db, String(session.student_id), 'assessment_submitted', 'The assessment was submitted. Feedback and teaching can now open; unattempted items are not failed attempts.', {
+      sessionId, answered: items.filter(i => i.answered === 1).length, unanswered: items.filter(i => i.answered === 0).length,
+    }, now)
+  })
+}
+
+/** Keep deliberately unanswered questions visible in completion totals, without grading them. */
+export async function assessmentItems(db: DatabaseSync, sessionId: string) {
+  return await db.prepare("SELECT * FROM session_items WHERE session_id = ? AND (skipped = 0 OR skip_reason = 'assessment_unanswered') ORDER BY position").all(sessionId) as Array<Record<string, SQLInputValue>>
 }
 export async function resumeSession(db: DatabaseSync, owner: string, sessionId: string, duration?: number): Promise<string> {
   return withWrite(db, async (): Promise<string> => {
     const old = (await getOwnedSession(db, owner, sessionId))
+    if (old.mode === 'assessment' && !assessmentOpen(old, await sessionItems(db, sessionId))) return sessionId
     const first = (await sessionItems(db, sessionId)).find(i => i.answered === 0)
     if (!first) return sessionId
+    if (old.mode === 'assessment' && old.ended_at) {
+      // Keep the same questions, drafts and evidence after the attention cap. A new block gets a fresh clock.
+      await db.prepare("UPDATE tutor_sessions SET started_at = ?, ended_at = NULL, end_reason = NULL, paused_at = NULL, break_until = NULL WHERE id = ?").run(learningNow().toISOString(), sessionId)
+      return sessionId
+    }
     if (old.paused_at && !old.ended_at) {
       // Move the start forward by the pause, so the clock picks up where it stopped.
-      const paused = Math.max(0, Date.now() - Date.parse(String(old.paused_at)))
+      const paused = Math.max(0, learningNow().getTime() - Date.parse(String(old.paused_at)))
       await db.prepare("UPDATE tutor_sessions SET started_at = ?, paused_at = NULL, paused_ms = coalesce(paused_ms, 0) + ? WHERE id = ?").run(new Date(Date.parse(String(old.started_at)) + paused).toISOString(), Math.round(paused), sessionId)
     }
     await enforceSessionTime(db, owner, sessionId)
+    if (old.mode === 'assessment' && (await getOwnedSession(db, owner, sessionId)).ended_at) {
+      await db.prepare("UPDATE tutor_sessions SET started_at = ?, ended_at = NULL, end_reason = NULL, paused_at = NULL, break_until = NULL WHERE id = ?").run(learningNow().toISOString(), sessionId)
+      return sessionId
+    }
     if (!(await getOwnedSession(db, owner, sessionId)).ended_at) {
       await db.prepare("UPDATE tutor_sessions SET paused_at = NULL WHERE id = ?").run(sessionId)
       return sessionId
     }
-    const id = (await startTutorSession(db, owner, String(old.student_id), new Date(), { durationMinutes: duration, subject: String(old.subject), mode: old.mode as any, goal: "resume", materialId: old.material_id ? String(old.material_id) : undefined, questionId: old.question_id ? String(old.question_id) : undefined }))
+    const id = (await startTutorSession(db, owner, String(old.student_id), learningNow(), { durationMinutes: duration, subject: String(old.subject), mode: old.mode as any, goal: "resume", materialId: old.material_id ? String(old.material_id) : undefined, questionId: old.question_id ? String(old.question_id) : undefined }))
     await db.prepare("DELETE FROM session_items WHERE session_id = ?").run(id)
     for (const [index, item] of ((await sessionItems(db, sessionId)).filter(i => i.answered === 0)).entries()) {
-      await db.prepare(`INSERT INTO session_items (id, session_id, position, beat, concept_id, bloom_level, prompt, answer, hints_json, surface, interleaved, partner_concept_id, hints_used, hint_text, draft_answer, answered, format, choices_json, explanation) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)`).run(crypto.randomUUID(), id, index + 1, item.beat, item.concept_id, item.bloom_level, item.prompt, item.answer, item.hints_json, item.surface, item.interleaved, item.partner_concept_id, item.hints_used, item.hint_text, await sealFor(db, owner, item.draft_answer), item.format ?? "text", item.choices_json ?? null, item.explanation ?? "")
+      const carriedId = crypto.randomUUID()
+      await db.prepare(`INSERT INTO session_items (id, session_id, position, beat, concept_id, bloom_level, prompt, answer, hints_json, surface, interleaved, partner_concept_id, hints_used, hint_text, draft_answer, answered, format, choices_json, explanation) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, ?, ?, ?, 0, ?, ?, ?)`).run(carriedId, id, index + 1, item.beat, item.concept_id, item.bloom_level, item.prompt, item.answer, item.hints_json, item.surface, item.hints_used, item.hint_text, await sealFor(db, owner, item.draft_answer), item.format ?? "text", item.choices_json ?? null, item.explanation ?? "")
+      await db.prepare('UPDATE session_items SET evidence_policy = ?, revision_id = ?, task_evidence = ?, evidence_kind = ?, rubric_json = ?, access_support = ?, confidence = ?, confidence_at = ?, confidence_revision = ?, confidence_support = ?, evidence_purpose = ? WHERE id = ?')
+        .run(item.evidence_policy ?? null, item.revision_id ?? null, item.task_evidence ?? null, item.evidence_kind ?? 'practice', item.rubric_json ?? null, item.access_support ?? null,
+          item.confidence ?? null, item.confidence_at ?? null, item.confidence_revision ?? null, item.confidence_support ?? null, item.evidence_purpose ?? 'learning', carriedId)
+      await db.prepare('UPDATE session_items SET scaffold_json = ? WHERE id = ?').run(item.scaffold_json ?? null, carriedId)
+      await db.prepare('UPDATE session_items SET lesson_json = ? WHERE id = ?').run(item.lesson_json ?? null, carriedId)
     }
     // A carried-on first check stays a first check, so a second interruption carries on again.
     if (["probe", "harder_probe"].includes(String(old.goal))) await db.prepare("UPDATE tutor_sessions SET goal = ? WHERE id = ?").run(String(old.goal), id)
     await db.prepare("UPDATE tutor_sessions SET carried_from = ? WHERE id = ?").run(sessionId, id)
+    await db.prepare('UPDATE tutor_sessions SET lesson_done = ? WHERE id = ?').run(old.lesson_done ?? 1, id)
     await db.prepare("UPDATE tutor_sessions SET paused_at = NULL, end_reason = 'continued' WHERE id = ?").run(sessionId)
 
     return id
@@ -2331,10 +2782,14 @@ function modeForRecovery(session: Record<string, any>) { return session.mode ===
 
 export async function adventureFor(db: DatabaseSync, ownerId: string, studentId: string) {
   await assertStudent(db, ownerId, studentId)
-  return learningMilestones(await loadAttempts(db, studentId))
+  const cutover = await db.prepare('SELECT milestones_json FROM learning_cutovers WHERE student_id = ?').get(studentId)
+  let historical: import('./engine/adventure.ts').LearningMilestone[] = []
+  try { if (cutover) historical = JSON.parse(String(cutover.milestones_json)) } catch { /* no fabricated receipts */ }
+  const current = learningMilestones(await loadAttempts(db, studentId))
+  return [...historical, ...current.filter(m => !historical.some(h => h.id === m.id))]
 }
 
-export async function missionSummary(db: DatabaseSync, ownerId: string, sessionId: string) {
+export async function missionSummary(db: DatabaseSync, ownerId: string, sessionId: string, now = learningNow()) {
   const session = await getOwnedSession(db, ownerId, sessionId)
   const rows = await sessionItems(db, sessionId)
   const attempts = freshEvidence(await loadAttempts(db, String(session.student_id)))
@@ -2342,15 +2797,28 @@ export async function missionSummary(db: DatabaseSync, ownerId: string, sessionI
   const supported = rows.filter(i => i.correct === 1 && (Number(i.hints_used) > 0 || session.mode === "homework")).length
   const unresolved = rows.filter(i => i.answered === 1 && i.correct == null).length
   const studentId = String(session.student_id)
+  const student = await assertStudent(db, ownerId, studentId)
+  const graph = await studentGraph(db, studentId)
+  const focus = activeFocus(await loadTargets(db, studentId), dayStamp(now))
+  const roots = focus?.conceptIds.length ? focus.conceptIds : rootsForSubject(graph, student, String(session.subject))
+  const scope = new Set(prerequisiteClosure(graph, roots))
+  const pending = [...scope].map(id => ({ id, demand: componentDemand(attempts, graph.nodes.get(id)!) }))
+    .find(({id, demand}) => demand && !masteryMet(attempts.filter(a => a.conceptId === id), demand))
+  const available = pending && [...scope].some(id => mixedRelation(graph, pending.id, id))
+  const mixedStatus = pending ? {
+    conceptId: pending.id, subject: String(session.subject), minutes: available && Number(student.session_cap_minutes) >= 5 ? 5 : null,
+    message: available ? 'Independent work is building. A mixed check is still pending; a five-minute practice mission can make room when both ideas are ready.'
+      : 'Independent outcome demonstrated; mixed check not available in this scope.',
+  } : null
   const next = await nextLearningAction(db, ownerId, studentId)
-  const today = dayStamp(new Date())
+  const today = dayStamp(now)
   const concepts = await studentConcepts(db, ownerId, studentId)
-  const due = (await listStates(db, studentId))
+  const due = (await listStates(db, studentId, now))
     .filter(s => s.nextDue <= today && s.independentChecks && s.conceptId !== next?.conceptId && concepts.some(c => c.conceptId === s.conceptId))
     .sort((a, b) => a.nextDue.localeCompare(b.nextDue))[0]
   const dueConcept = due ? concepts.find(c => c.conceptId === due.conceptId) : undefined
   const review = dueConcept ? { conceptId: dueConcept.conceptId, title: dueConcept.title, subject: dueConcept.subject } : null
-  return { independent, supported, unresolved, next, review, subject: String(session.subject ?? ''), studentId }
+  return { independent, supported, unresolved, next, review, mixedStatus, subject: String(session.subject ?? ''), studentId }
 }
 
 export async function learningOverview(db: DatabaseSync, owner: string, studentId: string) {
@@ -2368,10 +2836,10 @@ export async function learningOverview(db: DatabaseSync, owner: string, studentI
   const pending = Number((await db.prepare('SELECT count(*) n FROM session_items i JOIN tutor_sessions s ON s.id = i.session_id WHERE s.student_id = ? AND i.answered = 1 AND i.correct IS NULL').get(studentId))?.n ?? 0)
   const scores = await db.prepare('SELECT title, earned, possible, date FROM school_results WHERE student_id = ? ORDER BY date DESC LIMIT 1').all(studentId)
   const known = states.filter(s => s.independentChecks)
-  const due = known.filter(s => s.nextDue <= dayStamp(new Date()))
+  const due = known.filter(s => s.nextDue <= dayStamp(learningNow()))
   const gaps = known.filter(s => s.status === 'stuck' || evidence.filter(a => a.conceptId === s.conceptId).at(-1)?.correct === false)
   const strong = known.filter(s => s.bloomLevel >= 2)
-  return { student, next, titles, independent: evidence.length, supported: attempts.filter(a => a.correct && (a.hintsUsed > 0 || a.supportUsed === 'homework' || a.supportUsed === 'access')).length, days: new Set(evidence.map(a => a.day)).size, pending, due, gaps, strong, challenge, comparableCount: comparable.length, demand, successPercent: comparable.length >= 6 ? Math.round(rate! * 100) : null, lastScore: scores[0] ?? null }
+  return { student, next, titles, independent: evidence.length, supported: attempts.filter(a => a.evidenceCertainty === 'confirmed' && a.correct && (a.hintsUsed > 0 || a.supportUsed && a.supportUsed !== 'none')).length, days: new Set(evidence.map(a => a.day)).size, pending, due, gaps, strong, challenge, comparableCount: comparable.length, demand, successPercent: comparable.length >= 6 ? Math.round(rate! * 100) : null, lastScore: scores[0] ?? null }
 }
 
 
@@ -2383,7 +2851,7 @@ export async function avoidRepeatedQuestions(db: DatabaseSync, owner: string, se
     const original=await sessionItems(db,sessionId)
     if(session.mode!=='assessment') for(const id of new Set(original.filter(i=>i.answered===1 && i.correct===0).map(i=>i.concept_id))) {
       const misses=original.filter(i=>i.answered===1 && i.correct===0 && i.concept_id===id)
-      if(misses.length>=2 && original.filter(i=>i.answered===1 && i.concept_id===id).at(-1)?.correct===0 && original.some(i=>i.answered===0 && i.concept_id===id)) await recordTeachingOutcome(db,session,misses.at(-1)!,false,String(misses.at(-1)!.grading_reason ?? 'These tries need a different teaching approach.'),new Date())
+      if(misses.length>=2 && original.filter(i=>i.answered===1 && i.concept_id===id).at(-1)?.correct===0 && original.some(i=>i.answered===0 && i.concept_id===id)) await recordTeachingOutcome(db,session,misses.at(-1)!,false,String(misses.at(-1)!.grading_reason ?? 'These tries need a different teaching approach.'),learningNow())
     }
     const active = await sessionItems(db,sessionId)
     const recallChecks = new Set(active.filter(i=>i.answered===1 && i.bloom_level===1).map(i=>`${i.concept_id}:${i.answer}`))
@@ -2400,6 +2868,7 @@ export async function avoidRepeatedQuestions(db: DatabaseSync, owner: string, se
 export async function acknowledgeFeedback(db: DatabaseSync, owner: string, sessionId: string) {
   await withWrite(db, async()=>{
     const session=await getOwnedSession(db,owner,sessionId)
+    if (assessmentOpen(session, await sessionItems(db, sessionId))) throw new UserError('Assessment feedback opens after submission.')
     const count=(await sessionItems(db,sessionId)).filter(i=>i.answered===1).length
     await db.prepare('UPDATE tutor_sessions SET feedback_cursor = ?, pending_feedback = NULL WHERE id = ?').run(count,sessionId)
   })
@@ -2420,11 +2889,11 @@ async function recordTeachingOutcome(db: DatabaseSync, session: Record<string, S
   if(correct && session.mode==='session' && count<=2) await db.prepare('UPDATE tutor_sessions SET feedback_cursor = ? WHERE id = ?').run(count,session.id)
 }
 
-export async function practiceRefreshContext(db: DatabaseSync, owner:string, student:string, conceptId:string):Promise<FreshContext> {
+export async function practiceRefreshContext(db: DatabaseSync, owner:string, student:string, conceptId:string, comparison?: ComparableRequest):Promise<FreshContext> {
   await assertStudent(db,owner,student)
   const concept=(await studentGraph(db,student)).nodes.get(conceptId)
   if(!concept) throw new UserError('Concept not found.')
   const state=(await listStates(db,student)).find(s=>s.conceptId===conceptId)
   const asked=await db.prepare('SELECT i.prompt FROM session_items i JOIN tutor_sessions s ON s.id = i.session_id WHERE s.student_id = ? AND i.concept_id = ? ORDER BY i.rowid DESC LIMIT 200').all(student,conceptId)
-  return {concept,demand:workingBloom(state),asked:asked.map(i=>String(i.prompt)),evidence:await decisionContext(db,owner,student)}
+  return {concept,demand:comparison?.demand??workingBloom(state),asked:asked.map(i=>String(i.prompt)),evidence:await decisionContext(db,owner,student),...(comparison?{comparison}:{})}
 }

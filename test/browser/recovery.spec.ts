@@ -18,8 +18,9 @@ async function onboard(page: Page) {
 test('an answer survives a failed submission even when autosave also fails', async ({ page }) => {
   await onboard(page)
   await page.getByRole('button', { name: 'Let’s go' }).click()
+  await page.waitForURL(url => /^\/session\/[0-9a-f-]{36}$/.test(url.pathname))
   const mission = page.url()
-  const answer = page.getByLabel('Answer', { exact: true })
+  const answer = page.getByRole('textbox', { name: /^(Answer|Your steps)$/ })
   await expect(answer).toBeVisible()
   await page.waitForLoadState('load')
   await page.route('**/session/*/draft', route => route.abort('internetdisconnected'))

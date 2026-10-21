@@ -3,6 +3,8 @@
 // so a grown-up's answer cannot become the learner's evidence. Nothing is stored until
 // the learner answers; the answer goes through the same scoring as a mission.
 import { createHash, randomUUID } from 'node:crypto'
+import { stampTask } from './task-evidence.ts'
+import { openAssessment } from './assessment.ts'
 import type { Database as DatabaseSync } from './database.ts'
 import type { Job } from './jobs.ts'
 import { loadBackbone } from './engine/graph.ts'
@@ -22,6 +24,10 @@ const goalFor = (jobId: string) => `waiting_review:${jobId}`
 /** A fingerprint of the question shown, so an answer is never scored against a different question. */
 const refFor = (prompt: string) => createHash('sha256').update(promptIdentity(prompt)).digest('base64url').slice(0, 16)
 const terminal = (job: Job) => ['succeeded', 'failed', 'cancelled'].includes(job.status)
+async function assessmentWaiting(db: DatabaseSync, owner: string, job: Job) {
+  const payload = JSON.parse(job.payload)
+  return payload.options?.mode === 'assessment' || Boolean(job.student_id && await openAssessment(db, owner, job.student_id))
+}
 
 /** Concepts the job itself is preparing, so the card is spaced retrieval rather than a preview. */
 async function jobConcepts(db: DatabaseSync, job: Job): Promise<Set<string>> {
@@ -36,6 +42,7 @@ async function jobConcepts(db: DatabaseSync, job: Job): Promise<Set<string>> {
 
 /** The due review question for this job, chosen and regenerated on the server only. */
 export async function chooseReview(db: DatabaseSync, owner: string, job: Job) {
+  if (await assessmentWaiting(db, owner, job)) return null
   const studentId = String(job.student_id)
   const graph = loadBackbone(), today = dayStamp(new Date()), skip = await jobConcepts(db, job)
   const concepts = await studentConcepts(db, owner, studentId)
@@ -60,6 +67,7 @@ export async function chooseReview(db: DatabaseSync, owner: string, job: Job) {
 
 export async function waitingReview(db: DatabaseSync, owner: string, job: Job, childAtDevice: boolean, reask = false): Promise<WaitingReview | null> {
   if (!job.student_id || !childAtDevice || terminal(job)) return null
+  if (await assessmentWaiting(db, owner, job)) return null
   const done = await db.prepare('SELECT id FROM tutor_sessions WHERE student_id = ? AND goal = ? LIMIT 1').get(String(job.student_id), goalFor(job.id))
   if (done) {
     const item = (await sessionItems(db, String(done.id)))[0]
@@ -77,6 +85,7 @@ export async function waitingReview(db: DatabaseSync, owner: string, job: Job, c
 /** Score the learner's answer as a one-question review session. Returns false for a non-attempt. */
 export async function answerWaitingReview(db: DatabaseSync, owner: string, job: Job, answer: string, ref: string, now = new Date()): Promise<'scored' | 'reask' | 'changed'> {
   if (!job.student_id) throw new Error('This job has no learner.')
+  if (await assessmentWaiting(db, owner, job)) return 'changed'
   const studentId = String(job.student_id)
   if (await db.prepare('SELECT id FROM tutor_sessions WHERE student_id = ? AND goal = ? LIMIT 1').get(studentId, goalFor(job.id))) return 'scored'
   const review = terminal(job) ? null : await chooseReview(db, owner, job)
@@ -91,6 +100,7 @@ export async function answerWaitingReview(db: DatabaseSync, owner: string, job: 
   await db.prepare(`INSERT INTO session_items (id, session_id, position, beat, concept_id, bloom_level, prompt, answer, hints_json, surface,
     interleaved, partner_concept_id, hints_used, answered, format, choices_json, explanation) VALUES (?, ?, 1, 'review', ?, ?, ?, ?, ?, ?, 0, NULL, 0, 0, 'text', NULL, '')`)
     .run(itemId, sessionId, review.conceptId, item.bloomLevel, item.prompt, item.answer, JSON.stringify(item.hintLadder), item.surface)
+  await stampTask(db, itemId, 'builtin')
   await recordDecision(db, studentId, 'waiting_review', 'One due review question was offered while new work was prepared.', { sessionId, jobId: job.id, conceptId: review.conceptId }, now)
   await submitAnswer(db, owner, sessionId, { itemId, answer }, now)
   await db.prepare("UPDATE tutor_sessions SET ended_at = ?, end_reason = 'waiting_review', pending_feedback = NULL WHERE id = ? AND ended_at IS NULL").run(now.toISOString(), sessionId)

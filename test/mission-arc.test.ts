@@ -8,11 +8,12 @@ import { tmpdir } from 'node:os'
 import { openDb } from '../src/db.ts'
 import { registerUser, openAuthSession } from '../src/auth.ts'
 import { missionArc } from '../src/engine/arc.ts'
-import { acknowledgeFeedback, createStudent, startTutorSession, sessionItems, submitAnswer, loadAttempts, pauseSession, resumeSession, enforceSessionTime } from '../src/services.ts'
+import { acknowledgeFeedback, createStudent, startTutorSession, sessionItems, submitAnswer, reviewAnswer, loadAttempts, pauseSession, resumeSession, enforceSessionTime } from '../src/services.ts'
 import { freshEvidence } from '../src/engine/mastery.ts'
 import { needsJudgment } from '../src/engine/score.ts'
 import { handle } from '../src/server.ts'
 import type { QueueSlot } from '../src/engine/types.ts'
+import { evidenceAnswer } from './fixtures/evidence-history.ts'
 
 const slot = (beat: QueueSlot['beat'], conceptId: string): QueueSlot => ({ beat, conceptId, bloomLevel: 2, interleaved: beat === 'warmup', partnerConceptId: null, scored: true })
 
@@ -42,27 +43,35 @@ async function experienced() {
       await submitAnswer(db, u.userId, session, { itemId: String(item.id), answer: written ? 'Equal groups of the same size, counted together.' : String(item.answer) }, at)
     }
   }
+  // A recent application miss calls for teaching; consistently successful learners now skip these scaffolds.
+  await evidenceAnswer(db, u.userId, student, 'arc-observed-gap', new Date(Date.now() - 86400000), { concept: 'math.primary.3.multiply', level: 3, correct: false })
   return { dir, db, owner: u.userId, student }
 }
 
-test('a practice mission opens with a lesson and counts guided and faded work as help, never as independent evidence', async () => {
+test('due work precedes the lesson and guided/faded work counts as help, never as independent evidence', async () => {
   const f = await experienced()
   try {
     const now = new Date()
     const id = await startTutorSession(f.db, f.owner, f.student, now, { intent: 'practice', focusConceptId: 'math.primary.3.multiply', durationMinutes: 5 })
     const items = await sessionItems(f.db, id)
-    assert.deepEqual(items.slice(0, 2).map((i) => i.beat), ['guided', 'faded'])
-    assert.ok(items.slice(0, 2).every((i) => Number(i.hints_used) === 1 && String(i.hint_text)), 'guided and faded items start with a hint showing')
-    assert.equal(items.filter((i) => i.beat === 'frontier' || i.beat === 'stretch').length, 2, 'five minutes gives two independent items')
+    assert.equal(items[0].beat, 'review', 'the delayed check comes before refresher teaching')
+    const supports = items.filter(i => ['guided','faded'].includes(String(i.beat)))
+    assert.deepEqual(supports.map((i) => i.beat), ['guided', 'faded'])
+    assert.ok(supports.every((i) => Number(i.hints_used) === 1 && String(i.hint_text)), 'guided and faded items start with a hint showing')
+    assert.equal(items.filter((i) => ['frontier', 'stretch', 'review'].includes(String(i.beat))).length, 2, 'the due check uses an existing independent-work slot')
     assert.ok(['review', 'frontier', 'stretch'].includes(String(items.at(-1)!.beat)))
     assert.equal((await f.db.prepare('SELECT lesson_done FROM tutor_sessions WHERE id = ?').get(id))!.lesson_done, 0)
-    const before = (await loadAttempts(f.db, f.student)).length
-    for (const item of items.slice(0, 2)) {
+    const due = await submitAnswer(f.db, f.owner, id, { itemId: String(items[0].id), answer: String(items[0].answer) }, now)
+    if ('pendingReview' in due && due.pendingReview) await reviewAnswer(f.db, f.owner, id, { itemId: String(items[0].id), correct: true }, now)
+    const before = new Set((await loadAttempts(f.db, f.student)).map(a => a.attemptId))
+    for (const supported of supports) {
       await acknowledgeFeedback(f.db, f.owner, id)
-      if (needsJudgment({ answer: String(item.answer), format: String(item.format), choices: null }, Number(item.bloom_level))) continue
-      await submitAnswer(f.db, f.owner, id, { itemId: String(item.id), answer: String(item.answer) }, now)
+      const item = (await sessionItems(f.db, id)).find(i => !i.answered)!
+      assert.equal(item.beat, supported.beat, 'an adaptive replacement keeps its supported beat')
+      const result = await submitAnswer(f.db, f.owner, id, { itemId: String(item.id), answer: String(item.answer) }, now)
+      if ('pendingReview' in result && result.pendingReview) await reviewAnswer(f.db, f.owner, id, { itemId: String(item.id), correct: true }, now)
     }
-    const added = (await loadAttempts(f.db, f.student)).slice(before)
+    const added = (await loadAttempts(f.db, f.student)).filter(a => !before.has(a.attemptId))
     assert.ok(added.every((a) => a.hintsUsed > 0), 'supported attempts are recorded as help')
     assert.equal(freshEvidence(added).filter((a) => a.hintsUsed === 0 && a.correct).length, 0)
     const pack = await startTutorSession(f.db, f.owner, f.student, now, { intent: 'practice', focusConceptId: 'math.primary.3.multiply', arc: false })
@@ -70,7 +79,7 @@ test('a practice mission opens with a lesson and counts guided and faded work as
   } finally { f.db.close() }
 })
 
-test('the lesson card comes first, then the guided question', async () => {
+test('the delayed question precedes the lesson card, then the guided question', async () => {
   const f = await experienced()
   const auth = await openAuthSession(f.db, f.owner)
   const server = createServer((req, res) => { handle(req, res, { db: f.db, uploadsDir: join(f.dir, 'uploads') }).catch(() => { res.writeHead(500); res.end() }) })
@@ -79,6 +88,13 @@ test('the lesson card comes first, then the guided question', async () => {
   const request = (path: string, data?: any) => fetch(`${origin}${path}`, { redirect: 'manual', method: data ? 'POST' : 'GET', headers: { Cookie: `tutor_session=${auth.token}`, ...(data ? { 'Content-Type': 'application/json', Accept: 'application/json' } : {}) }, body: data ? JSON.stringify({ csrf: auth.csrf, ...data }) : undefined })
   try {
     const id = await startTutorSession(f.db, f.owner, f.student, new Date(), { intent: 'practice', focusConceptId: 'math.primary.3.multiply' })
+    const delayed = await (await request(`/session/${id}`)).text()
+    assert.doesNotMatch(delayed, /First, the idea/)
+    const item = (await sessionItems(f.db, id))[0]
+    assert.equal(item.beat, 'review')
+    const result = await submitAnswer(f.db, f.owner, id, { itemId: String(item.id), answer: String(item.answer) })
+    if ('pendingReview' in result && result.pendingReview) await reviewAnswer(f.db, f.owner, id, { itemId: String(item.id), correct: true })
+    await acknowledgeFeedback(f.db, f.owner, id)
     const lesson = await (await request(`/session/${id}`)).text()
     assert.match(lesson, /First, the idea/); assert.match(lesson, /Let’s try one together/); assert.doesNotMatch(lesson, /form method="post" action="\/session\/[^"]+\/answer"/)
     assert.equal((await request(`/session/${id}/lesson`, {})).headers.get('location'), `/session/${id}`)

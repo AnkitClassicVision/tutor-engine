@@ -10,7 +10,7 @@ import { openDb } from "../src/db.ts"
 import { registerUser } from "../src/auth.ts"
 import { createStudent } from "../src/services.ts"
 import { studentHome } from "../src/journey-view.ts"
-import { startMapRow, saveResearch, decideMap } from "../src/subject-map.ts"
+import { startMapRow, saveResearch, approveMap } from "../src/subject-map.ts"
 
 test("asking for a challenge, a case or a debate routes to a mission in any subject", () => {
   assert.equal(routeRunbook("Science", "A challenge mission on magnets"), "pack-mission")
@@ -40,9 +40,9 @@ test("a mission uses the matching concept and real misconceptions from the appro
     const mapId = await startMapRow(f.db, f.student, "Volcanoes")
     await saveResearch(f.db, f.student, mapId, { map, web: true })
     assert.deepEqual(await mapContext(f.db, f.student, "Volcanoes", "magma and lava"), {}, "a draft map is not used")
-    await decideMap(f.db, f.student, mapId, "approved")
-    const context = await mapContext(f.db, f.student, "Volcanoes", "A challenge mission on magma and lava") as any
-    assert.equal(context.subjectMap.concept, "Magma and lava")
+    await approveMap(f.db, f.owner, f.student, mapId)
+    const context = await mapContext(f.db, f.student, "Volcanoes", "A challenge mission on magma and lava", { mapKey: "magma-and-lava" }) as any
+    assert.equal(context.subjectMap.title, "Magma and lava")
     assert.equal(context.subjectMap.misconceptions[0].belief, "All mountains are volcanoes.")
   } finally { f.db.close() }
 })

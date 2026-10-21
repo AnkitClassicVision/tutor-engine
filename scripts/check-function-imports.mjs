@@ -31,6 +31,6 @@ for (const resource of resources) {
   await access(config.filePathMap?.[resource] ? resolve(config.filePathMap[resource]) : join(root, resource));
 }
 for (const resource of Object.keys(config.filePathMap || {})) {
-  if (/^(?:\.env|data\/|handoffs\/)/.test(resource)) throw new Error('Private content is mapped into the function bundle.');
+  if (/^(?:\.env|private-learning\/|data\/|handoffs\/)/.test(resource)) throw new Error('Private content is mapped into the function bundle.');
 }
 console.log('Compiled imports, teaching skills, curriculum data and migrations resolve. Verify invocation on Vercel before accepting the deployment.');

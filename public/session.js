@@ -54,7 +54,7 @@ function stopVoice() {
 function bindMedia(root) {
 root.querySelectorAll('[data-talk]').forEach(button => {
   if (button.dataset.bound) return; button.dataset.bound = '1'
-  const form = button.closest('form'), field = form?.querySelector('textarea[name="message"], input[name="answer"]')
+  const form = button.closest('form'), field = form?.querySelector('textarea[name="message"], input[name="answer"], textarea[name="answer"]')
   const status = form?.querySelector('[data-voice-status]'), wave = form?.querySelector('[data-voice-wave]')
   if (!field || !status) return
   button.setAttribute('aria-pressed', 'false')
@@ -183,6 +183,7 @@ function noteAccess(kind) {
   const csrf = document.querySelector('#csrf-store')?.value || document.querySelector('[name=csrf]')?.value || ''
   fetch(form.action.replace(/\/answer$/, '/access'), { method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ csrf, itemId, kind }) }).catch(() => {})
 }
+document.querySelectorAll('[data-format-help]').forEach(details => details.addEventListener('toggle', () => { if (details.open) noteAccess('format_help') }))
 document.querySelectorAll('.prompt [data-hear]').forEach(button => button.addEventListener('click', () => { if (button.getAttribute('aria-pressed') === 'true') noteAccess('read_aloud') }))
 // Ages 5–7: read each question on arrival where the browser allows it, unless this child turned it off.
 // The choice belongs to the learner on this device, so a sibling on the same device keeps their own. Reading
@@ -224,12 +225,14 @@ document.querySelectorAll("form.talk:not([data-fetch]), form.build:not([data-fet
 })
 
 const live = document.querySelector("[data-live]")
-const keptTab = sessionStorage.getItem("tutor-keep-tab")
-if (keptTab) {
-  sessionStorage.removeItem("tutor-keep-tab")
-  const tab = document.getElementById(keptTab)
-  if (tab) tab.checked = true
-}
+try {
+  const keptTab = sessionStorage.getItem("tutor-keep-tab")
+  if (keptTab) {
+    sessionStorage.removeItem("tutor-keep-tab")
+    const tab = document.getElementById(keptTab)
+    if (tab) tab.checked = true
+  }
+} catch { /* Tab storage is optional; the answer controls still work. */ }
 if (live) {
   const stamp = live.getAttribute("data-live")
   const progressUrl = live.getAttribute("data-progress-url") || `${location.pathname}/progress${location.search}`
@@ -240,7 +243,7 @@ if (live) {
       const body = await response.json()
       if (body.stamp === stamp) return
       const current = document.querySelector('input[name="student-tab"]:checked')
-      if (current) sessionStorage.setItem("tutor-keep-tab", current.id)
+      try { if (current) sessionStorage.setItem("tutor-keep-tab", current.id) } catch {}
       location.reload()
     } catch {
       /* keep the current page */
@@ -251,20 +254,96 @@ if (live) {
 
 const upload = document.querySelector("#upload-form")
 if (upload) {
-  upload.addEventListener("submit", (event) => {
-    const fileInput = document.querySelector("#photo")
-    const file = fileInput && fileInput.files && fileInput.files[0]
-    if (!file) return
-    event.preventDefault()
+  const fileInput = upload.querySelector('#photo'), preview = upload.querySelector('[data-paper-photo-preview]'), status = upload.querySelector('[data-paper-photo-status]')
+  const mime = upload.querySelector('[name=mime]'), encoded = upload.querySelector('[name=base64]'), button = upload.querySelector('button[type=submit]')
+  let reading = false, saving = false, revision = 0
+  fileInput.addEventListener('change', () => {
+    const file = fileInput.files?.[0], current = ++revision
+    preview.replaceChildren(); mime.value = ''; encoded.value = ''; reading = false
+    if (!file) { status.textContent = 'No photo selected.'; return }
+    reading = true; status.textContent = 'Preparing the photo preview…'
     const reader = new FileReader()
     reader.onload = () => {
-      const raw = String(reader.result || "")
-      const mime = upload.querySelector('input[name="mime"]')
-      const encoded = upload.querySelector('input[name="base64"]')
-      if (mime) mime.value = file.type
-      if (encoded) encoded.value = raw.split(",")[1] || ""
-      upload.submit()
+      if (current !== revision) return
+      const raw = String(reader.result || '')
+      mime.value = file.type; encoded.value = raw.split(',')[1] || ''; reading = false
+      const image = document.createElement('img'); image.src = raw; image.alt = 'Selected paper photo, not saved yet'; image.style.maxWidth = '100%'; preview.append(image)
+      status.textContent = 'Photo selected in this page only. Keep this page open until saving is confirmed.'
     }
+    reader.onerror = () => { if (current === revision) { reading = false; status.textContent = 'Could not read this photo. Choose it again or retake it.' } }
     reader.readAsDataURL(file)
   })
+  upload.addEventListener('submit', async event => {
+    event.preventDefault()
+    if (saving) return
+    if (reading || !encoded.value) { status.textContent = 'Wait for the photo preview before saving.'; return }
+    saving = true; button.disabled = true; fileInput.disabled = true
+    status.textContent = 'Uploading the photo. Saving is not confirmed yet.'
+    try {
+      const response = await fetch(upload.action, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ csrf: upload.querySelector('[name=csrf]').value, mime: mime.value, base64: encoded.value }), signal: AbortSignal.timeout(120000) })
+      const receipt = await response.json()
+      if (!response.ok || receipt.saved !== true || receipt.location !== location.pathname) throw new Error(receipt.error || 'Saving is not confirmed. Your photo is still in this page; try again when connected.')
+      status.textContent = 'Photo saved in your private family account.'; location.assign(receipt.location)
+    } catch (error) {
+      status.textContent = ['TypeError', 'TimeoutError', 'AbortError'].includes(error.name) ? 'Connection paused. Keep this page open and try saving again; saving is not confirmed.' : error.message || 'Saving is not confirmed. Keep this page open and try again.'
+    } finally { saving = false; button.disabled = false; fileInput.disabled = false }
+  })
+  addEventListener('pagehide', () => {
+    revision++; preview.replaceChildren(); fileInput.value = ''; mime.value = ''; encoded.value = ''
+  })
 }
+const paperScore = document.querySelector('[data-paper-score]'), paperSheet = document.body.dataset.paperSheet
+if (paperSheet) {
+  const key = 'draft:paper:' + paperSheet
+  if (!paperScore) { try { sessionStorage.removeItem(key) } catch { /* Storage can be unavailable. */ } }
+  else {
+    const fields = [...paperScore.querySelectorAll('textarea[name^="box-"], select[name=paperHelp]')]
+    const draftStatus = paperScore.querySelector('[data-paper-draft-status]'), status = paperScore.querySelector('[data-paper-submit-status]')
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(key) || 'null')
+      if (saved) { for (const field of fields) if (typeof saved[field.name] === 'string') field.value = saved[field.name]; draftStatus.textContent = 'Restored from this tab. Not submitted yet.' }
+    } catch { /* Retain editable fields without requiring tab storage. */ }
+    function keepDraft() {
+      try { sessionStorage.setItem(key, JSON.stringify(Object.fromEntries(fields.map(field => [field.name, field.value])))); draftStatus.textContent = 'Kept in this tab. Not submitted yet.' }
+      catch { draftStatus.textContent = 'Not submitted. Keep this page open until submission is confirmed.' }
+    }
+    fields.forEach(field => field.addEventListener('input', keepDraft))
+    let submitting = false
+    paperScore.addEventListener('submit', async event => {
+      event.preventDefault()
+      if (submitting) return
+      keepDraft(); submitting = true
+      const data = Object.fromEntries(new FormData(paperScore)), button = paperScore.querySelector('button[type=submit]')
+      button.disabled = true; status.textContent = 'Submitting your paper answers…'
+      try {
+        const response = await fetch(paperScore.action, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify(data), signal: AbortSignal.timeout(10000) })
+        const receipt = await response.json()
+        if (!response.ok || receipt.submitted !== true || receipt.location !== location.pathname) throw new Error(receipt.error || 'Submission is not confirmed. Keep these entries and try again.')
+        try { sessionStorage.removeItem(key) } catch { /* A later submitted page also clears the draft. */ }
+        status.textContent = 'Paper answers submitted.'; location.assign(receipt.location)
+      } catch (error) { status.textContent = ['TypeError', 'TimeoutError', 'AbortError'].includes(error.name) ? 'Connection paused. Your entries are still here. Try submitting again.' : error.message || 'Submission is not confirmed. Try again.' }
+      finally { submitting = false; button.disabled = false }
+    })
+  }
+  // Returning from browser page memory must recheck family authorization before showing paper work.
+  addEventListener('pageshow', event => { if (event.persisted) location.reload() })
+}
+
+// Save the confidence choice at capture, retaining its question revision and help conditions.
+function bindConfidence(root) {
+  root.querySelectorAll('form.answer input[name="confidence"]').forEach(input => {
+    if (input.dataset.confidenceBound) return
+    input.dataset.confidenceBound = '1'
+    input.addEventListener('change', () => {
+      if (!input.checked) return
+      const form = input.form
+      const body = { csrf: form.querySelector('[name="csrf"]')?.value, itemId: form.querySelector('[name="itemId"]')?.value,
+        revision: form.querySelector('[name="revision"]')?.value, confidence: input.value }
+      fetch(form.action.replace(/\/answer$/, '/confidence'), { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify(body) }).catch(() => {})
+      // The regular answer submission also captures this value if this optional request is interrupted.
+    })
+  })
+}
+bindConfidence(document)
+document.addEventListener('tutor:content', event => bindConfidence(event.detail instanceof Element ? event.detail : document))

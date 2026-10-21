@@ -16,8 +16,10 @@ import type { Contract, RunReport } from "./runbook/contract.ts"
 import { bloomCue, childSafe, issue, readingFit, type Issue } from "./runbook/gates.ts"
 import { defaultAsk, runContract, type Ask } from "./runbook/run.ts"
 import type { Schema } from "./runbook/schema.ts"
+import { approvedTeaching, type KnowledgeDimension } from './engine/teaching.ts'
+import { withWrite, lockFamily } from './transaction.ts'
 
-export type Dimension = "factual" | "conceptual" | "procedural" | "metacognitive"
+export type Dimension = KnowledgeDimension
 export interface Misconception { belief: string; probe: string; fix: string }
 export interface MapConcept {
   key: string; title: string; idea: string; dimension: Dimension; prereqs: string[]; crossLinks: string[]
@@ -213,9 +215,12 @@ export async function latestMap(db: DatabaseSync, studentId: string, subject: st
   return (await db.prepare("SELECT * FROM subject_maps WHERE student_id = ? AND lower(subject) = lower(?) AND status != 'superseded' ORDER BY version DESC LIMIT 1").get(studentId, subject)) as MapRow | null ?? null
 }
 export async function approvedMap(db: DatabaseSync, studentId: string, subject: string): Promise<SubjectMap | null> {
-  const row = (await db.prepare("SELECT map_json FROM subject_maps WHERE student_id = ? AND lower(subject) = lower(?) AND status = 'approved' ORDER BY version DESC LIMIT 1").get(studentId, subject)) as { map_json: string } | undefined
+  return (await approvedMapSnapshot(db, studentId, subject))?.map ?? null
+}
+export async function approvedMapSnapshot(db: DatabaseSync, studentId: string, subject: string): Promise<{ map: SubjectMap; version: string } | null> {
+  const row = (await db.prepare("SELECT id, version, map_json FROM subject_maps WHERE student_id = ? AND lower(subject) = lower(?) AND status = 'approved' ORDER BY version DESC LIMIT 1").get(studentId, subject)) as { id: string; version: number; map_json: string } | undefined
   if (!row?.map_json) return null
-  try { const map = JSON.parse(row.map_json) as SubjectMap; return Array.isArray(map?.groups) && Array.isArray(map?.sources) ? map : null } catch { return null }
+  try { const map = JSON.parse(row.map_json) as SubjectMap; return Array.isArray(map?.groups) && Array.isArray(map?.sources) ? { map, version: `${row.id}:${row.version}` } : null } catch { return null }
 }
 
 /** The newest map per subject, for the classes page. */
@@ -300,25 +305,35 @@ export async function runResearchJob(db: DatabaseSync, ctx: JobContext, payload:
 
 /** Approving a map makes its concepts the child's topics for that subject, with their prerequisites, then writes the first questions. */
 export async function approveMap(db: DatabaseSync, ownerId: string, studentId: string, mapId: string, now = new Date()) {
+  return withWrite(db, async () => {
+  await lockFamily(db, ownerId)
   await assertStudent(db, ownerId, studentId, now)
   const row = await decideMap(db, studentId, mapId, "approved", now)
   const map = JSON.parse(row.map_json) as SubjectMap
   const ids = new Map<string, string>()
   for (const concept of concepts(map)) {
-    const existing = (await db.prepare("SELECT concept_id FROM custom_concepts WHERE student_id = ? AND lower(subject) = lower(?) AND lower(title) = lower(?)").get(studentId, row.subject, concept.title)) as { concept_id: string } | undefined
-    const id = existing?.concept_id ?? await addLearning(db, ownerId, studentId, { purpose: "year", subject: row.subject, title: concept.title, recall: concept.idea, example: concept.contrast.example, nonExample: concept.contrast.nonExample }, now)
+    const keyed = await db.prepare("SELECT concept_id FROM custom_concepts WHERE student_id = ? AND lower(subject) = lower(?) AND map_key = ?").all(studentId, row.subject, concept.key)
+    if (keyed.length > 1) throw new UserError('This map key is attached to more than one topic. Resolve the duplicate before approving the map.')
+    // A first approval may adopt one unkeyed exact title. Later versions retain identity through renames.
+    const unkeyed = keyed.length ? [] : await db.prepare("SELECT concept_id FROM custom_concepts WHERE student_id = ? AND lower(subject) = lower(?) AND lower(title) = lower(?) AND (map_key IS NULL OR map_key = '')").all(studentId, row.subject, concept.title)
+    const existing = keyed.length === 1 ? keyed[0] : unkeyed.length === 1 ? unkeyed[0] : undefined
+    const id = existing?.concept_id ? String(existing.concept_id) : await addLearning(db, ownerId, studentId, { purpose: "year", subject: row.subject, title: concept.title, recall: concept.idea, example: concept.contrast.example, nonExample: concept.contrast.nonExample }, now)
     ids.set(concept.key, id)
   }
   for (const concept of concepts(map)) {
-    await db.prepare("UPDATE custom_concepts SET map_key = ?, prereqs = ?, recall = ?, example = ?, non_example = ? WHERE concept_id = ? AND student_id = ?")
-      .run(concept.key, JSON.stringify(concept.prereqs.map(key => ids.get(key)).filter(Boolean)), concept.idea, concept.contrast.example, concept.contrast.nonExample, ids.get(concept.key)!, studentId)
+    await db.prepare("UPDATE custom_concepts SET map_key = ?, title = ?, prereqs = ?, recall = ?, example = ?, non_example = ? WHERE concept_id = ? AND student_id = ?")
+      .run(concept.key, concept.title, JSON.stringify(concept.prereqs.map(key => ids.get(key)).filter(Boolean)), concept.idea, concept.contrast.example, concept.contrast.nonExample, ids.get(concept.key)!, studentId)
   }
   await recordDecision(db, studentId, "subject_map_approved", "The parent approved a researched subject map; its concepts, order and misconceptions now guide teaching.", { mapId, subject: row.subject, version: row.version, concepts: concepts(map).length, research: row.research }, now)
   return { subject: row.subject, conceptIds: [...ids.values()] }
+  })
 }
 
 /** The approved map, condensed for the runbooks that write questions and lessons. */
 export function mapBrief(map: SubjectMap): string {
-  const lines = concepts(map).map(concept => `- ${concept.title}: ${concept.idea} | success: basics "${concept.success.foundations}", using it "${concept.success.use}", judging and creating "${concept.success.judge}" | misconceptions: ${concept.misconceptions.map(m => `"${m.belief}" (probe: ${m.probe})`).join("; ")} | transfer: ${concept.transfer}`)
-  return [`Approved subject map for ${map.subject}. Purpose: ${map.purpose} Scope: ${map.scope}`, "Use these exact topic titles in this order. Aim questions at the success descriptions and at the listed misconceptions; mark a question transfer when it uses the idea somewhere new.", ...lines].join("\n")
+  const lines = concepts(map).slice(0, 18).flatMap(concept => {
+    const teaching = approvedTeaching(concept)
+    return teaching ? [JSON.stringify(teaching)] : []
+  })
+  return [`Approved subject map for ${map.subject.slice(0, 80)}. Purpose: ${map.purpose.slice(0, 400)} Scope: ${map.scope.slice(0, 400)}`, "Use these stable keys and exact topic titles in this order. Match the teaching route to the dimension and demonstrated gap. Use contrasts and misconception fixes for teaching, keeping new independent checks fresh; preserve the requested thinking demand. Mark a question transfer when it uses the idea somewhere new.", ...lines].join("\n")
 }

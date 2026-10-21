@@ -2,9 +2,10 @@ import type { DatabaseSync } from 'node:sqlite'
 
 export function migrateJourney(db: DatabaseSync) {
   const columns: Record<string, Record<string, string>> = {
-    session_items: { shown_at: 'TEXT', skipped: 'INTEGER NOT NULL DEFAULT 0', skip_reason: "TEXT NOT NULL DEFAULT ''", draft_answer: 'TEXT', format: "TEXT NOT NULL DEFAULT 'text'", choices_json: 'TEXT', explanation: "TEXT NOT NULL DEFAULT ''", evidence_kind: "TEXT NOT NULL DEFAULT 'practice'", confidence: 'TEXT', disputed: 'INTEGER NOT NULL DEFAULT 0', grading_doubt: 'TEXT', rubric_json: 'TEXT', concern: 'TEXT', access_support: 'TEXT', visible_at: 'TEXT', feedback_visible_at: 'TEXT' },
+    attempts: { evidence_policy: 'INTEGER', evidence_json: 'TEXT' },
+    session_items: { answer_saved_at: 'TEXT', submit_to_save_ms: 'INTEGER', active_work_ms: 'INTEGER', grading_started_at: 'TEXT', grading_finished_at: 'TEXT', graded_at: 'TEXT', scaffold_json: 'TEXT', lesson_json: 'TEXT', evidence_purpose: "TEXT NOT NULL DEFAULT 'learning'", evidence_policy: 'INTEGER', revision_id: 'TEXT', task_evidence: 'TEXT', mixed_evidence: 'TEXT', submitted_revision: 'TEXT', confidence_at: 'TEXT', confidence_revision: 'TEXT', confidence_support: 'INTEGER', shown_at: 'TEXT', skipped: 'INTEGER NOT NULL DEFAULT 0', skip_reason: "TEXT NOT NULL DEFAULT ''", draft_answer: 'TEXT', format: "TEXT NOT NULL DEFAULT 'text'", choices_json: 'TEXT', explanation: "TEXT NOT NULL DEFAULT ''", evidence_kind: "TEXT NOT NULL DEFAULT 'practice'", confidence: 'TEXT', disputed: 'INTEGER NOT NULL DEFAULT 0', grading_doubt: 'TEXT', rubric_json: 'TEXT', concern: 'TEXT', access_support: 'TEXT', visible_at: 'TEXT', feedback_visible_at: 'TEXT' },
     sheets: { score_results: 'TEXT' },
-    students: { access_code: "TEXT NOT NULL DEFAULT ''", access_code_hash: "TEXT NOT NULL DEFAULT ''", access_pin_hash: "TEXT NOT NULL DEFAULT ''", presentation: "TEXT NOT NULL DEFAULT 'auto'", world: "TEXT NOT NULL DEFAULT 'cartoon'", last_duration: 'INTEGER NOT NULL DEFAULT 10', pack_child_requests: "TEXT NOT NULL DEFAULT 'classes'", pack_child_mode: "TEXT NOT NULL DEFAULT 'now'", pack_daily_limit: 'INTEGER NOT NULL DEFAULT 3', experiments: "TEXT NOT NULL DEFAULT '{}'" },
+    students: { evidence_policy: 'INTEGER', experiment_policy: 'TEXT', access_code: "TEXT NOT NULL DEFAULT ''", access_code_hash: "TEXT NOT NULL DEFAULT ''", access_pin_hash: "TEXT NOT NULL DEFAULT ''", presentation: "TEXT NOT NULL DEFAULT 'auto'", world: "TEXT NOT NULL DEFAULT 'cartoon'", last_duration: 'INTEGER NOT NULL DEFAULT 10', pack_child_requests: "TEXT NOT NULL DEFAULT 'classes'", pack_child_mode: "TEXT NOT NULL DEFAULT 'now'", pack_daily_limit: 'INTEGER NOT NULL DEFAULT 3', experiments: "TEXT NOT NULL DEFAULT '{}'" },
     auth_sessions: { student_only: 'INTEGER NOT NULL DEFAULT 0', selected_student: 'TEXT', parent_unlocked_until: 'TEXT' },
     users: { photo_model: "TEXT NOT NULL DEFAULT ''", data_key: "TEXT NOT NULL DEFAULT ''", email_verified_at: 'TEXT', ai_refresh_lease: 'TEXT', chatgpt_welcomed_at: 'TEXT', ai_health: 'TEXT', ai_health_at: 'TEXT' },
     tutor_sessions: { lesson_done: 'INTEGER NOT NULL DEFAULT 1', carried_from: 'TEXT', feedback_cursor: 'INTEGER NOT NULL DEFAULT 0', goal: "TEXT NOT NULL DEFAULT 'practice'", material_id: 'TEXT', question_id: 'TEXT', paused_at: 'TEXT', requested_at: 'TEXT', paused_ms: 'INTEGER NOT NULL DEFAULT 0' },
@@ -19,6 +20,16 @@ export function migrateJourney(db: DatabaseSync) {
   db.exec("CREATE UNIQUE INDEX IF NOT EXISTS students_access_code_hash ON students(access_code_hash) WHERE access_code_hash != ''")
   db.exec("CREATE UNIQUE INDEX IF NOT EXISTS tutor_sessions_waiting_review ON tutor_sessions(goal) WHERE goal LIKE 'waiting_review:%'")
   db.exec(`
+CREATE TABLE IF NOT EXISTS learning_cutovers (
+  student_id TEXT PRIMARY KEY REFERENCES students(id), policy INTEGER NOT NULL, created_at TEXT NOT NULL,
+  attempt_ids_json TEXT NOT NULL, states_json TEXT NOT NULL, milestones_json TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS learning_exposures (
+  id TEXT PRIMARY KEY, student_id TEXT NOT NULL REFERENCES students(id), session_id TEXT NOT NULL,
+  item_id TEXT, revision_id TEXT, concept_id TEXT NOT NULL, bloom_level INTEGER NOT NULL,
+  kind TEXT NOT NULL, at TEXT NOT NULL, confirmed INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS learning_exposures_concept ON learning_exposures(student_id, concept_id, at);
 CREATE TABLE IF NOT EXISTS auth_throttle (
   key TEXT PRIMARY KEY, window_start TEXT NOT NULL, count INTEGER NOT NULL, owner_user_id TEXT
 );

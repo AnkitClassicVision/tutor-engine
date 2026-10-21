@@ -7,7 +7,7 @@ import type { QueueSlot } from "./types.ts"
 // a shorter mission loses independent items before it loses the review or the close.
 export const ARC_INDEPENDENT: Record<number, number> = { 3: 1, 5: 2, 10: 4, 15: 6, 20: 8, 25: 10 }
 
-export function missionArc(queue: QueueSlot[], minutes: number): QueueSlot[] {
+export function missionArc(queue: QueueSlot[], minutes: number, scaffold = true): QueueSlot[] {
   const work = queue.filter((slot) => slot.beat === "frontier" || slot.beat === "stretch")
   const main = queue.find((slot) => slot.beat === "frontier") ?? work[0] ?? queue[0]
   if (!main) return queue
@@ -17,8 +17,7 @@ export function missionArc(queue: QueueSlot[], minutes: number): QueueSlot[] {
   const count = ARC_INDEPENDENT[minutes] ?? 4
   const independent = Array.from({ length: count }, (_, i) => pool[i % pool.length])
   return [
-    { ...plain, beat: "guided" },
-    { ...plain, beat: "faded" },
+    ...(scaffold ? [{ ...plain, beat: "guided" as const }, { ...plain, beat: "faded" as const }] : []),
     ...independent,
     ...(review ? [{ ...review, beat: "review" as const, interleaved: false, partnerConceptId: null }] : []),
   ]

@@ -2,7 +2,7 @@ import { test, expect, type Page } from '@playwright/test'
 import { settledAudit } from './settled-audit.ts'
 
 async function sendAnswer(page: Page, value: string) {
-  await page.getByLabel('Answer', { exact: true }).fill(value)
+  await page.getByRole('textbox', { name: /^(Answer|Your steps)$/ }).fill(value)
   const responsePromise = page.waitForResponse(r => r.request().method() === 'POST' && new URL(r.url()).pathname.endsWith('/answer'))
   await page.getByRole('button', { name: 'Check', exact: true }).click()
   const response = await responsePromise
@@ -50,13 +50,13 @@ test('adaptive choices, harder probe, teaching recovery and saved summary', asyn
   const ready = page.getByRole('button', { name: 'Ready for a fresh question', exact: true })
   // Wait for the fresh question's page, or the typed draft lands on the page being replaced.
   if (await ready.count()) { await ready.click(); await expect(ready).toHaveCount(0) }
-  await page.getByLabel('Answer', { exact: true }).fill('saved thinking')
+  await page.getByRole('textbox', { name: /^(Answer|Your steps)$/ }).fill('saved thinking')
   await page.getByRole('button', { name: 'Save & stop', exact: true }).click()
   await page.getByRole('button', { name: 'Pick up where I left off', exact: false }).click()
-  await expect(page.getByLabel('Answer', { exact: true })).toHaveValue('saved thinking')
+  await expect(page.getByRole('textbox', { name: /^(Answer|Your steps)$/ })).toHaveValue('saved thinking')
   expect(await page.locator('.question-text').innerText()).not.toEqual(question)
   // Wrong tries until the mission closes; a teaching reset can end it early.
-  for (let i = 0; i < 6 && await page.getByLabel('Answer', { exact: true }).count(); i++) {
+  for (let i = 0; i < 6 && await page.getByRole('textbox', { name: /^(Answer|Your steps)$/ }).count(); i++) {
     await sendAnswer(page, 'definitely wrong 12345')
     if (await ready.count()) await ready.click()
   }

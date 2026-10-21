@@ -52,12 +52,20 @@ export function qualifying(attempt: AttemptRecord, level: BloomLevel): boolean {
   return attempt.correct && attempt.bloomLevel === level && independent(attempt)
 }
 
+export function mixedWin(attempt: AttemptRecord): boolean {
+  // Undefined policy belongs to the explicitly pre-cutover projection; null/old writers are a separate class.
+  return attempt.evidencePolicy === undefined ? attempt.interleaved
+    : attempt.evidencePolicy === 1 && Boolean(attempt.mixed && attempt.mixed.rule === 'mixed-context-v1'
+      && attempt.mixed.targetRevision === attempt.task?.revision && attempt.mixed.targetDemand === attempt.bloomLevel)
+}
+
 export function masteryMet(attempts: AttemptRecord[], level: BloomLevel): boolean {
+  if (attempts.some(a => a.historical?.levels.includes(level))) return true
   const wins = freshEvidence(attempts).filter((attempt) => qualifying(attempt, level))
   return [...new Set(wins.map(a => a.conceptId))].some(conceptId => {
     const rows = wins.filter(a => a.conceptId === conceptId)
     return rows.length >= 3 && new Set(rows.map(a => a.sessionId)).size >= 2
-      && new Set(rows.map(a => a.day)).size >= 2 && rows.some(a => a.interleaved)
+      && new Set(rows.map(a => a.day)).size >= 2 && rows.some(mixedWin)
   })
 }
 
@@ -77,24 +85,25 @@ export function reduceState(
   modality: Mode,
 ): LearnerConceptState {
   const ordered = freshEvidence(attempts).filter(attempt => attempt.conceptId === conceptId)
-  let state = emptyState(conceptId, today)
-  let highestMastered: BloomLevel = 0
+  const historical = attempts.find(a => a.conceptId === conceptId && a.historical)?.historical
+  const historicalIds = new Set(historical?.attemptIds ?? [])
+  let state = historical ? { ...historical.state } : emptyState(conceptId, today)
+  let highestMastered: BloomLevel = historical?.state.bloomLevel ?? 0
   const cumulative = new Map<BloomLevel, { wins: number; sessions: Set<string>; days: Set<string>; mixed: boolean }>()
   for (let index = 0; index < ordered.length; index += 1) {
     const attempt = ordered[index]
     const level = attempt.bloomLevel
     const window = ordered.slice(Math.max(0, index - 9), index + 1)
     state.hintsLast10 = window.reduce((sum, item) => sum + item.hintsUsed, 0)
-    if (attempt.errorType) {
-      state.errorSignatures = [...state.errorSignatures, attempt.errorType].slice(-10)
-    }
     let promoted = false
     if (qualifying(attempt, level)) {
       const tally = cumulative.get(level) ?? { wins: 0, sessions: new Set<string>(), days: new Set<string>(), mixed: false }
-      tally.wins++; tally.sessions.add(attempt.sessionId); tally.days.add(attempt.day); tally.mixed ||= attempt.interleaved
+      tally.wins++; tally.sessions.add(attempt.sessionId); tally.days.add(attempt.day); tally.mixed ||= mixedWin(attempt)
       cumulative.set(level, tally)
       if (tally.wins >= 3 && tally.sessions.size >= 2 && tally.days.size >= 2 && tally.mixed && level > highestMastered) { highestMastered = level; promoted = true }
     }
+    if (historicalIds.has(attempt.attemptId)) continue // receipts already include these scheduling effects
+    if (attempt.errorType) state.errorSignatures = [...state.errorSignatures, attempt.errorType].slice(-10)
     if (promoted) {
       state.stabilityDays = 7
       state.nextDue = addDays(attempt.day, 7)
@@ -118,7 +127,7 @@ export function reduceState(
   }
   const working = workingBloom(state)
   const winsAtWorking = ordered.filter((attempt) => qualifying(attempt, working)).length
-  const holdsMastery = highestMastered > 0 && masteryMet(ordered, highestMastered)
+  const holdsMastery = highestMastered > 0 && masteryMet(attempts, highestMastered)
   state.mastery = holdsMastery ? 1 : Math.min(0.99, winsAtWorking / 3)
   state.status = holdsMastery ? "mastered" : "frontier"
   const last = [...ordered].reverse().find(a => a.bloomLevel === highestMastered) ?? ordered.at(-1)

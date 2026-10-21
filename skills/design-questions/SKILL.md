@@ -1,7 +1,7 @@
 ---
 name: design-questions
 description: Write homework and assessment questions from the lesson plan. Fresh sentences and evidence-appropriate demand, aimed at the gap.
-version: 1
+version: 2
 role: planner
 ---
 
@@ -53,3 +53,5 @@ Use brief prerequisite probes, self-explanation, faded examples, delayed retriev
 State exactly whether the learner should name a rule, list steps, explain, calculate, or check reasoning. A steps-only probe must explicitly say not to solve yet and its rubric must not require a numeric result. Do not grade an unstated requirement. Accept equivalent words for the same valid procedure.
 
 Vary the representation, situation and requested thinking where appropriate, rather than only changing numbers. Use learner-question clarification signals within the offered concept scope, as requests rather than mistakes. Keep one small goal per task and enough information to answer it. Preserve due reviews and strong topics alongside gaps; a support request does not justify lowering every topic. Match the actual Bloom demand to what the learner must do.
+
+Read approved topic keys, dimensions, success criteria, contrasts and misconception fixes when supplied. Bind to the explicit key, never a similarly named topic. Factual knowledge calls for meaningful recall, conceptual knowledge for distinguishing and explaining cases, procedural knowledge for applying steps with reasons, and metacognitive knowledge for choosing and checking strategies. Preserve the requested demand and rubric. A known contrast is teaching material, not a fresh independent item: use a different case, not a paraphrase or equivalent calculation.

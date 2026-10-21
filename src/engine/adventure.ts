@@ -1,3 +1,4 @@
+import { retentionChecks } from "./evidence.ts"
 import { createHash } from 'node:crypto'
 import { daysBetween } from './dates.ts'
 import { chronological, freshEvidence, masteryMet } from './mastery.ts'
@@ -24,11 +25,13 @@ export function learningMilestones(attempts: AttemptRecord[]): LearningMilestone
       if (hit < 0) continue
       const wins = rows.slice(0, hit + 1).filter(a => a.correct && a.bloomLevel === level)
       milestones.push({ id: `${conceptId}:${kind}`, conceptId, kind, day: rows[hit].day, evidenceCount: wins.length })
-      const retained = rows.slice(hit + 1).find(a => a.correct && a.bloomLevel === level && daysBetween(rows[hit].day, a.day) >= 7)
+      const retained = retentionChecks(rows.slice(hit), 7).find(pair => pair.after.correct && pair.after.bloomLevel === level
+        && (pair.after.evidencePolicy === undefined || pair.after.evidencePolicy === 1 && pair.unrefreshed))?.after
       if (retained && !milestones.some(m => m.id === `${conceptId}:retention`)) milestones.push({ id: `${conceptId}:retention`, conceptId, kind: 'retention', day: retained.day, evidenceCount: wins.length + 1 })
     }
   }
-  return milestones
+  const recorded = [...new Map(attempts.flatMap(a => a.historical?.milestones ?? []).map(m => [m.id, m])).values()]
+  return [...recorded, ...milestones.filter(m => !recorded.some(old => old.id === m.id))]
 }
 
 const KEEPSAKES = [

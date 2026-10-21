@@ -1,4 +1,11 @@
+import { learningNow } from './learning-clock.ts'
+import { recordExposure } from './learning-exposure.ts'
+import { acknowledgeSaveVisible } from './turn-state.ts'
+import { withWrite, lockFamily } from './transaction.ts'
+import { captureConfidence } from './services.ts'
 import { sealFor } from './family-crypto.ts'
+import { assessmentOpen, openAssessment } from './assessment.ts'
+import { conceptSubject, measuredSkill, supportSuppliesSkill } from './engine/access.ts'
 import { privacyPage, termsPage } from './legal.ts'
 import { ARROW, BACK } from './icons.ts'
 import { quickConnect, safeNext, welcomeAiPage, QUICK_MODELS } from './ai-connect.ts'
@@ -9,12 +16,12 @@ import { readPrivateFile } from "./storage.ts"
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Database as DatabaseSync } from "./database.ts"
 import { createHash, randomBytes } from 'node:crypto'
-import { setWorld, nextLearningAction, studentConcepts, assertStudent, getOwnedSession, getSheet, enforceSessionTime, pauseSession, resumeSession, sessionItems, startTutorSession, saveAiSettings, aiSettings } from './services.ts'
+import { setWorld, nextLearningAction, studentConcepts, assertStudent, getOwnedSession, getSheet, enforceSessionTime, pauseSession, resumeSession, finishAssessment, sessionItems, startTutorSession, saveAiSettings, aiSettings } from './services.ts'
 import { networkSource } from './auth-throttle.ts'
 import { hashToken, loginUser } from './auth.ts'
 import { encryptSecret, decryptSecret } from './secrets.ts'
 import { createJob, jobForKey, sendKey, ownedJob, jobStatus, changeJob } from './jobs.ts'
-export const ACCESS_SUPPORT = ['read_aloud', 'voice_entry']
+export const ACCESS_SUPPORT = ['read_aloud', 'voice_entry', 'format_help']
 import { createMaterial, ownedMaterial, ownedQuestion, correctMaterial, startGuidance, confirmQuestion, needsConfirm, saveSchoolResult, configureMaterialLearning } from './schoolwork.ts'
 import { familyProgressPage, digestsPage, nav, cameraPage, worldPage, materialPage, materialsPage, mapPage, insightsPage, guidancePage, confirmPage, jobPage, parentUnlock, testPreparationPage } from './journey-view.ts'
 import { exportFamily, deleteFamily, consumeAccountToken, requestRecovery } from './accounts.ts'
@@ -78,9 +85,37 @@ export async function authorizeStudentPath(db: DatabaseSync, auth: Auth, path: s
   } catch { return false }
   if (studentId !== selected) return false
   const read: Record<string, string[]> = { session: [''], sheet: [''], uploads: [''], jobs: ['', '/status', '/events', '/file'], materials: [''], questions: ['/help'], packs: ['', '/lesson'] }
-  const write: Record<string, string[]> = { session: ['/draft', '/answer', '/hint', '/feedback', '/continue', '/recap', '/ask', '/pause', '/resume', '/lesson', '/concern', '/access', '/seen'], sheet: ['/score', '/upload', '/pdf'], uploads: [], jobs: ['/retry', '/cancel', '/review'], materials: ['/extract', '/review'], questions: ['/help', '/confirm'], packs: ['/make', '/start', '/discard'] }
+  const write: Record<string, string[]> = { session: ['/draft', '/answer', '/hint', '/feedback', '/continue', '/recap', '/ask', '/pause', '/resume', '/finish', '/lesson', '/concern', '/access', '/seen', '/save-seen', '/confidence'], sheet: ['/score', '/upload', '/pdf'], uploads: [], jobs: ['/retry', '/cancel', '/review'], materials: ['/extract', '/review'], questions: ['/help', '/confirm'], packs: ['/make', '/start', '/discard'] }
   const allowed = (method === 'GET' ? read : write)[kind] ?? []
   return allowed.includes(suffix)
+}
+
+/** Gate learner content across tabs/routes while a check is open. Parent administration remains available. */
+export async function assessmentRestriction(db: DatabaseSync, auth: Auth, path: string, method: string) {
+  const studentPath = path.match(/^\/students\/([0-9a-f-]{36})(.*)$/i)
+  const object = path.match(/^\/(session|sheet|uploads|jobs|materials|questions|packs)\/([0-9a-f-]{36})(.*)$/i)
+  let student: string | null = null
+  if (studentPath) {
+    if (['/parent', '/classes', '/controls', '/note', '/history', '/school', '/audit', '/access', '/world'].some(suffix => studentPath[2] === suffix || studentPath[2].startsWith(`${suffix}/`))) return null
+    student = studentPath[1]
+  } else if (object) {
+    const [, kind, id] = object
+    if (kind === 'session') student = String((await getOwnedSession(db, auth.userId, id)).student_id)
+    else if (kind === 'jobs') student = (await ownedJob(db, auth.userId, id)).student_id
+    else if (kind === 'questions') student = String((await ownedQuestion(db, auth.userId, id)).m.student_id)
+    else if (kind === 'materials') student = String((await ownedMaterial(db, auth.userId, id)).student_id)
+    else if (kind === 'packs') student = (await ownedPack(db, auth.userId, id)).student_id
+    else if (kind === 'sheet') student = String((await getSheet(db, auth.userId, id)).student_id)
+    else student = (await db.prepare('SELECT student_id FROM uploads WHERE id = ? AND owner_user_id = ?').get(id, auth.userId))?.student_id as string | null
+  }
+  if (!student) return null
+  const check = await openAssessment(db, auth.userId, student)
+  if (!check) return null
+  if (object?.[1] === 'session' && object[2] === check.id) {
+    if (method === 'GET' && object[3] === '') return null
+    if (method === 'POST' && ['/answer', '/draft', '/pause', '/resume', '/finish', '/access', '/seen', '/save-seen', '/confidence', '/continue', '/review'].includes(object[3])) return null
+  }
+  return check
 }
 export async function journeyRoute(req: IncomingMessage, res: ServerResponse, url: URL, auth: Auth | null, options: Options, data: any,
   html: (res: ServerResponse, title: string, body: string, csrf: string) => void, send: (res: ServerResponse, status: number, type: string, body: any) => void, redirect: (res: ServerResponse, url: string) => void) {
@@ -119,6 +154,13 @@ export async function journeyRoute(req: IncomingMessage, res: ServerResponse, ur
     return true
   }
   if (!auth) return false
+  const check = await assessmentRestriction(db, auth, path, method)
+  if (check) {
+    const location = `/session/${check.id}`
+    if (method === 'GET' || !(req.headers.accept ?? '').includes('application/json')) redirect(res, location)
+    else json(409, { error: 'Your assessment is still open. Resume it or finish it before opening help and feedback.', location })
+    return true
+  }
   if (path === '/family/progress' && method === 'GET') { if (!auth.parentUnlocked || auth.studentOnly) { json(403, { error: 'Parent access required.' }); return true }; html(res, 'Family progress', await familyProgressPage(db, auth.userId), csrf); return true }
   if (path === '/family/digests' && method === 'GET') {
     if (!auth.parentUnlocked || auth.studentOnly) { json(403, { error: 'Parent access required.' }); return true }
@@ -224,7 +266,7 @@ export async function journeyRoute(req: IncomingMessage, res: ServerResponse, ur
     if (action === 'start') {
       if (pack.status !== 'published') { redirect(res, `/packs/${pack.id}`); return true }
       const conceptId = await packStartConcept(db, pack)
-      const session = await startTutorSession(db, auth.userId, pack.student_id, new Date(), { mode: 'session', subject: pack.subject, focusConceptId: conceptId ?? undefined, intent: 'practice', arc: false })
+      const session = await startTutorSession(db, auth.userId, pack.student_id, learningNow(), { mode: 'session', subject: pack.subject, focusConceptId: conceptId ?? undefined, intent: 'practice', arc: false })
       await db.prepare('UPDATE packs SET first_session_id = coalesce(first_session_id, ?) WHERE id = ?').run(session, pack.id)
       redirect(res, `/session/${session}`); return true
     }
@@ -412,39 +454,78 @@ export async function journeyRoute(req: IncomingMessage, res: ServerResponse, ur
   }
   match = path.match(/^\/session\/([0-9a-f-]{36})\/draft$/i)
   if (match && method === 'POST') {
-    const session = (await getOwnedSession(db, auth.userId, match[1])), item = (await sessionItems(db, match[1])).find(i => i.answered === 0)
-    if (!item || item.id !== data.itemId || String(data.answer ?? '').length > 4000) throw new UserError('This is not the current question.')
-    await db.prepare('UPDATE session_items SET draft_answer = ? WHERE id = ? AND answered = 0').run(await sealFor(db, auth.userId, String(data.answer ?? '')), item.id as string)
-    json(200, { saved: true, studentId: session.student_id }); return true
+    const sessionId = match[1]
+    const saved = await withWrite(db, async () => {
+      await lockFamily(db, auth.userId)
+      const session = (await getOwnedSession(db, auth.userId, sessionId)), items = await sessionItems(db, sessionId), item = items.find(i => i.answered === 0)
+      if (session.mode === 'assessment' && !assessmentOpen(session, items)) throw new UserError('This assessment has been submitted.')
+      if (!item || item.id !== data.itemId || String(data.answer ?? '').length > 4000) throw new UserError('This is not the current question.')
+      if (data.revision !== undefined && String(data.revision) !== String(item.revision_id ?? '')) throw new UserError('This question changed. Reload your saved work before saving.')
+      if (session.end_reason === 'continued') throw new UserError('Continue in your resumed mission before saving.')
+      const changed = await db.prepare('UPDATE session_items SET draft_answer = ? WHERE id = ? AND answered = 0 AND skipped = 0').run(await sealFor(db, auth.userId, String(data.answer ?? '')), item.id as string)
+      if (!changed.changes) throw new UserError('This is not the current question.')
+      return { saved: true, itemId: item.id, revision: String(item.revision_id ?? ''), studentId: session.student_id }
+    })
+    json(200, saved); return true
+  }
+  match = path.match(/^\/session\/([0-9a-f-]{36})\/save-seen$/i)
+  if (match && method === 'POST') {
+    await getOwnedSession(db, auth.userId, match[1])
+    await acknowledgeSaveVisible(db, match[1], String(data.itemId ?? ''), String(data.revision ?? ''), data.elapsedMs)
+    json(200, { saved: true }); return true
   }
   // Access support (the question read aloud, an answer spoken instead of typed) is recorded beside the
   // attempt, apart from teaching help. It does not change scoring; whether it changes what a task measures
   // depends on the skill being checked, which is a separate, explicit decision.
   match = path.match(/^\/session\/([0-9a-f-]{36})\/access$/i)
   if (match && method === 'POST') {
-    await getOwnedSession(db, auth.userId, match[1])
+    const session = await getOwnedSession(db, auth.userId, match[1])
     const kind = String(data.kind ?? '')
     if (!ACCESS_SUPPORT.includes(kind)) throw new UserError('Unknown support.')
-    const item = (await db.prepare('SELECT id, access_support FROM session_items WHERE id = ? AND session_id = ? AND answered = 0').get(String(data.itemId ?? ''), match[1])) as { id: string; access_support: string | null } | undefined
-    if (!item) throw new UserError('This is not the current question.')
+    const item = (await db.prepare('SELECT id, concept_id, access_support FROM session_items WHERE session_id = ? AND answered = 0 AND skipped = 0 ORDER BY position LIMIT 1').get(match[1])) as { id: string; concept_id: string; access_support: string | null } | undefined
+    if (!item || item.id !== data.itemId) throw new UserError('This is not the current question.')
+    if (session.mode === 'assessment') {
+      if (!assessmentOpen(session, await sessionItems(db, match[1]))) throw new UserError('This assessment has been submitted.')
+      const custom = await db.prepare('SELECT subject FROM custom_concepts WHERE student_id = ? AND concept_id = ?').get(session.student_id, item.concept_id)
+      const subject = conceptSubject(item.concept_id, new Map(custom ? [[item.concept_id, String(custom.subject)]] : []), session.subject)
+      if (supportSuppliesSkill(measuredSkill(subject), [kind])) throw new UserError('That support would supply the skill this assessment is checking.')
+    }
     const kinds = new Set(String(item.access_support ?? '').split(',').filter(Boolean)); kinds.add(kind)
     await db.prepare('UPDATE session_items SET access_support = ? WHERE id = ? AND answered = 0').run([...kinds].sort().join(','), item.id)
+    json(200, { saved: true }); return true
+  }
+  match = path.match(/^\/session\/([0-9a-f-]{36})\/confidence$/i)
+  if (match && method === 'POST') {
+    await captureConfidence(db, auth.userId, match[1], String(data.itemId ?? ''), String(data.confidence ?? ''), String(data.revision ?? ''))
     json(200, { saved: true }); return true
   }
   // The moment a question or its feedback was actually on screen in the browser, first time only. Server render
   // time (shown_at) stays as it was; this adds what the learner saw.
   match = path.match(/^\/session\/([0-9a-f-]{36})\/seen$/i)
   if (match && method === 'POST') {
-    await getOwnedSession(db, auth.userId, match[1])
+    const session = await getOwnedSession(db, auth.userId, match[1])
     const column = data.what === 'feedback' ? 'feedback_visible_at' : data.what === 'question' ? 'visible_at' : ''
     if (!column) throw new UserError('Unknown view.')
-    await db.prepare(`UPDATE session_items SET ${column} = ? WHERE id = ? AND session_id = ? AND ${column} IS NULL${column === 'visible_at' ? ' AND answered = 0' : ' AND answered = 1'}`).run(new Date().toISOString(), String(data.itemId ?? ''), match[1])
+    if (column === 'feedback_visible_at' && assessmentOpen(session, await sessionItems(db, match[1]))) throw new UserError('Assessment feedback opens after submission.')
+    const items = await sessionItems(db, match[1])
+    const item = items.find(i => i.id === String(data.itemId ?? ''))
+    if (!item || (column === 'visible_at' && (items.find(i => !i.answered)?.id !== item.id || !item.shown_at || session.ended_at || session.paused_at))) throw new UserError('That question is not currently displayed.')
+    if (column === 'feedback_visible_at' && item.answered !== 1) throw new UserError('There is no submitted answer to review.')
+    const now = learningNow()
+    await db.prepare(`UPDATE session_items SET ${column} = ? WHERE id = ? AND session_id = ? AND ${column} IS NULL${column === 'visible_at' ? ' AND answered = 0' : ' AND answered = 1 AND correct IS NOT NULL'}`).run(now.toISOString(), String(data.itemId ?? ''), match[1])
+    await recordExposure(db, String(session.student_id), match[1], item, column === 'visible_at' ? 'question' : 'feedback', now, true)
     json(200, { saved: true }); return true
   }
-  match = path.match(/^\/session\/([0-9a-f-]{36})\/(pause|resume|lesson)$/i)
+  match = path.match(/^\/session\/([0-9a-f-]{36})\/(pause|resume|finish|lesson)$/i)
   if (match && method === 'POST') {
     const session = (await getOwnedSession(db, auth.userId, match[1]))
-    if (match[2] === 'lesson') { await db.prepare('UPDATE tutor_sessions SET lesson_done = 1 WHERE id = ?').run(match[1]); redirect(res, `/session/${match[1]}`) }
+    if (match[2] === 'finish') { await finishAssessment(db, auth.userId, match[1]); redirect(res, `/session/${match[1]}`) }
+    else if (match[2] === 'lesson') {
+      const first = (await sessionItems(db, match[1])).find(i => !i.answered)
+      if (session.mode === 'assessment' || first?.beat !== 'guided' || session.ended_at) throw new UserError('That lesson is not currently open.')
+      await recordExposure(db, String(session.student_id), match[1], first, 'lesson', learningNow(), true)
+      await db.prepare('UPDATE tutor_sessions SET lesson_done = 1 WHERE id = ?').run(match[1]); redirect(res, `/session/${match[1]}`)
+    }
     else if (match[2] === 'pause') { await pauseSession(db, auth.userId, match[1]); redirect(res, `/students/${session.student_id}`) }
     else redirect(res, `/session/${(await resumeSession(db, auth.userId, match[1]))}`)
     return true
@@ -489,7 +570,7 @@ export async function journeyRoute(req: IncomingMessage, res: ServerResponse, ur
     } else if (match[2] === 'confirm') return false
     else if (match[2] === 'override' && method === 'POST') {
       if (!['correct', 'needs_work', 'unresolved'].includes(data.verdict) || !String(data.explanation ?? '').trim()) throw new UserError('Choose a verdict and explain the review.')
-      await db.prepare(`INSERT INTO homework_reviews (id, question_id, revision, verdict, explanation, provider, model, created_at) VALUES (?, ?, ?, ?, ?, 'parent', '', ?) ON CONFLICT(question_id, revision) DO UPDATE SET verdict = excluded.verdict, explanation = excluded.explanation, provider = 'parent', model = '', created_at = excluded.created_at`).run(crypto.randomUUID(), q.id, q.revision, data.verdict, String(data.explanation).slice(0, 10000), new Date().toISOString())
+      await db.prepare(`INSERT INTO homework_reviews (id, question_id, revision, verdict, explanation, provider, model, created_at) VALUES (?, ?, ?, ?, ?, 'parent', '', ?) ON CONFLICT(question_id, revision) DO UPDATE SET verdict = excluded.verdict, explanation = excluded.explanation, provider = 'parent', model = '', created_at = excluded.created_at`).run(crypto.randomUUID(), q.id, q.revision, data.verdict, String(data.explanation).slice(0, 10000), learningNow().toISOString())
       redirect(res, `/materials/${m.id}`)
     } else if (method === 'GET' && needsConfirm(q)) html(res, 'Is this the question?', (await confirmPage(db, auth.userId, match[1], url.searchParams.get('fix') === '1')), csrf)
     else if (method === 'GET') { await startGuidance(db, auth.userId, match[1]); html(res, 'Thinking together', (await guidancePage(db, auth.userId, match[1])), csrf) }
@@ -500,7 +581,7 @@ export async function journeyRoute(req: IncomingMessage, res: ServerResponse, ur
       const sent = sendId ? await jobForKey(db, auth.userId, `guide:${q.id}:${sendId}`) : undefined
       if (sent) { redirect(res, `/jobs/${sent}`); return true }
       const attempt = crypto.randomUUID()
-      await db.prepare('INSERT INTO guided_attempts (id, question_id, role, body, created_at) VALUES (?, ?, ?, ?, ?)').run(attempt, q.id, 'student', await sealFor(db, auth.userId, String(data.message).slice(0, 4000)), new Date().toISOString())
+      await db.prepare('INSERT INTO guided_attempts (id, question_id, role, body, created_at) VALUES (?, ?, ?, ?, ?)').run(attempt, q.id, 'student', await sealFor(db, auth.userId, String(data.message).slice(0, 4000)), learningNow().toISOString())
       const job = (await createJob(db, auth.userId, String(m.student_id), 'guide', { questionId: q.id, attemptId: attempt }, sendId ? `guide:${q.id}:${sendId}` : `guide:${attempt}`))
       redirect(res, `/jobs/${job}`)
     } else return false
@@ -529,7 +610,7 @@ export async function journeyRoute(req: IncomingMessage, res: ServerResponse, ur
       res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store', 'X-Accel-Buffering': 'no' })
       const emit = async () => {
         const fresh = ((await awaitlessAuth(db, auth.id)))
-        if (!fresh || !(await authorizeStudentPath(db, fresh, path, 'GET'))) { res.end(); return }
+        if (!fresh || !(await authorizeStudentPath(db, fresh, path, 'GET')) || await assessmentRestriction(db, fresh, path, 'GET')) { res.end(); return }
         try { res.write(`event: status\ndata: ${JSON.stringify(jobStatus((await ownedJob(db, auth.userId, job.id))))}\n\n: heartbeat\n\n`) } catch { res.end() }
       }
       await emit()

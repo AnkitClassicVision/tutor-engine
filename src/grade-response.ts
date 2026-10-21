@@ -77,7 +77,7 @@ export type GradeInput = { concept: string; bloomLevel: BloomLevel; prompt: stri
 export type GradeOutput = (RubricVerdict & { evidence?: Evidence; doubts?: string[] }) | { unresolved: true; confidence: number; doubts: string[] }
 
 export const GRADE_RESPONSE: Contract<GradeInput, GradeOutput> = {
-  id: "grade-response", version: 7, role: "verifier",
+  id: "grade-response", version: 8, role: "verifier",
   skills: ["assess-learning"],
   brief: () => GRADING_RULES.join("\n\n"),
   schema: {
@@ -114,7 +114,7 @@ export const GRADE_RESPONSE: Contract<GradeInput, GradeOutput> = {
 
 export type VerifyOutput = { correct: boolean; confidence: number; reason: string; evidence: Evidence }
 export const VERIFY_JUDGMENT: Contract<GradeInput, VerifyOutput> = {
-  id: "verify-judgment", version: 5, role: "verifier",
+  id: "verify-judgment", version: 6, role: "verifier",
   skills: ["verify-judgment", "assess-learning"],
   brief: () => [GRADING_RULES[4], GRADING_RULES[5]].join("\n\n"),
   schema: { type: "object", additionalProperties: false, required: ["rubricPoints", "reasoningSound", "correct", "confidence", "reason"], properties: { rubricPoints: EVIDENCE, reasoningSound: { type: "boolean" }, correct: { type: "boolean" }, confidence: { type: "number", minimum: 0, maximum: 1 }, reason: { type: "string", minLength: 1, maxLength: 600 } } },
@@ -134,7 +134,7 @@ export type GroundOutput = RubricVerdict & { evidence: Evidence; groundedOn: str
 const SOURCES = ["rubric", "idea", "example", "non-example", "success", "misconception", "own working"] as const
 
 export const GROUND_JUDGMENT: Contract<GroundInput, GroundOutput> = {
-  id: "ground-judgment", version: 4, role: "verifier",
+  id: "ground-judgment", version: 5, role: "verifier",
   skills: ["ground-judgment", "assess-learning"],
   brief: () => [GRADING_RULES[4], GRADING_RULES[5]].join("\n\n"),
   schema: {
