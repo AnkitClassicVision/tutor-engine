@@ -224,7 +224,11 @@ test('a missing prerequisite chooses its learning task; failed generation and ch
     await page.goto(f.baseURL + '/session/' + learning)
     await expect(page.locator('form.answer [name=answer]')).toHaveValue(responseFor(row))
     expect((await current(page, f)).revision_id).toBe(row.revision_id)
-    await page.getByRole('button', { name: 'Save & stop', exact: true }).click()
+    await Promise.all([
+      page.waitForNavigation({ waitUntil: 'domcontentloaded' }),
+      page.getByRole('button', { name: 'Save & stop', exact: true }).click(),
+    ])
+    await expect(page).toHaveURL(f.baseURL + '/students/' + f.student)
     const start = await f.request('/students/' + f.student + '/session', { mode: 'assessment', goal: 'transfer_check', focusConceptId: FRACTION_TARGET })
     const path = start.headers.get('location')!, transfer = path.split('/').at(-1)!
     await page.goto(f.baseURL + path)
