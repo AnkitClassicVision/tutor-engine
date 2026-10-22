@@ -22,7 +22,10 @@ test('worked reasons lead to completion, saved recovery, faded help and a differ
   expect(worked).toContain('same-sized parts')
   expect(worked).toContain('Subtract the second amount')
   expect(await page.locator('.worked-example ol li').count()).toBe(3)
-  await page.getByRole('button', { name: 'Let’s try one together', exact: true }).click()
+  await Promise.all([
+    page.waitForNavigation({ waitUntil: 'domcontentloaded' }),
+    page.getByRole('button', { name: 'Let’s try one together', exact: true }).click(),
+  ])
   const first = await page.locator('.question-text').innerText()
   expect(first).toContain('Started for you')
   expect(first).toContain('Finish the problem')
