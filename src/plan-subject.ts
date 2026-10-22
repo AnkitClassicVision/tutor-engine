@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process"
 import { readModelJson, type AiConfig } from "./ai.ts"
 import type { Contract, RunReport } from "./runbook/contract.ts"
 import { judgeQuestions, questionCritic } from "./runbook/critics.ts"
-import { bloomCue, childSafe, distinct, noLeak, readingFit, type Issue } from "./runbook/gates.ts"
+import { bloomCue, childSafe, distinct, noLeak, readingFit, issue, type Issue } from "./runbook/gates.ts"
 import { runContract, type Ask } from "./runbook/run.ts"
 import { isOpen, parseRubric, rubricIssues, RUBRIC_BRIEF, RUBRIC_SCHEMA, type Rubric } from "./rubric.ts"
 import type { TopicCandidate } from "./choose-topics.ts"
@@ -10,8 +10,11 @@ import { contentSkillBrief } from "./content-skills.ts"
 import { coursePlanningBrief } from "./course-planning.ts"
 import { skillText } from "./skill-text.ts"
 import type { BloomLevel } from "./engine/types.ts"
+import type { ApprovedTeaching } from './engine/teaching.ts'
+import { copiesTeaching } from './engine/scaffolds.ts'
 
 export interface CurriculumTopic {
+  mapKey?: string
   title: string
   recall: string
   example: string
@@ -36,6 +39,7 @@ const SCHEMA = JSON.stringify({
         type: "object",
         properties: {
           title: { type: "string" },
+          mapKey: { type: 'string', minLength: 2, maxLength: 60 },
           recall: { type: "string" },
           example: { type: "string" },
           nonExample: { type: "string" },
@@ -76,7 +80,7 @@ export function readSyllabusUpload(input: { text?: string; base64?: string; mime
 const flat = (plan: CurriculumPlan) => plan.topics.flatMap((topic, index) => topic.questions.map(question => ({ ...question, bloomLevel: question.bloomLevel ?? 1, topic: index, title: topic.title })))
 
 export const PLAN_CURRICULUM: Contract<CurriculumInput, CurriculumPlan> = {
-  id: "plan-curriculum", version: 5, role: "planner",
+  id: "plan-curriculum", version: 9, role: "planner",
   skills: ["design-questions", "assess-learning", "adapt-session", "revise-agenda"],
   brief: () => [coursePlanningBrief(), contentSkillBrief(), RUBRIC_BRIEF].join("\n\n"),
   schema: JSON.parse(SCHEMA),
@@ -102,6 +106,13 @@ export const PLAN_CURRICULUM: Contract<CurriculumInput, CurriculumPlan> = {
     }
     for (const item of distinct(questions.map(question => question.prompt))) found.push({ ...item, item: questions[item.item!].topic })
     plan.topics.forEach((topic, index) => found.push(...childSafe([topic.title, topic.recall, topic.example, topic.nonExample], index)))
+    plan.topics.forEach((topic, index) => {
+      const candidates = input.approvedConcepts?.filter(c => c.key === topic.mapKey)
+      const approved = candidates?.length === 1 ? candidates[0] : undefined
+      if (input.approvedConcepts?.length && (!approved || approved.title !== topic.title)) found.push(issue('map_identity', 'Keep the approved topic key and title.', true, index))
+      const taught = [topic.example, topic.nonExample, ...(approved ? [approved.contrast.example, approved.contrast.nonExample] : [])]
+      if (topic.questions.some(q => copiesTeaching(q.prompt, taught))) found.push(issue('taught_copy', 'Independent questions must not copy a teaching example or its calculation.', true, index))
+    })
     return found
   },
   prune: (plan, topics) => {
@@ -146,6 +157,8 @@ export interface CurriculumInput {
   decisionHistory?: string
   /** The parent-approved subject map, condensed. */
   map?: string
+  approvedConcepts?: ApprovedTeaching[]
+  approvedMapVersion?: string
 }
 
 export function curriculumSystemPrompt() {
@@ -161,7 +174,9 @@ export function parseCurriculum(raw: string): CurriculumPlan | null {
     const titles = new Set<string>()
     const topics: CurriculumTopic[] = []
     for (const value of plan.topics) {
-      if (!hasFields(value, ["title", "recall", "example", "nonExample", "questions"])) return null
+      const keyed = value !== null && typeof value === 'object' && Object.hasOwn(value, 'mapKey')
+      if (!hasFields(value, ["title", "recall", "example", "nonExample", "questions", ...(keyed ? ['mapKey'] : [])])) return null
+      if (keyed && (typeof value.mapKey !== 'string' || value.mapKey.length > 60 || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value.mapKey))) return null
       if (![value.title, value.recall, value.example, value.nonExample].every(isText)) return null
       const title = (value.title as string).trim()
       if (titles.has(title.toLowerCase())) return null
@@ -179,7 +194,7 @@ export function parseCurriculum(raw: string): CurriculumPlan | null {
         questions.push({ prompt: question.prompt.trim(), answer: question.answer.trim(), bloomLevel: question.bloomLevel as BloomLevel, ...(question.transfer === true ? { transfer: true } : {}), ...(rubric ? { rubric } : {}) })
       }
       if (questions[0].prompt.toLowerCase() === questions[1].prompt.toLowerCase()) return null
-      topics.push({ title, recall: (value.recall as string).trim(), example: (value.example as string).trim(), nonExample: (value.nonExample as string).trim(), questions })
+      topics.push({ title, recall: (value.recall as string).trim(), example: (value.example as string).trim(), nonExample: (value.nonExample as string).trim(), questions, ...(keyed ? { mapKey: String(value.mapKey) } : {}) })
     }
     return { reason: plan.reason.trim(), topics }
   } catch {
@@ -209,6 +224,7 @@ export function curriculumPrompt(input: CurriculumInput) {
     "Add topics the new material requires. Rewrite the questions so the next practice matches the new direction.",
     "Each topic needs two questions with answers and an explicit bloomLevel from 1 to 6 matching the actual task. Use an evidence-appropriate demand: address a current gap and check independent use or transfer. For new or shaky topics use Remember, Understand or Apply. Analyze, Evaluate and Create are optional further challenges when evidence supports them. Levels 4 to 6 need an answer beginning Rubric: with the reasoning/production criteria. Mark transfer true on a question that uses the idea in a situation the child has not practised, without needing anything new. Homework and assessment on this topic must not reuse either sentence.",
     input.map ?? "",
+    input.approvedConcepts?.length ? `Keep each selected approved key in mapKey and its exact title. Approved concepts:\n${JSON.stringify(input.approvedConcepts)}` : '',
     input.direction ? `Latest school test or parent note:\n${input.direction}` : "",
     `What this subject is: ${input.about || "Not stated."}`,
     "Syllabus:",

@@ -2,12 +2,13 @@ import PDFDocument from 'pdfkit'
 import QRCode from 'qrcode'
 import type { Database } from './database.ts'
 import type { JobContext } from './jobs.ts'
-import { getSheet } from './services.ts'
+import { getSheet, recordSheetExposure } from './services.ts'
 import { cloudStorage, storePrivateFile, deletePrivateFile } from './storage.ts'
 import { onWriteRollback } from './transaction.ts'
 
 export async function renderSheetPdf(db: Database, uploads: string, ctx: JobContext, payload: { sheetId: string }) {
   const sheet = await getSheet(db, ctx.job.owner_user_id, payload.sheetId)
+  await recordSheetExposure(db, ctx.job.owner_user_id, payload.sheetId)
   const { spec, items } = JSON.parse(String(sheet.spec_json))
   await ctx.stage('Laying out your practice sheet')
   const doc = new PDFDocument({ size: 'LETTER', margin: 48 }), chunks: Buffer[] = []
@@ -26,12 +27,15 @@ export async function renderSheetPdf(db: Database, uploads: string, ctx: JobCont
   let y = 110
   for (const box of spec.boxes) {
     const item = items.find((i: any) => i.itemId === box.itemId)
-    const text = `Box ${box.boxIndex}. ${item.prompt}`
+    const inlineChoices = item.choices?.every((choice: string, index: number) => choice === String.fromCharCode(65 + index) && item.prompt.includes(choice + ')'))
+    const choices = !inlineChoices && item.choices?.map((choice: string, index: number) => `${String.fromCharCode(65 + index)}. ${choice}`).join('\n')
+    const text = `Box ${box.boxIndex}. ${item.prompt}${choices ? '\n' + choices : ''}`
     doc.fontSize(11)
-    const height = doc.heightOfString(text, { width: 480 }) + 54
+    const answerHeight = item.responseFormat === 'number' || item.responseFormat === 'choice' ? 32 : 64
+    const height = doc.heightOfString(text, { width: 480 }) + answerHeight + 22
     if (y + height > 710) { doc.addPage(); header(); y = 110 }
     doc.text(text, 48, y, { width: 480 })
-    doc.rect(48, y + height - 42, 480, 32).stroke()
+    doc.rect(48, y + height - answerHeight - 10, 480, answerHeight).stroke()
     y += height + 16
   }
   doc.end()

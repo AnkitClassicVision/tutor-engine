@@ -1,23 +1,23 @@
 {
  "fresh-practice": {
-  "version": 4,
-  "fingerprint": "b12001e0ef92129f"
+  "version": 8,
+  "fingerprint": "9d97d81e9508f122"
  },
  "grade-response": {
-  "version": 7,
-  "fingerprint": "97d502fd0c21aaa0"
+  "version": 9,
+  "fingerprint": "3511ab13d336aef6"
  },
  "ground-judgment": {
-  "version": 4,
-  "fingerprint": "103ae94a921ffa12"
+  "version": 6,
+  "fingerprint": "3204c53317e5ff79"
  },
  "guide-school-homework": {
-  "version": 2,
-  "fingerprint": "eb02e3ab5749f53d"
+  "version": 4,
+  "fingerprint": "d7ff279403f4a2cf"
  },
  "lesson-reply": {
-  "version": 2,
-  "fingerprint": "59c85524da8c701e"
+  "version": 5,
+  "fingerprint": "993cbbc91b8eb4b2"
  },
  "parent-planner": {
   "version": 2,
@@ -28,8 +28,8 @@
   "fingerprint": "c259f31c836baff9"
  },
  "plan-curriculum": {
-  "version": 5,
-  "fingerprint": "95f63d7533055367"
+  "version": 9,
+  "fingerprint": "ee91bf84b21b1645"
  },
  "read-school-material": {
   "version": 2,
@@ -44,7 +44,7 @@
   "fingerprint": "70defb34df010e94"
  },
  "verify-judgment": {
-  "version": 5,
-  "fingerprint": "9e083e707086c158"
+  "version": 7,
+  "fingerprint": "eec80185ec4915c4"
  }
 }

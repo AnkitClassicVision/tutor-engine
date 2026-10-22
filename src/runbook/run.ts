@@ -62,12 +62,15 @@ export async function runContract<I, O>(
   options: { ask?: Ask; criticAi?: AiConfig | null; /** Total time for every call, so a run fits its host's limit. */ budgetMs?: number } = {},
 ): Promise<RunResult<O>> {
   const started = Date.now()
-  const left = () => options.budgetMs ? options.budgetMs - (Date.now() - started) : Infinity
+  // AI running on this computer through a signed-in CLI is slower than an API, and has no host time limit;
+  // TUTOR_LOCAL_AI_TIME_SCALE stretches its limits (public mode never offers these providers).
+  const scale = ["grok", "claude", "codex"].includes(ai.provider) ? Math.max(1, Number(process.env.TUTOR_LOCAL_AI_TIME_SCALE) || 1) : 1
+  const left = () => options.budgetMs ? options.budgetMs * scale - (Date.now() - started) : Infinity
   const ask = options.ask ?? defaultAsk
   const schema = replySchema(contract)
   const system = systemFor(contract, input)
   const task = contract.prompt(input)
-  const callTimeout = () => Math.max(1000, Math.min(contract.timeoutMs ?? 90000, left()))
+  const callTimeout = () => Math.max(1000, Math.min((contract.timeoutMs ?? 90000) * scale, left()))
   const report: RunReport = { runbook: contract.id, version: contract.version, role: contract.role, provider: ai.provider, model: ai.model, outcome: "rejected", attempts: 0, issues: [], critic: { ran: false, issues: [] }, selfCheck: [], ms: 0 }
   // Written as casts so narrowing does not ignore the assignments made inside attempt().
   let output = null as O | null

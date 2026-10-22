@@ -68,7 +68,7 @@ test('camera denial and late permission preserve the form and close pending capt
 test('simulated microphone preserves typed drafts, never auto-sends, handles stop and reads the question', async ({ page, browserName }) => {
   await devices(page, browserName === 'webkit'); const student = await onboard(page)
   await page.getByRole('button', { name: 'Let’s go' }).click()
-  const form = page.locator('form.answer'), field = form.getByLabel('Answer', { exact: true })
+  const form = page.locator('form.answer'), field = form.getByRole('textbox', { name: /^(Answer|Your steps)$/ })
   await field.fill('My answer is')
   let submitted = 0; page.on('request', r => { if (r.method() === 'POST' && /\/answer$/.test(new URL(r.url()).pathname)) submitted++ })
   await form.getByRole('button', { name: 'Use microphone' }).click()

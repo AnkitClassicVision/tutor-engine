@@ -6,7 +6,7 @@ keywords: word problem, word problems, story problem, story problems, real life,
 formats: number, choice, written
 bloom: 2-5
 require_work: true
-version: 3
+version: 4
 role: coach
 ---
 
@@ -45,3 +45,5 @@ Hook from a real situation, steps for reading a word problem (find the question,
 - Good: "A ribbon is 3/4 m long. Jo cuts off 1/3 m. How much is left?" work `3/4 - 1/3`, answer `5/12 m`.
 - Bad: "If you have some apples and get more, how many?" (no numbers)
 - Bad: the same pizza story six times with new numbers.
+
+If an approved subjectMap is supplied, keep its key in mapKey and use its exact title. Select the teaching route from its dimension and observed gap, preserve the success criteria, and use the contrast and misconception fixes for teaching. A worked example must show completed work and reasons, with a meaningful step left in a separate completion problem. Independent questions must use different cases; a paraphrase or equivalent calculation of the teaching example is not fresh evidence. Keep analysis, evaluation and creation demands when requested.

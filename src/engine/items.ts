@@ -1,14 +1,23 @@
 import { fractionString } from "./score.ts"
+import { authoredFractionTask } from './fraction-forms.ts'
 import type { BloomLevel, ConceptNode, Item, Mode } from "./types.ts"
 
 export function generateItem(
   concept: ConceptNode,
   bloom: BloomLevel,
   seed: number,
-  options: { interleaved?: boolean; partner?: ConceptNode | null; surface?: Mode; itemId?: string } = {},
+  options: { interleaved?: boolean; partner?: ConceptNode | null; surface?: Mode; itemId?: string; role?: 'practice' | 'transfer' } = {},
 ): Item {
   const level = (bloom < 1 ? 1 : bloom) as BloomLevel
   const surface = options.surface ?? defaultSurface(level)
+  const authored = options.interleaved ? null : authoredFractionTask(concept.conceptId, level, seed, options.role)
+  if (authored) return {
+    itemId: options.itemId ?? concept.conceptId + ':' + level + ':' + seed, conceptId: concept.conceptId, bloomLevel: level,
+    prompt: authored.prompt, answer: authored.answer, hintLadder: authored.hints,
+    ...(authored.format === 'choice' || authored.format === 'steps' ? { responseFormat: authored.format } : {}),
+    choices: authored.choices, rubric: authored.rubric, evidenceKind: authored.role,
+    surface, interleaved: false, partnerConceptId: null, scored: level <= 4,
+  }
   let built = build(concept, level, seed, options.partner ?? null)
   if (options.interleaved && options.partner && level <= 4) {
     const partner = build(options.partner, Math.min(3, level) as BloomLevel, seed + 137, null)
@@ -25,6 +34,8 @@ export function generateItem(
     prompt: built.prompt,
     answer: built.answer,
     hintLadder: built.hints,
+    ...(!(options.interleaved && options.partner && level <= 4) && level === 1 && concept.conceptId.startsWith('math.') ? { responseFormat: 'steps' as const } : {}),
+    ...(!(options.interleaved && options.partner && level <= 4) && level === 2 ? { responseFormat: 'choice' as const, choices: ['A', 'B'] } : {}),
     surface,
     interleaved: options.interleaved ?? false,
     partnerConceptId: options.partner?.conceptId ?? null,
@@ -49,7 +60,7 @@ function stepsTask(prompt: string) {
 function build(concept: ConceptNode, bloom: BloomLevel, seed: number, partner: ConceptNode | null) {
   if (bloom === 1) {
     return {
-      prompt: concept.conceptId.startsWith("math.") ? `How would you ${stepsTask(applyProblem(concept, seed).prompt)}? Tell me the steps in order. You don’t need the answer yet.` : `In your own words, name the main idea or steps for "${concept.title}". You do not need to solve an example yet.`,
+      prompt: concept.conceptId.startsWith("math.") ? `Tell me, in order, the steps you would use to ${stepsTask(applyProblem(concept, seed).prompt)}. You do not need to work out the final answer.` : `In your own words, name the main idea or steps for "${concept.title}". You do not need to solve an example yet.`,
       answer: `Rubric: accept an equivalent description in the learner's own words of this idea or procedure: ${concept.recall}. No calculation, final answer, exact wording, or extra steps beyond the requested procedure are required.`,
       hints: hintsFor(concept.recall, `What does "${concept.title}" change, keep, or undo?`),
     }
@@ -220,18 +231,33 @@ export function applyProblem(concept: ConceptNode, seed: number): Applied {
   const pick = (mod: number) => Math.floor(rand() * mod)
   const id = concept.conceptId
 
+  if (id === 'math.fractions.operation-choice') {
+    const a = 2 + pick(3), b = 1 + pick(2), denominator = a + b + 2 + pick(5), removing = pick(2) === 1
+    const start = removing ? a + b : a, result = removing ? a : a + b
+    const initial = `${start}/${denominator}`, change = `${b}/${denominator}`, answer = fractionString(result, denominator)
+    return {
+      prompt: `A jug starts with ${initial} litre. ${change} litre ${removing ? 'is poured out' : 'is added'}. How much is in the jug now?`,
+      answer,
+      nudge: 'Are parts being combined, or is a part being removed from a whole?',
+      step1: removing ? 'Some liquid is removed, so subtract the removed part from the start.' : 'The new liquid joins what is there, so add the two parts.',
+      step2: `${initial} ${removing ? '−' : '+'} ${change} = ${result}/${denominator}.`,
+      step3: `The jug now holds ${answer} litre.`,
+      wrongStep: `Use ${removing ? 'addition' : 'subtraction'} instead: ${initial} ${removing ? '+' : '−'} ${change} = ${fractionString(removing ? start + b : start - b, denominator)}.`,
+    }
+  }
+
   if (id.startsWith("math.primary.")) {
     const [, , gradeRaw, operation] = id.split(".")
     const grade = Number(gradeRaw), a = 2 + pick(grade === 1 ? 7 : 8), b = 2 + pick(7)
-    let prompt = "", answer = "", step = ""
-    if (operation === "count") { prompt = `How many dots? ${"● ".repeat(a)}`; answer = String(a); step = "Point to each dot once as you count." }
-    if (operation === "add") { const x = grade === 1 ? a : 10 + a * 2, y = grade === 1 ? b : 10 + b; prompt = `You have ${x} shells and find ${y} more. How many now?`; answer = String(x + y); step = `Join ${x} and ${y}.` }
-    if (operation === "subtract") { const x = grade === 1 ? a + b : 30 + a, y = grade === 1 ? b : 10 + b; prompt = `There are ${x} balloons. ${y} float away. How many remain?`; answer = String(x - y); step = `Take ${y} away from ${x}.` }
-    if (operation === "place") { const number = 10 * a + b; prompt = `How many tens are in ${number}?`; answer = String(a); step = `Split ${number} into tens and ones.` }
-    if (operation === "multiply") { prompt = `${a} baskets hold ${b} apples each. How many apples altogether?`; answer = String(a * b); step = `Add ${b} once for each of the ${a} baskets.` }
-    if (operation === "divide") { prompt = `Share ${a * b} beads equally among ${a} friends. How many does each get?`; answer = String(b); step = `What number multiplied by ${a} makes ${a * b}?` }
-    if (operation === "fraction") { const parts = b + 1; prompt = `A shape has ${parts} equal parts. One part is shaded. What fraction is shaded?`; answer = `1/${parts}`; step = "Count all equal parts, then count shaded parts." }
-    return { prompt, answer, nudge: "What do you know? What are you finding?", step1: concept.recall, step2: step, step3: `The answer is ${answer}.`, wrongStep: concept.nonExample }
+    let prompt = "", answer = "", step = "", wrongStep = ""
+    if (operation === "count") { prompt = `How many dots? ${"● ".repeat(a)}`; answer = String(a); step = "Point to each dot once as you count."; wrongStep = `Skip the first dot and report ${a - 1}.` }
+    if (operation === "add") { const x = grade === 1 ? a : 10 + a * 2, y = grade === 1 ? b : 10 + b; prompt = `You have ${x} shells and find ${y} more. How many now?`; answer = String(x + y); step = `Join ${x} and ${y}.`; wrongStep = `Take away instead: ${x} − ${y} = ${x - y}.` }
+    if (operation === "subtract") { const x = grade === 1 ? a + b : 30 + a, y = grade === 1 ? b : 10 + b; prompt = `There are ${x} balloons. ${y} float away. How many remain?`; answer = String(x - y); step = `Take ${y} away from ${x}.`; wrongStep = `Add instead: ${x} + ${y} = ${x + y}.` }
+    if (operation === "place") { const number = 10 * a + b; prompt = `How many tens are in ${number}?`; answer = String(a); step = `Split ${number} into tens and ones.`; wrongStep = `Count one extra ten and report ${a + 1} tens.` }
+    if (operation === "multiply") { prompt = `${a} baskets hold ${b} apples each. How many apples altogether?`; answer = String(a * b); step = `Add ${b} once for each of the ${a} baskets.`; wrongStep = `Count an extra basket: ${a + 1} × ${b} = ${(a + 1) * b}.` }
+    if (operation === "divide") { prompt = `Share ${a * b} beads equally among ${a} friends. How many does each get?`; answer = String(b); step = `What number multiplied by ${a} makes ${a * b}?`; wrongStep = `Give all ${a * b} beads to each of the ${a} friends.` }
+    if (operation === "fraction") { const parts = b + 1; prompt = `A shape has ${parts} equal parts. One part is shaded. What fraction is shaded?`; answer = `1/${parts}`; step = "Count all equal parts, then count shaded parts."; wrongStep = `Reverse the counts and write ${parts}/1.` }
+    return { prompt, answer, nudge: "What do you know? What are you finding?", step1: concept.recall, step2: step, step3: `The answer is ${answer}.`, wrongStep }
   }
 
   if (id === "math.5.nf.a.1" || id === "math.4.nf.b.3") {
@@ -271,13 +297,10 @@ export function applyProblem(concept: ConceptNode, seed: number): Applied {
   }
 
   if (id === "math.4.nf.a.2") {
-    const pairs = [
-      [1, 2, 1, 3],
-      [3, 4, 2, 3],
-      [2, 5, 1, 2],
-      [5, 6, 3, 4],
-    ] as const
-    const [a, b, c, d] = pairs[pick(pairs.length)]
+    const b = 2 + pick(11), d = 2 + pick(11), a = 1 + pick(b - 1)
+    let c = 1 + pick(d - 1)
+    // Keep the task a comparison of unequal proper fractions, with enough distinct cases for fresh checks.
+    if (a * d === c * b) c = c < d - 1 ? c + 1 : 0
     const left = a / b
     const right = c / d
     const answer = left >= right ? `${a}/${b}` : `${c}/${d}`

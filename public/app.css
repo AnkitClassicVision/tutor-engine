@@ -313,6 +313,8 @@ form.inline { display: inline; }
 .answer > button[type=submit] { min-height: 62px; font-size: 20px; border-radius: var(--r); width: 100%; }
 .answer > label, .answer > .choices { order: 0; }
 .answer > button[type=submit] { order: 1; }
+.answer > [data-draft-status], .answer > [data-submit-status] { order: 2; margin: 0; }
+.answer > [data-retry-draft], .answer > [data-format-help] { order: 5; }
 .answer > .voice-row { order: 2; justify-self: start; }
 .answer > [data-voice-status] { order: 3; margin: 0; }
 .answer > [data-voice-status]:empty { display: none; }
@@ -743,12 +745,15 @@ body.drawer-open { overflow: hidden; }
 
 /* Printed practice sheets */
 .sheet-body { background: #fff; color: #000; color-scheme: light; }
-.sheet { position: relative; width: 612px; min-height: 792px; margin: 1rem auto; padding: 72px 48px; }
+.sheet { position: relative; width: min(100%, 612px); min-height: 792px; margin: 1rem auto; padding: 72px clamp(20px, 5vw, 48px); }
+.sheet .mono { overflow-wrap: anywhere; }
 .corner { position: absolute; width: 18px; height: 18px; border-top: 3px solid black; border-left: 3px solid black; }
 .c1 { top: 28px; left: 28px; } .c2 { top: 28px; right: 28px; transform: scaleX(-1); } .c3 { bottom: 28px; left: 28px; transform: scaleY(-1); } .c4 { bottom: 28px; right: 28px; transform: scale(-1); }
 .sheet-title { font-size: 1.6rem; line-height: 1.05; color: #000; }
-.sheet-head, .sheet-item { display: grid; grid-template-columns: 110px 1fr 160px; gap: 0.8rem; align-items: start; }
+.sheet-head, .sheet-item { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 0.8rem; align-items: start; }
 .sheet-head { grid-template-columns: 110px 1fr; margin-bottom: 1.2rem; }
+.sheet-item { margin-bottom: 1.5rem; break-inside: avoid; }
+.sheet-item .box { grid-column: 1 / -1; width: 100% !important; min-height: 64px; }
 .box { border: 2px solid black; }
 @media print { .no-print, .top, .skip, .journey-nav, .planner-fab { display: none !important; } body { background: #fff; color: #000; } }
 
@@ -963,13 +968,22 @@ body:has([data-band="5-7"]) .journey-nav a { min-height: 64px; }
 
 /* Tablets and laptops */
 @media (min-width: 900px) {
-  .journey .today-mission { padding: 28px; }
+  .journey { max-width: 960px; }
+  .mission-hero.today { display: grid; grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr); gap: 16px; align-items: start; }
+  .today-greeting { flex-direction: column; align-items: center; margin-top: 14px; }
+  .today-greeting > div { width: 100%; }
+  .journey .today-mission { padding: 20px; }
   .quick-missions { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 24px; }
 }
 
 /* Phones: the learner tabs move to a bar at the bottom of the screen. */
 @media (max-width: 750px) {
   :root { --gutter: 16px; }
+  .today-greeting { min-height: 140px; padding: 10px; gap: 8px; align-items: center; }
+  .today-greeting .companion { width: 72px; height: 88px; flex: 0 0 72px; margin-bottom: 0; }
+  .today-greeting > div { flex: 1; padding: 8px; }
+  .today-mission { padding: 14px; }
+  .capability-notice { margin: 8px 0; }
   .top { min-height: 64px; }
   .mark { font-size: 21px; }
   .planner-fab { top: 8px; }

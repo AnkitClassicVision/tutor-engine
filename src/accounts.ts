@@ -111,7 +111,7 @@ export async function deleteFamily(db: DatabaseSync, owner: string, uploadsDir: 
     const intents = await db.prepare('SELECT * FROM upload_intents WHERE owner_user_id = ?').all(owner)
     for (const intent of intents) await queueFileErasure(db, owner, String(intent.stored_path), String(intent.id), ticketRetention(String(intent.expires_at)))
     await db.prepare('DELETE FROM upload_intents WHERE owner_user_id = ?').run(owner)
-    const ordered = ['homework_reviews', 'guided_attempts', 'material_questions', 'material_pages', 'materials', 'recaps', 'lesson_messages', 'session_items', 'attempts', 'tutor_sessions', 'uploads', 'sheets', 'jobs', 'followup_missions', 'path_revisions', 'school_results', 'decision_records', 'learning_patterns', 'talk_messages', 'planner_messages', 'parent_notes', 'subject_sources', 'subject_plans', 'practice_items', 'packs', 'runbook_runs', 'subject_maps', 'changed_minds', 'grading_audits', 'custom_concepts', 'learner_states', 'targets', 'students']
+    const ordered = ['learning_exposures', 'learning_cutovers', 'homework_reviews', 'guided_attempts', 'material_questions', 'material_pages', 'materials', 'recaps', 'lesson_messages', 'session_items', 'attempts', 'tutor_sessions', 'uploads', 'sheets', 'jobs', 'followup_missions', 'path_revisions', 'school_results', 'decision_records', 'learning_patterns', 'talk_messages', 'planner_messages', 'parent_notes', 'subject_sources', 'subject_plans', 'practice_items', 'packs', 'runbook_runs', 'subject_maps', 'changed_minds', 'grading_audits', 'custom_concepts', 'learner_states', 'targets', 'students']
 
     for (const table of ordered) {
       const rows = data[table] ?? []

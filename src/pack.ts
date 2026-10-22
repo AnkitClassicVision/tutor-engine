@@ -17,7 +17,9 @@ import { scoreItem } from "./engine/score.ts"
 import { runbook, routeRunbook, type Runbook, type RunbookId } from "./pack-runbooks.ts"
 import type { RunReport } from "./runbook/contract.ts"
 import { recordRun } from "./runbook/record.ts"
-import { approvedMap, concepts } from "./subject-map.ts"
+import { concepts, type SubjectMap } from "./subject-map.ts"
+import { selectTeaching, type ApprovedTeaching } from './engine/teaching.ts'
+import { copiesTeaching } from './engine/scaffolds.ts'
 import { parseRubric, RUBRIC_BRIEF, RUBRIC_SCHEMA } from "./rubric.ts"
 import { blocked, checkDraft, checkItem, PACK_FORMATS, type Issue, type PackDraft, type PackItem, type PackSkill, type QaRules } from "./pack-qa.ts"
 import {
@@ -42,6 +44,7 @@ export interface PackRow {
 export interface PackBrief {
   request: string; subject: string; topic: string; title: string; grade: number; gradeLabel: string; reading: "junior" | "explorer"
   count: number; skills: number; perSkill: number; preferred: string[]; testDate: string | null; testTitle: string | null; runbook: RunbookId
+  conceptId?: string; mapKey?: string; mapVersion?: string
 }
 export interface PackQa {
   modelChecked: boolean; written: number; published: number; repaired: number; dropped: number; recomputed: number
@@ -186,7 +189,7 @@ export async function setPackSettings(db: DatabaseSync, ownerUserId: string, stu
  */
 export async function requestPack(
   db: DatabaseSync, ownerUserId: string, studentId: string,
-  input: { text: string; by: "parent" | "child"; mode?: "now" | "review" | "plan"; requestId: string; subject?: string },
+  input: { text: string; by: "parent" | "child"; mode?: "now" | "review" | "plan"; requestId: string; subject?: string; conceptId?: string; mapKey?: string },
   now = new Date(),
 ): Promise<PackRequestResult> {
   const text = String(input.text ?? "").replace(/\s+/g, " ").trim()
@@ -207,6 +210,17 @@ export async function requestPack(
     const read = briefFromWords(text, context, input.subject)
     if ("clarify" in read) return { kind: "clarify", reply: read.clarify, chips: read.chips }
     const brief = read.brief
+    const teaching = await mapContext(db, studentId, brief.subject, brief.topic, input)
+    if ((input.conceptId || input.mapKey) && !teaching.subjectMap) throw new PackScope('This topic is not uniquely linked to the approved map. Choose its current topic before creating practice.')
+    if (teaching.subjectMap) {
+      brief.mapKey = teaching.subjectMap.key
+      brief.conceptId = teaching.conceptId
+      brief.topic = teaching.subjectMap.title
+      brief.mapVersion = teaching.mapVersion
+      brief.skills = 1
+      brief.perSkill = Math.min(10, brief.count)
+      brief.count = brief.perSkill
+    }
     if (input.by === "child" && settings.requests === "classes" && !context.classes.some((c) => c.toLowerCase() === brief.subject.toLowerCase())) {
       return { kind: "clarify", reply: `${brief.subject} isn't one of your classes yet. Pick one of your classes, or ask a grown-up to add it.`, chips: context.classes.slice(0, 6) }
     }
@@ -313,7 +327,7 @@ export const PACK_SCHEMA = JSON.stringify({
       type: "array", minItems: 1, maxItems: 3,
       items: {
         type: "object", additionalProperties: false, required: ["title", "recall", "example", "nonExample", "items"],
-        properties: { title: { type: "string" }, recall: { type: "string" }, example: { type: "string" }, nonExample: { type: "string" }, items: { type: "array", minItems: 4, maxItems: 10, items: ITEM_SCHEMA } },
+        properties: { mapKey: { type: 'string', minLength: 2, maxLength: 60 }, title: { type: "string" }, recall: { type: "string" }, example: { type: "string" }, nonExample: { type: "string" }, items: { type: "array", minItems: 4, maxItems: 10, items: ITEM_SCHEMA } },
       },
     },
   },
@@ -341,6 +355,7 @@ export function writerBrief(book: Runbook) {
     "Formats: number (a numeric answer; give `work`, the exact arithmetic expression whose value is the answer, whenever arithmetic is involved), choice (three or four options, exactly one correct, the answer is the exact text of the correct option, no 'all of the above'), word (a one-to-three-word answer), written (a few sentences; the answer starts with 'Rubric:' and names what a good answer must contain). Use null for choices and work when they do not apply.",
     "Counts: write exactly pack.skills skills and exactly pack.questionsPerSkill questions in every skill. The runbook's balance gives the shares, not the count.",
     "Bloom demand: 1 remember, 2 understand, 3 apply, 4 analyse, 5 evaluate, 6 create. Stay inside the runbook's range. Order each skill's questions from easier to harder.",
+    "When subjectMap is supplied, it identifies exactly one approved concept. Return one skill with that mapKey and title. Use its dimension to choose factual recall, conceptual contrasts, procedural steps with reasons, or strategy selection and checking. Use misconception fixes for teaching only when the evidence matches; a miss alone does not diagnose its cause. Keep its success criteria and higher thinking demands. The worked example must show actual completed steps and reasons; use a different case in the independent questions. Never copy an example or its answer-equivalent calculation into those questions.",
     "Code recomputes every `work` expression, checks every option list and hint, and an independent reviewer answers every question without the key. Questions that fail are removed, so accuracy matters more than variety.",
     RUBRIC_BRIEF,
     book.text,
@@ -381,7 +396,8 @@ export function parsePackDraft(raw: string): PackDraft {
       workedExample: str(lesson.workedExample, 1000), quickCheck: { question: str(lesson.quickCheck?.question, 400), answer: str(lesson.quickCheck?.answer, 200) },
     },
     skills: skills.map((skill: any): PackSkill => ({
-      title: str(skill?.title, 100), recall: str(skill?.recall, 400), example: str(skill?.example, 500), nonExample: str(skill?.nonExample, 400),
+      title: str(skill?.title, 120), recall: str(skill?.recall, 400), example: str(skill?.example, 500), nonExample: str(skill?.nonExample, 400),
+      ...(typeof skill?.mapKey === 'string' && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(skill.mapKey) && skill.mapKey.length <= 60 ? { mapKey: skill.mapKey } : {}),
       items: (Array.isArray(skill?.items) ? skill.items.slice(0, 10) : []).map(parseItem).filter((item: PackItem | null): item is PackItem => Boolean(item)),
     })).filter((skill) => skill.title && skill.items.length),
   }
@@ -417,6 +433,7 @@ const itemId = (skill: number, item: number) => `s${skill}i${item}`
  * A repaired question must pass the code rules again; it is not sent back to the model a second time.
  */
 export async function checkAndRepair(draft: PackDraft, brief: PackBrief, book: Runbook, rules: QaRules, ai: AiConfig, ask: PackAsk, stage: (text: string) => Promise<void> = async () => {}): Promise<PackChecked> {
+  const teaching = [draft.lesson.workedExample, draft.lesson.quickCheck.question, ...draft.skills.flatMap(s => [s.example, s.nonExample]), ...(rules.teaching ?? [])]
   const report = checkDraft(draft, rules)
   const problems = new Map<string, string[]>()
   const rulesHit: Record<string, number> = {}
@@ -467,6 +484,7 @@ export async function checkAndRepair(draft: PackDraft, brief: PackBrief, book: R
         const id = str(row.id, 20), item = parseItem(row.item)
         if (!problems.has(id) || !item) continue
         const issues: Issue[] = checkItem(item, rules)
+        if (copiesTeaching(item.prompt, teaching)) issues.push({ rule: 'taught_copy', message: 'The repair repeats a teaching example.', block: true })
         if (!blocked(issues)) { replacements.set(id, item); repaired++ }
       }
     } catch { /* The unrepaired questions are dropped below. */ }
@@ -494,14 +512,29 @@ export async function checkAndRepair(draft: PackDraft, brief: PackBrief, book: R
 }
 
 /** From the approved subject map: the concept this request is about, with its success levels and real misconceptions. */
-export async function mapContext(db: DatabaseSync, studentId: string, subject: string, topic: string) {
-  const map = await approvedMap(db, studentId, subject)
-  if (!map) return {}
-  const words = (text: string) => new Set(text.toLowerCase().match(/[a-z]{4,}/g) ?? [])
-  const wanted = words(topic)
-  const scored = concepts(map).map((concept) => ({ concept, score: [...words(`${concept.title} ${concept.idea}`)].filter((word) => wanted.has(word)).length })).sort((a, b) => b.score - a.score)
-  const match = scored[0]?.score ? scored[0].concept : null
-  return match ? { subjectMap: { concept: match.title, idea: match.idea, success: match.success, misconceptions: match.misconceptions, transfer: match.transfer, mission: match.mission } } : {}
+export async function mapContext(db: DatabaseSync, studentId: string, subject: string, topic: string, reference: { conceptId?: string; mapKey?: string } = {}): Promise<{ subjectMap?: ApprovedTeaching; conceptId?: string; mapVersion?: string }> {
+  const empty = {}
+  const row = await db.prepare("SELECT id, version, map_json FROM subject_maps WHERE student_id = ? AND lower(subject) = lower(?) AND status = 'approved' ORDER BY version DESC LIMIT 1").get(studentId, subject)
+  if (!row) return empty
+  let map: SubjectMap
+  try { map = JSON.parse(String(row.map_json)); if (!Array.isArray(map.groups)) return empty } catch { return empty }
+  let key = reference.mapKey
+  if (reference.conceptId !== undefined) {
+    const own = await db.prepare('SELECT map_key FROM custom_concepts WHERE student_id = ? AND concept_id = ? AND lower(subject) = lower(?)').get(studentId, reference.conceptId, subject)
+    if (!own?.map_key || key !== undefined && key !== own.map_key) return empty
+    key = String(own.map_key)
+  }
+  const match = selectTeaching(concepts(map), topic, key)
+  if (!match) return empty
+  const own = await db.prepare('SELECT concept_id FROM custom_concepts WHERE student_id = ? AND lower(subject) = lower(?) AND map_key = ?').all(studentId, subject, match.key)
+  if (own.length !== 1) return empty
+  return { subjectMap: match, conceptId: String(own[0].concept_id), mapVersion: `${row.id}:${row.version}` }
+}
+
+function assertPackMap(draft: PackDraft, brief: PackBrief) {
+  if (brief.mapKey && (draft.skills.length !== 1 || draft.skills[0].mapKey !== brief.mapKey || draft.skills[0].title !== brief.topic)) {
+    throw new PackScope('The questions did not retain the selected approved topic. Your work is saved; create new practice for that topic.')
+  }
 }
 
 /** The pack pipeline predates the runbook contract; its outcome is recorded in the same shape. */
@@ -531,6 +564,8 @@ export async function runPack(options: { db: DatabaseSync }, ctx: JobContext, pa
   const book = runbook(brief.runbook)
   const ai = await aiConfigFor(db, ownerUserId)
   try {
+    const teaching = await mapContext(db, pack.student_id, brief.subject, brief.topic, brief)
+    if (brief.mapKey && (!teaching.subjectMap || teaching.mapVersion !== brief.mapVersion || teaching.conceptId !== brief.conceptId)) throw new PackScope('The approved topic changed. Create new practice from the current map.')
     let draft: PackDraft
     if (!pack.draft_json) {
       await ctx.stage("Writing your practice")
@@ -540,7 +575,7 @@ export async function runPack(options: { db: DatabaseSync }, ctx: JobContext, pa
         request: brief.request,
         learner: { grade: brief.gradeLabel, readingLevel: brief.reading === "junior" ? "early reader: short sentences, everyday words" : "confident reader", subject: brief.subject, ...evidence },
         pack: { topic: brief.topic, skills: brief.skills, questionsPerSkill: brief.perSkill, testDate: brief.testDate, preferredFormats: brief.preferred, allowedFormats: book.formats, bloomRange: `${book.bloomMin}-${book.bloomMax}` },
-        ...(await mapContext(db, pack.student_id, brief.subject, brief.topic)),
+        ...teaching,
       })
       try { draft = parsePackDraft(await ask("write", prompt, writerBrief(book), PACK_SCHEMA, ai)) }
       catch (first) {
@@ -549,11 +584,13 @@ export async function runPack(options: { db: DatabaseSync }, ctx: JobContext, pa
       }
       await ctx.commit(async () => { await setPack(db, pack!.id, { draft_json: JSON.stringify(draft), status: "checking", provider: ai.provider, model: ai.model }) })
     } else draft = JSON.parse(pack.draft_json) as PackDraft
+    assertPackMap(draft, brief)
     let checked: PackChecked
     if (!pack.check_json) {
       await ctx.stage("Checking every answer")
       const started = Date.now()
-      checked = await checkAndRepair(draft, brief, book, qaRules(book, brief, await seenFor(db, pack.student_id)), ai, ask, ctx.stage)
+      checked = await checkAndRepair(draft, brief, book, { ...qaRules(book, brief, await seenFor(db, pack.student_id)),
+        teaching: teaching.subjectMap ? [teaching.subjectMap.contrast.example, teaching.subjectMap.contrast.nonExample] : [] }, ai, ask, ctx.stage)
       await ctx.commit(async () => { await setPack(db, pack!.id, { check_json: JSON.stringify(checked), qa_json: JSON.stringify(checked.qa) }) })
       await recordRun(db, ownerUserId, pack.student_id, packReport(brief.runbook, checked, ai, Date.now() - started)).catch(() => {})
     } else checked = JSON.parse(pack.check_json) as PackChecked
@@ -585,10 +622,15 @@ export async function publishPack(db: DatabaseSync, ownerUserId: string, packId:
     if (!["checking", "review", "writing", "queued"].includes(pack.status) || !pack.check_json) throw new UserError("This pack is not ready to use.")
     const brief = JSON.parse(pack.brief_json) as PackBrief
     const { final, qa } = JSON.parse(pack.check_json) as PackChecked
+    assertPackMap(final, brief)
+    const bound = brief.mapKey ? await mapContext(db, pack.student_id, brief.subject, brief.topic, brief) : null
+    if (brief.mapKey && (!bound?.subjectMap || bound.mapVersion !== brief.mapVersion || bound.conceptId !== brief.conceptId)) {
+      throw new PackScope('The approved topic changed while these questions were being prepared. Create new practice from the current map.')
+    }
     const conceptIds: string[] = [], createdConcepts: string[] = []
     let items = 0
     for (const skill of final.skills) {
-      let conceptId = await findConceptByTitle(db, pack.student_id, brief.subject, skill.title)
+      let conceptId = bound?.conceptId ?? await findConceptByTitle(db, pack.student_id, brief.subject, skill.title)
       if (!conceptId) {
         conceptId = await addPackConcept(db, pack.student_id, { subject: brief.subject, title: skill.title, recall: skill.recall, example: skill.example, nonExample: skill.nonExample }, now)
         createdConcepts.push(conceptId)

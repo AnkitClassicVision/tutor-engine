@@ -19,9 +19,9 @@ Say each task once, as written. Don't name buttons.
 |---|---|---|---|
 | C1 | "Start today's practice." | reaches a question without help | WF-02 |
 | C2 | "Answer this one however you think." | submits an answer | WF-03 |
-| C3 | (After a miss) "What does the tutor think?" | finds and understands the feedback; ages 5–7 can hear it | Step 6 |
+| C3 | (After feedback opens) "What does the tutor think?" | finds and understands the feedback; ages 5–7 can hear it; a whole assessment must be submitted first | Step 6 |
 | C4 | "If you think the tutor got it wrong, can you tell it?" | finds "I think there's a mistake" (only if a miss looked wrong to them) | Step 5 |
-| C5 | "Ask the tutor a question about this." | types or says a question and sends it | Step 2 |
+| C5 | (During learning with help) "Ask the tutor a question about this." | types or says a question and sends it; content help stays closed during an independent assessment | Step 2 |
 | C6 | "Stop for now so you can come back later." | uses Save & stop, and later finds "Pick up where I left off" | WF-08 |
 | C7 | (At the end of a mission) "You're done. What do you do now?" | chooses Done for today without being pushed to continue | Step 6 |
 | C8 | (Ages 5–7) "Show me a page of homework." | takes a photo without filling in a form | Step 6 |
@@ -70,7 +70,9 @@ Write "can't tell" when you can't. That is useful information.
 
 ## Follow-ups
 
-Retention is checked on the tutor's own schedule. Note the date of each topic's first "solved on their own" in the numbers page, then look again at **7–9 days** and **28–32 days** after that date: did the ladder step "remembered after a week / a month" fill in, and was it with help? Missed days are fine; do not schedule extra practice to make it happen.
+Retention is checked on the tutor's own schedule. Note each topic's latest eligible independent success, then look for a fresh comparable check at **7–9 days** and **28–32 days**. Record the actual dates, outcome, thinking demand, support and intervening schoolwork or practice. A visible delayed-check page or filled ladder step alone is insufficient: the result needs a matched earlier answer and recorded exposure conditions. Keep transfer results separate from same-outcome retention. See [EVALUATION-PLAN.md](../EVALUATION-PLAN.md).
+
+Missed days are missing observations, not incorrect answers. Do not schedule extra practice to make a follow-up appear successful. If the child asks for help or the application chooses more teaching, record it and the resulting measurement limits. Never accelerate the clock or enter old dates in a family observation.
 
 ## After each session
 

@@ -15,7 +15,7 @@ test('signing out clears unsent drafts, and Back shows no parent page', async ({
   await page.waitForURL(u => /^\/(students\/|welcome\/ai)/.test(u.pathname)); if (new URL(page.url()).pathname === '/welcome/ai') await page.getByRole('link', { name: 'Skip for now', exact: true }).click()
   // An unsent answer is kept as a draft in this tab.
   await page.getByRole('button', { name: 'Let’s go', exact: false }).click()
-  await page.getByLabel('Answer', { exact: true }).fill('a draft the next person must not see')
+  await page.getByRole('textbox', { name: /^(Answer|Your steps)$/ }).fill('a draft the next person must not see')
   await expect.poll(() => page.evaluate(() => Object.keys(sessionStorage).filter(k => k.startsWith('draft:')).length)).toBeGreaterThan(0)
   // The parent opens the family page, then signs out.
   await page.goto('/students')

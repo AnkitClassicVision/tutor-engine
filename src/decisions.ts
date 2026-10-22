@@ -1,3 +1,4 @@
+import { learningNow } from './learning-clock.ts'
 import { sealForStudent } from "./family-crypto.ts"
 import { createHash } from "node:crypto"
 import { readFileSync } from "node:fs"
@@ -7,7 +8,7 @@ const specRevision = createHash("sha256").update(readFileSync(new URL("../Tutor 
 
 export async function recordDecision(
   db: DatabaseSync, studentId: string, kind: string, reason: string,
-  details: Record<string, unknown> = {}, now = new Date(),
+  details: Record<string, unknown> = {}, now = learningNow(),
 ) {
   const owner = (await db.prepare(`SELECT users.ai_provider, users.ai_model FROM students
     JOIN users ON users.id = students.owner_user_id WHERE students.id = ?`).get(studentId))

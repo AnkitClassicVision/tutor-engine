@@ -1,7 +1,7 @@
 ---
 name: ground-judgment
 description: Settle a grade the first pass was unsure about, or that two graders disagreed on, by working the answer out from the topic's own source material and citing which source decided it.
-version: 4
+version: 5
 role: verifier
 ---
 
@@ -19,7 +19,7 @@ A grader was not sure about this answer, or two graders disagreed. You are the g
 ## Steps
 
 1. Work the question out yourself first, from the source material. Write down what a correct answer must contain.
-2. Check the key against your own working. If the key is wrong or does not fit the question, say so in `doubts` and keep confidence below 0.85.
+2. Check the key against your own working. If the key is wrong or does not fit the question, say so in `doubts` and set `doubtAbout` to `question`. The application retires a faulty question without scoring the child, regardless of confidence.
 3. For each point the answer needs, decide whether the child's answer meets it, and copy the child's exact words that meet it.
 4. Check every reason the child gives against the source material. A right conclusion with a false reason does not count. If the answer matches a listed misconception, it does not meet the rubric.
 5. Answer each earlier doubt directly. If a doubt cannot be settled from the material, say so.

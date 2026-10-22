@@ -126,6 +126,8 @@ test('what the learner saw is timed in the browser, and paused time is kept apar
     const start = row()
     assert.equal(start.requested_at, start.started_at); assert.equal(Number(start.paused_ms), 0)
     const item = (await f.db.prepare('SELECT id FROM session_items WHERE session_id = ? AND answered = 0 ORDER BY position LIMIT 1').get(session))!
+    assert.equal((await f.request(`/session/${session}/seen`, { itemId: item.id, what: 'question' })).status, 400, 'a scheduled but unrendered question was not displayed')
+    assert.equal((await f.request(`/session/${session}`)).status, 200)
     assert.equal((await f.request(`/session/${session}/seen`, { itemId: item.id, what: 'question' })).status, 200)
     const seen = f.db.prepare('SELECT visible_at FROM session_items WHERE id = ?').get(item.id)!.visible_at
     assert.ok(seen)
@@ -158,10 +160,10 @@ test('a repeated send of the same question to the tutor creates one message and 
     assert.equal(f.db.prepare("SELECT count(*) AS n FROM lesson_messages WHERE session_id = ? AND role = 'student'").get(session)!.n, 2)
   } finally { f.server.close(); f.db.close() }
 })
-test('answer submissions return 202 before model work and durable drafts survive a reload', async () => {
+test('learning answer submissions return 202 before model work and durable drafts survive a reload', async () => {
   const f = await fixture()
   try {
-    const session = (await startTutorSession(f.db, f.owner, f.student, new Date(), { mode: 'assessment', focusConceptId: 'math.primary.3.multiply' }))
+    const session = (await startTutorSession(f.db, f.owner, f.student, new Date(), { mode: 'session', arc: false, focusConceptId: 'math.primary.3.multiply' }))
     const item = (await f.db.prepare('SELECT id FROM session_items WHERE session_id = ? ORDER BY position LIMIT 1').get(session))!
     assert.equal((await f.request(`/session/${session}/draft`, { itemId: item.id, answer: 'My saved draft' })).status, 200)
     assert.match(await (await f.request(`/session/${session}`)).text(), /My saved draft/)

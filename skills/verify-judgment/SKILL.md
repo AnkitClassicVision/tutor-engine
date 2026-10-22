@@ -1,7 +1,7 @@
 ---
 name: verify-judgment
-description: Give an independent second judgment on a child's answer when the first grade was uncertain or decides top-level mastery, without seeing the first verdict.
-version: 2
+description: Independently check a confident first grade against the question, rubric and child's answer without seeing the first verdict.
+version: 3
 role: verifier
 ---
 
@@ -20,7 +20,7 @@ A first grader has already judged this answer. You have not seen its verdict, an
 2. List what the question needs. For each point, decide whether the child's answer meets it and copy the child's exact words that meet it.
 3. Check every reason the child gives. A right conclusion reached with a false reason does not count.
 4. Decide: correct only when every point is met and every stated reason is sound. For judging and creating questions, look for reasons and evidence, not keywords or length.
-5. Give your confidence from 0 to 1. Below 0.8 means you cannot tell.
+5. Give your confidence from 0 to 1. Agreement counts only when both judgments have confidence of at least 0.85. Lower confidence or disagreement sends the answer to a separate grounding pass.
 
 ## What good looks like
 

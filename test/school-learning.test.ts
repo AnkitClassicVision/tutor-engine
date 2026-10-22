@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { openDb } from '../src/db.ts'
 import { registerUser } from '../src/auth.ts'
-import { createStudent, saveAiSettings, listStates, startTutorSession, sessionItems, titleMap, uploadedSourceText } from '../src/services.ts'
+import { createStudent, saveAiSettings, listStates, startTutorSession, sessionItems, titleMap, uploadedSourceText, finishAssessment } from '../src/services.ts'
 import { createMaterial, configureMaterialLearning, correctMaterial, applySchoolLearning } from '../src/schoolwork.ts'
 import { createJob, runNextJob, ownedJob } from '../src/jobs.ts'
 import { jobHandlers, resumeBuilds } from '../src/server.ts'
@@ -55,6 +55,7 @@ test('sample pages produce a durable dated practice focus without changing maste
     const session = await startTutorSession(f.db, f.owner, f.student, new Date(), { mode: 'assessment', subject: 'Math', targetId: String(target.id), materialId: f.material })
     const items = await sessionItems(f.db, session)
     assert.equal(items[0].concept_id, concept); assert.ok(items.every(i => i.prompt !== original))
+    await finishAssessment(f.db, f.owner, session)
     const afterDeadline = new Date(`${target.deadline}T12:00:00Z`)
     afterDeadline.setUTCDate(afterDeadline.getUTCDate() + 2)
     await assert.rejects(startTutorSession(f.db, f.owner, f.student, afterDeadline, { targetId: String(target.id) }), /no longer active/)

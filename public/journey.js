@@ -7,51 +7,142 @@ if (strengthMap && selectedStrength) {
   strengthMap.scrollTop = Math.max(0, selectedStrength.offsetTop - 24)
 }
 const csrfValue = () => document.querySelector('#csrf-store')?.value || document.querySelector('[name=csrf]')?.value || ''
-// A chosen option is saved as the draft too; radios keep their own values.
-for (const radio of document.querySelectorAll('form.answer input[type=radio][name=answer]')) radio.addEventListener('change', () => {
-  if (!radio.checked) return
-  const form = radio.form
-  fetch(form.action.replace(/\/answer$/, '/draft'), { method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ csrf: csrfValue(), itemId: form.querySelector('[name=itemId]').value, answer: radio.value }) }).catch(() => {})
-})
-const drafts = document.querySelectorAll('form.answer input[name=answer]:not([type=radio]), form[action$="/help"] textarea[name=message], form.talk textarea[name=message]')
-// The path names one session or one homework question, so a draft never appears on a sibling's page.
-const sentLast = form => [...(form.closest('main, body')?.querySelectorAll('.thread li.mine p') ?? [])].at(-1)?.textContent?.trim()
-for (const field of drafts) {
-  const key = `draft:${location.pathname}:${field.form?.querySelector('[name=itemId]')?.value || ''}`
-  const saved = sessionStorage.getItem(key)
-  const message = !field.form?.classList.contains('answer')
-  // A server-rendered matching answer, or a question now shown as sent, confirms the save.
-  // Submission alone does not: a failed send must leave the child's words in place.
-  if (saved !== null && (saved === field.value || (message && saved.trim() && saved.trim() === sentLast(field.form)))) { sessionStorage.removeItem(key); sessionStorage.removeItem(`${key}:send`) }
-  else if (saved !== null) field.value = saved
-  if (message && field.form) {
-    // One identifier per question typed: sending it again after a lost reply reuses the first send.
-    const sendId = document.createElement('input')
-    sendId.type = 'hidden'; sendId.name = 'sendId'
-    field.form.append(sendId)
-    field.form.addEventListener('submit', () => {
-      sessionStorage.setItem(key, field.value)
-      sendId.value = sessionStorage.getItem(`${key}:send`) || crypto.randomUUID()
-      sessionStorage.setItem(`${key}:send`, sendId.value)
-    })
+// Storage may be disabled. A failed local write must not disable typing or server saves.
+const tabDraft = {
+  get(key) { try { return sessionStorage.getItem(key) } catch { return null } },
+  put(key, value) { try { sessionStorage.setItem(key, value); return true } catch { return false } },
+  remove(key) { try { sessionStorage.removeItem(key) } catch {} },
+}
+const answerForm = document.querySelector('form.answer')
+let flushAnswerDraft = async () => true
+if (answerForm) {
+  const form = answerForm, itemId = form.querySelector('[name=itemId]').value, revision = form.querySelector('[name=revision]')?.value || ''
+  const fields = [...form.querySelectorAll('[name=answer]')], choices = fields[0]?.type === 'radio'
+  const value = () => choices ? fields.find(field => field.checked)?.value || '' : fields[0]?.value || ''
+  const setValue = text => fields.forEach(field => { if (choices) field.checked = field.value === text; else field.value = text })
+  const key = `draft:${location.pathname}:${itemId}`, activeKey = `draft:active:${revision || itemId}`
+  const status = form.querySelector('[data-draft-status]'), retry = form.querySelector('[data-retry-draft]')
+  let serverDraft = value(), localKept = false, sending = null, debounce, submitting = false, leaving = false
+  const stored = tabDraft.get(key)
+  if (stored !== null && stored !== serverDraft) setValue(stored)
+  else if (stored !== null) tabDraft.remove(key)
+  let activeMs = Math.max(0, Math.min(Number(tabDraft.get(activeKey)) || 0, 86400000)), activeSince = document.hidden ? null : performance.now()
+  function keepActive() {
+    if (activeSince !== null) activeMs += Math.max(0, performance.now() - activeSince)
+    activeSince = document.hidden || submitting || leaving ? null : performance.now()
+    tabDraft.put(activeKey, String(Math.round(activeMs)))
+    return Math.round(activeMs)
   }
-  let saving
+  function draftStatus(text, failed = false) { if (status) status.textContent = text; if (retry) retry.hidden = !failed }
+  function keepDraft() { localKept = tabDraft.put(key, value()); keepActive() }
+  function unsaved() { draftStatus(localKept ? 'Kept in this tab. Saving is not confirmed. Try again when connected.' : 'Saving is not confirmed. Keep this page open and try again.', true) }
+  async function post(path, body) {
+    const cancel = new AbortController(), timeout = setTimeout(() => cancel.abort(), 10000)
+    try {
+      const response = await fetch(form.action.replace(/\/answer$/, path), { method: 'POST', keepalive: true, signal: cancel.signal,
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ csrf: csrfValue(), itemId, revision, ...body }) })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || 'Save not confirmed.')
+      return result
+    } finally { clearTimeout(timeout) }
+  }
   async function saveDraft() {
-    if (!field.form?.classList.contains('answer')) return
-    const url = field.form.action.replace(/\/answer$/, '/draft')
-    try { await fetch(url, { method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ csrf: csrfValue(), itemId: field.form.querySelector('[name=itemId]').value, answer: field.value }) }) } catch { /* The browser draft remains available until reconnection. */ }
+    clearTimeout(debounce)
+    if (leaving || submitting) return false
+    if (sending) return sending
+    const snapshot = value()
+    if (snapshot === serverDraft) { draftStatus(snapshot ? 'Draft saved.' : ''); return true }
+    keepDraft(); draftStatus('Saving draft…')
+    sending = (async () => {
+      let saved = false
+      try {
+        const receipt = await post('/draft', { answer: snapshot })
+        if (!receipt.saved || receipt.itemId !== itemId || receipt.revision !== revision) throw new Error('Save not confirmed.')
+        serverDraft = snapshot; saved = true
+        if (value() === snapshot) { tabDraft.remove(key); draftStatus('Draft saved.') }
+      } catch { if (!submitting && !leaving) unsaved() }
+      finally { sending = null }
+      // Serialize writes and coalesce intervening edits: an older reply cannot mark a newer draft saved.
+      if (saved && value() !== serverDraft && !submitting && !leaving) return saveDraft()
+      return saved
+    })()
+    return sending
   }
-  field.addEventListener('input', () => { sessionStorage.setItem(key, field.value); if (message) sessionStorage.removeItem(`${key}:send`); clearTimeout(saving); saving = setTimeout(saveDraft, 350) })
-  field.addEventListener('blur', saveDraft)
-  addEventListener('pagehide', saveDraft)
+  flushAnswerDraft = saveDraft
+  for (const field of fields) {
+    field.addEventListener(choices ? 'change' : 'input', () => {
+      keepDraft(); draftStatus(localKept ? 'Kept in this tab. Saving draft…' : 'Saving draft…')
+      clearTimeout(debounce); debounce = setTimeout(saveDraft, 350)
+    })
+    field.addEventListener('blur', saveDraft)
+  }
+  retry?.addEventListener('click', saveDraft)
+  addEventListener('online', saveDraft)
+  addEventListener('pagehide', () => { if (!leaving) { keepActive(); void saveDraft() } })
+  document.addEventListener('visibilitychange', () => { keepActive(); if (document.hidden) void saveDraft() })
+  if (value() !== serverDraft) void saveDraft()
+
+  // Acknowledgment follows the committed answer. A network failure leaves the response editable here.
+  form.dataset.fetch = ''
+  form.addEventListener('submit', async event => {
+    const pause = event.submitter?.getAttribute('formaction')?.endsWith('/pause')
+    if (pause) {
+      // Finish any in-flight draft before the native pause writes the current response.
+      if (form.dataset.draftReady) return
+      event.preventDefault()
+      const button = event.submitter
+      // A cached acknowledgment resolves immediately; requestSubmit must run in a later task.
+      if (await saveDraft()) { form.dataset.draftReady = '1'; setTimeout(() => form.requestSubmit(button), 0) }
+      return
+    }
+    event.preventDefault()
+    if (submitting) return
+    keepDraft(); const workMs = keepActive(); submitting = true; activeSince = null; clearTimeout(debounce)
+    form.setAttribute('aria-busy', 'true')
+    const controls = [...form.querySelectorAll('[name=answer], [name=confidence], button'), ...document.querySelectorAll('form[action$="/pause"] button')].filter(control => !control.disabled)
+    const body = Object.fromEntries(new FormData(form)); if (event.submitter?.name) body[event.submitter.name] = event.submitter.value
+    const priorStart = Number(tabDraft.get(`${key}:submit`)), firstSend = priorStart > 0 && Date.now() - priorStart < 86400000 ? priorStart : Date.now()
+    tabDraft.put(`${key}:submit`, String(firstSend))
+    controls.forEach(button => { button.disabled = true })
+    let acknowledgment = form.querySelector('[data-submit-status]')
+    if (!acknowledgment) { acknowledgment = document.createElement('p'); acknowledgment.dataset.submitStatus = ''; acknowledgment.setAttribute('role', 'status'); form.append(acknowledgment) }
+    acknowledgment.textContent = 'Saving your answer…'
+    try {
+      const receipt = await post('/answer', { ...body, activeMs: workMs, receipt: '1' })
+      if (receipt.itemId !== itemId || receipt.revision !== revision || typeof receipt.saved !== 'boolean' || !receipt.location?.startsWith('/')) throw new Error('Save not confirmed.')
+      if (receipt.saved) {
+        acknowledgment.textContent = 'Answer saved.'
+        // Small, answer-free timing observation; a missing receipt stays missing in the report.
+        void post('/save-seen', { elapsedMs: Math.max(0, Date.now() - firstSend) }).catch(() => {})
+      }
+      if (receipt.discardDraft) { tabDraft.remove(key); tabDraft.remove(`${key}:submit`); tabDraft.remove(activeKey) }
+      leaving = true; location.assign(receipt.location)
+    } catch {
+      acknowledgment.textContent = 'Save not confirmed. Your answer is still here. Try again.'
+      unsaved()
+    } finally {
+      submitting = false; form.removeAttribute('aria-busy'); if (!leaving) controls.forEach(button => { button.disabled = false })
+      if (!leaving && !document.hidden) activeSince = performance.now()
+    }
+  })
+}
+// Talk drafts use the same safe tab storage, without claiming a durable server save.
+const sentLast = form => [...(form.closest('main, body')?.querySelectorAll('.thread li.mine p') ?? [])].at(-1)?.textContent?.trim()
+for (const field of document.querySelectorAll('form[action$="/help"] textarea[name=message], form.talk textarea[name=message]')) {
+  const form = field.form, key = `draft:${location.pathname}:`, saved = tabDraft.get(key)
+  if (saved !== null && (saved === field.value || (saved.trim() && saved.trim() === sentLast(form)))) { tabDraft.remove(key); tabDraft.remove(`${key}:send`) }
+  else if (saved !== null) field.value = saved
+  const sendId = document.createElement('input'); sendId.type = 'hidden'; sendId.name = 'sendId'; form.append(sendId)
+  form.addEventListener('submit', () => { tabDraft.put(key, field.value); sendId.value = tabDraft.get(`${key}:send`) || sendId.value || crypto.randomUUID(); tabDraft.put(`${key}:send`, sendId.value) })
+  field.addEventListener('input', () => { tabDraft.put(key, field.value); tabDraft.remove(`${key}:send`); sendId.value = '' })
 }
 // WF-09: signing out ends this device's session, so unsent drafts in the tab go with it.
 document.querySelectorAll('form[action="/logout"]').forEach(form => form.addEventListener('submit', () => {
   try { for (const key of Object.keys(sessionStorage)) if (key.startsWith('draft:')) sessionStorage.removeItem(key) } catch { /* Storage can be unavailable; nothing to clear. */ }
 }))
 // Acknowledge in the same event frame, while preserving the clicked button's value.
-document.querySelectorAll('form:not([data-fetch])').forEach(form => form.addEventListener('submit', () => {
-  if (form.dataset.submitting) return
+document.querySelectorAll('form:not([data-fetch])').forEach(form => form.addEventListener('submit', event => {
+  if (event.defaultPrevented || form.dataset.submitting) return
   form.dataset.submitting = 'true'
   form.setAttribute('aria-busy', 'true')
   let status = form.querySelector('[data-submit-status]')
@@ -61,10 +152,11 @@ document.querySelectorAll('form:not([data-fetch])').forEach(form => form.addEven
 }))
 const clock = document.querySelector('[data-session-deadline]')
 if (clock) {
+  const receivedAt = performance.now(), serverNow = Date.parse(clock.dataset.sessionNow) || Date.now()
   const update = () => {
-    const left = Math.max(0, Math.ceil((Date.parse(clock.dataset.sessionDeadline) - Date.now()) / 1000))
-    clock.textContent = left ? `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')} left · your work is saved as you go` : 'Time to stop. Your work is saved.'
-    if (!left) { clearInterval(timer); location.reload() }
+    const left = Math.max(0, Math.ceil((Date.parse(clock.dataset.sessionDeadline) - serverNow - (performance.now() - receivedAt)) / 1000))
+    clock.textContent = left ? `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')} left` : 'Time to stop.'
+    if (!left) { clearInterval(timer); void flushAnswerDraft().then(saved => { if (saved) location.reload(); else clock.textContent = 'Time to stop. Keep this page open until your draft is saved.' }) }
   }
   const timer = setInterval(update, 1000)
   // An ended mission has no answer form and should not reload repeatedly.
@@ -79,6 +171,11 @@ if (job) {
   function render(status, terminal) {
     if (stage.textContent !== status.stage) stage.textContent = status.stage; error.textContent = status.error || ''; job.dataset.jobState = status.status
     started = Date.parse(status.startedAt || status.createdAt)
+    const grading = job.querySelector('[data-grading-status]')
+    if (grading) grading.textContent = status.status === 'queued' ? 'Your answer is saved. Checking is queued.'
+      : status.status === 'running' ? 'Your answer is saved. The checker is working.'
+      : status.status === 'succeeded' ? status.result?.escalated ? 'Your answer is saved for a grown-up to check.' : 'Your answer has been checked.'
+      : 'Your answer is saved. Checking did not finish; it can be retried.'
     job.querySelector('form[action$="/cancel"]').hidden = terminal
     job.querySelector('form[action$="/retry"]').hidden = !['failed', 'cancelled'].includes(status.status)
     const destination = job.querySelector('[data-job-destination]')

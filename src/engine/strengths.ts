@@ -1,4 +1,4 @@
-import { freshEvidence, masteryMet, reduceState } from './mastery.ts'
+import { freshEvidence, masteryMet, reduceState, mixedWin } from './mastery.ts'
 import { learningMilestones } from './adventure.ts'
 import type { AttemptRecord, BloomLevel, ConceptNode } from './types.ts'
 
@@ -35,11 +35,11 @@ export function strengthGraph(concepts: ConceptNode[], attempts: AttemptRecord[]
       const wins = comparable.filter(a => a.correct)
       return { level, checks: comparable.length, successes: wins.length, days: new Set(comparable.map(a => a.day)).size,
         successDays: new Set(wins.map(a => a.day)).size, successSessions: new Set(wins.map(a => a.sessionId)).size,
-        mixedSuccess: wins.some(a => a.interleaved), demonstrated: masteryMet(checks, level) }
+        mixedSuccess: wins.some(mixedWin), demonstrated: masteryMet(checks, level) }
     })
     const demonstrated = levels.filter(l => l.demonstrated).map(l => l.level)
     const state = reduceState(concept.conceptId, attempts, today, 'screen')
-    const supported = rows.filter(a => a.evidenceCertainty === 'confirmed' && a.correct && (a.hintsUsed > 0 || a.supportUsed === 'homework' || a.supportUsed === 'hint' || a.supportUsed === 'access')).length
+    const supported = rows.filter(a => a.evidenceCertainty === 'confirmed' && a.correct && (a.hintsUsed > 0 || a.supportUsed && a.supportUsed !== 'none')).length
     const unresolved = rows.filter(a => a.evidenceCertainty === 'unresolved').length + (pending[concept.conceptId] ?? 0)
     const due = checks.length > 0 && (state.nextDue <= today || state.status === 'review_due')
     const status: StrengthStatus = due ? 'review' : demonstrated.length ? 'demonstrated' : checks.length ? 'growing' : supported ? 'supported' : unresolved ? 'pending' : 'unseen'

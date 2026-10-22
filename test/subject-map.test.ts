@@ -4,14 +4,17 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs"
 import { join } from "node:path"
 import { tmpdir } from "node:os"
 import { askResearch } from "../src/research-web.ts"
-import { approveMap, decideMap, latestMap, mapRow, researchAsk, runResearchJob, startResearchJob, subjectMaps, type ResearchInput } from "../src/subject-map.ts"
+import { approveMap, decideMap, latestMap, mapRow, mapBrief, researchAsk, runResearchJob, startResearchJob, subjectMaps, startMapRow, saveResearch, type ResearchInput, type SubjectMap } from "../src/subject-map.ts"
 import { startCurriculumJob } from "../src/class-planning.ts"
 import { openDb } from "../src/db.ts"
 import { registerUser } from "../src/auth.ts"
-import { createStudent, saveAiSettings, studentConcepts } from "../src/services.ts"
+import { createStudent, saveAiSettings, studentConcepts, applyCurriculum } from "../src/services.ts"
 import { deleteFamily } from "../src/accounts.ts"
 import { scriptedAsk } from "../src/runbook/golden.ts"
 import { subjectMapPage, mapsSection } from "../src/subject-map-view.ts"
+import { mapContext } from '../src/pack.ts'
+import { lessonCard } from '../src/view.ts'
+import { selectTeaching } from '../src/engine/teaching.ts'
 
 const golden = JSON.parse(readFileSync(new URL("../eval/golden/research-subject.json", import.meta.url), "utf8"))
 const goodMap = golden[0].replies.write, goodReview = golden[0].replies.critic
@@ -126,4 +129,68 @@ test("a cancelled research job is not reused; the subject can be researched agai
 test("a researched subject is listed under subject maps even before it has a class", () => {
   const html = mapsSection("s", ["Math"], [{ id: "m", student_id: "s", subject: "Chess", version: 1, status: "draft", research: "web", map_json: "", note: "", created_at: "", decided_at: null, job_id: null }])
   assert.match(html, /Chess/); assert.match(html, /Waiting for your approval/); assert.doesNotMatch(html, /<strong>Math/)
+})
+
+test('approved teaching follows stable keys through confusable titles and map revisions', async () => {
+  const f = await family()
+  try {
+    const map: SubjectMap = structuredClone(goodMap)
+    map.subject = 'Fractions lab'
+    const magnitude = map.groups[0].concepts[0], addition = map.groups[0].concepts[1]
+    Object.assign(magnitude, { key: 'fraction-magnitude', title: 'Fraction magnitude', dimension: 'conceptual', idea: 'Compare fractions using the same whole.', prereqs: [], crossLinks: [] })
+    magnitude.contrast = { example: 'On equal wholes, one half is larger than one third.', nonExample: 'A larger denominator always makes a larger fraction.' }
+    magnitude.misconceptions = [{ belief: 'Three parts must be more than two parts.', probe: 'Are the wholes the same size?', fix: 'Compare the sizes of the equal parts of the same whole.' }]
+    Object.assign(addition, { key: 'fraction-addition', title: 'Fraction addition', dimension: 'procedural', idea: 'Rename the parts to the same size before adding.', prereqs: [magnitude.key], crossLinks: [] })
+    addition.contrast = { example: 'One half plus one quarter is three quarters.', nonExample: 'Add the denominators when adding fractions.' }
+    addition.misconceptions = [{ belief: 'Add tops and bottoms.', probe: 'Are halves and quarters the same size?', fix: 'Rename one half as two quarters, then count quarters.' }]
+    const install = async (next: SubjectMap) => {
+      const id = await startMapRow(f.db, f.student, next.subject)
+      await saveResearch(f.db, f.student, id, { map: next, web: false })
+      await approveMap(f.db, f.owner, f.student, id)
+      return id
+    }
+    await install(map)
+    const nodes = await studentConcepts(f.db, f.owner, f.student)
+    const mag = nodes.find(c => c.teaching?.key === magnitude.key)!, add = nodes.find(c => c.teaching?.key === addition.key)!
+    assert.ok(mag && add)
+    assert.deepEqual(add.prereqs, [mag.conceptId])
+    const saved = await applyCurriculum(f.db, f.owner, f.student, map.subject, [{ mapKey: addition.key, title: magnitude.title, recall: 'A generated reinterpretation must not replace approval.', example: 'Generated example', nonExample: 'Generated nonexample', questions: [{ prompt: 'A fresh synthetic question for the selected key.', answer: '4', bloomLevel: 3 }] }])
+    assert.deepEqual(saved.conceptIds, [add.conceptId], 'the key binds the writer even when titles are confusable')
+    assert.equal((await studentConcepts(f.db, f.owner, f.student)).find(c => c.conceptId === add.conceptId)!.recall, addition.idea)
+    await assert.rejects(applyCurriculum(f.db, f.owner, f.student, map.subject, [{ mapKey: 'missing-key', title: addition.title, recall: '', example: '', nonExample: '', questions: [] }]), /missing or ambiguous/)
+    await assert.rejects(applyCurriculum(f.db, f.owner, f.student, map.subject, [
+      { mapKey: addition.key, title: addition.title, recall: '', example: '', nonExample: '', questions: [{ prompt: 'Synthetic partial publication must roll back.', answer: '4' }] },
+      { mapKey: 'missing-key', title: magnitude.title, recall: '', example: '', nonExample: '', questions: [] },
+    ]), /missing or ambiguous/)
+    assert.equal(f.db.prepare("SELECT count(*) n FROM practice_items WHERE prompt = 'Synthetic partial publication must roll back.'").get()!.n, 0)
+    const vague = await mapContext(f.db, f.student, map.subject, 'fractions')
+    assert.equal(vague.subjectMap, undefined, 'word overlap cannot choose either route')
+    assert.equal((await mapContext(f.db, f.student, map.subject, addition.title)).subjectMap?.key, addition.key)
+    assert.equal((await mapContext(f.db, f.student, map.subject, addition.title, { conceptId: mag.conceptId })).subjectMap?.key, magnitude.key, 'explicit identity wins over confusable wording')
+    for (const reference of [{ mapKey: 'unknown' }, { conceptId: 'math.5.nf.a.1' }, { conceptId: mag.conceptId, mapKey: addition.key }]) {
+      assert.equal((await mapContext(f.db, f.student, map.subject, addition.title, reference)).subjectMap, undefined)
+    }
+    assert.equal(selectTeaching([magnitude, { ...addition, title: magnitude.title }], magnitude.title), null, 'ambiguous exact titles remain unbound')
+    assert.equal(selectTeaching([addition, addition], addition.title, addition.key), null, 'duplicate keys remain unbound')
+    assert.equal(selectTeaching([{ ...addition, idea: 'x'.repeat(301) }], addition.title), null, 'oversized stored context is rejected')
+    const magnitudeHtml = lessonCard('synthetic', mag), additionHtml = lessonCard('synthetic', add)
+    assert.match(magnitudeHtml, /data-teaching-route="conceptual"/)
+    assert.match(magnitudeHtml, /Compare the ideas/)
+    assert.match(magnitudeHtml, /Compare the sizes of the equal parts/)
+    assert.doesNotMatch(magnitudeHtml, /Rename one half as two quarters/)
+    assert.match(additionHtml, /data-teaching-route="procedural"/)
+    assert.match(additionHtml, /Follow the reasons/)
+    assert.match(additionHtml, /Rename one half as two quarters/)
+    const brief = mapBrief(map)
+    for (const field of [addition.key, 'procedural', addition.contrast.nonExample, addition.misconceptions[0].fix]) assert.ok(brief.includes(field))
+    addition.title = 'Rename and add fractional parts'
+    const revision = await install(map)
+    const revised = (await studentConcepts(f.db, f.owner, f.student)).find(c => c.teaching?.key === addition.key)!
+    assert.equal(revised.conceptId, add.conceptId, 'a renamed approved concept retains its history')
+    assert.equal(revised.title, addition.title)
+    assert.ok(revised.mapVersion?.startsWith(revision))
+    assert.equal((await mapContext(f.db, f.student, map.subject, 'Fraction addition', { mapKey: addition.key })).conceptId, add.conceptId)
+    const builtIn = (await studentConcepts(f.db, f.owner, f.student)).find(c => c.conceptId === 'math.5.nf.a.1')!
+    assert.equal(builtIn.teaching, undefined, 'a custom map does not attach itself to a built-in by overlapping words')
+  } finally { f.db.close() }
 })

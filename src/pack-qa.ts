@@ -3,6 +3,7 @@ import { childSafe } from "./runbook/gates.ts"
 import { rubricIssues, type Rubric } from "./rubric.ts"
 import { promptIdentity } from "./session-feedback.ts"
 import { parseNumber, plain } from "./engine/score.ts"
+import { copiesTeaching } from './engine/scaffolds.ts'
 
 /**
  * The code half of the learning-pack quality gate. Every rule here holds whichever model wrote the pack,
@@ -12,10 +13,10 @@ import { parseNumber, plain } from "./engine/score.ts"
 export const PACK_FORMATS = ["number", "choice", "word", "written"] as const
 export type PackFormat = (typeof PACK_FORMATS)[number]
 export interface PackItem { prompt: string; answer: string; format: PackFormat; choices: string[] | null; work: string | null; hints: string[]; explanation: string; bloom: number; rubric?: Rubric | null }
-export interface PackSkill { title: string; recall: string; example: string; nonExample: string; items: PackItem[] }
+export interface PackSkill { title: string; recall: string; example: string; nonExample: string; items: PackItem[]; mapKey?: string }
 export interface PackLesson { hook: string; steps: string[]; workedExample: string; quickCheck: { question: string; answer: string } }
 export interface PackDraft { interpretation: string; lesson: PackLesson; skills: PackSkill[] }
-export interface QaRules { formats: string[]; bloomMin: number; bloomMax: number; requireWork: boolean; grade: number; seen?: Iterable<string>; sources?: string[] }
+export interface QaRules { formats: string[]; bloomMin: number; bloomMax: number; requireWork: boolean; grade: number; seen?: Iterable<string>; sources?: string[]; teaching?: string[] }
 export interface Issue { rule: string; message: string; block: boolean }
 export interface ItemReport { skill: number; item: number; issues: Issue[] }
 
@@ -195,6 +196,12 @@ export function checkLesson(lesson: PackLesson): Issue[] {
   if (!lesson.hook?.trim() || lesson.hook.length > 400) issues.push(block("lesson", "The lesson needs a short opening."))
   if (!Array.isArray(lesson.steps) || lesson.steps.length < 1 || lesson.steps.length > 4 || lesson.steps.some((step) => !step.trim() || step.length > 400)) issues.push(block("lesson", "The lesson needs one to four short steps."))
   if (!lesson.workedExample?.trim() || lesson.workedExample.length > 900) issues.push(block("lesson", "The lesson needs one worked example."))
+  if (/^(?:first[,:]?\s+)?(?:find|use|write|read|choose|identify|remember|follow|think|rewrite|add|subtract|multiply|divide)\b/i.test(lesson.workedExample ?? '')
+    && !/\d|[“"].+[”"]/.test(lesson.workedExample ?? '')) issues.push(block('worked_steps', 'Directions alone are not a worked example. Show a concrete case with completed steps and reasons.'))
+  for (const equation of (lesson.workedExample ?? '').matchAll(/(\d+\s*\/\s*\d+(?:\s*[+−×÷-]\s*\d+(?:\s*\/\s*\d+)?)?)\s*=\s*(\d+(?:\s*\/\s*\d+)?)/g)) {
+    const left = evaluate(equation[1]), right = evaluate(equation[2])
+    if (left && right && left.n * right.d !== right.n * left.d) issues.push(block('worked_key', 'A displayed calculation in the worked example is incorrect.'))
+  }
   if (!lesson.quickCheck?.question?.trim() || !lesson.quickCheck?.answer?.trim()) issues.push(block("lesson", "The lesson needs a quick check with its answer."))
   for (const text of [lesson.hook, ...(lesson.steps ?? []), lesson.workedExample, lesson.quickCheck?.question, lesson.quickCheck?.answer]) if (text && unsafeForChild(text)) { issues.push(block("safety", "The lesson is not safe for a child.")); break }
   return issues
@@ -202,10 +209,12 @@ export function checkLesson(lesson: PackLesson): Issue[] {
 
 /** Runs every code rule over a draft. Duplicates are judged across the whole pack and against prompts the learner has seen. */
 export function checkDraft(draft: PackDraft, rules: QaRules) {
+  const teaching = [draft.lesson.workedExample, draft.lesson.quickCheck.question, ...draft.skills.flatMap(s => [s.example, s.nonExample]), ...(rules.teaching ?? [])]
   const seen = new Set([...(rules.seen ?? [])].map(promptIdentity))
   const reports: ItemReport[] = []
   draft.skills.forEach((skill, s) => skill.items.forEach((item, i) => {
     const issues = checkItem(item, rules)
+    if (copiesTeaching(item.prompt, teaching)) issues.push(block('taught_copy', 'This independent question repeats a teaching example or its calculation. Use a different case.'))
     const identity = promptIdentity(item.prompt)
     if (seen.has(identity)) issues.push(block("repeat", "This question was already used."))
     seen.add(identity)
@@ -213,7 +222,7 @@ export function checkDraft(draft: PackDraft, rules: QaRules) {
   }))
   const titles = draft.skills.map((skill) => plain(skill.title))
   const skillIssues = draft.skills.map((skill, s) => [
-    ...(!skill.title.trim() || skill.title.length > 90 ? [block("skill", "Each skill needs a short title.")] : []),
+    ...(!skill.title.trim() || skill.title.length > 120 ? [block("skill", "Each skill needs a short title.")] : []),
     ...(titles.indexOf(plain(skill.title)) !== s ? [block("skill", "Two skills share a title.")] : []),
     ...(!skill.recall.trim() ? [block("skill", "Each skill needs the one idea to remember.")] : []),
   ])

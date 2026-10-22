@@ -18,7 +18,9 @@
     "start:codex": "TUTOR_CODEX_LOCAL=1 TUTOR_PORT=8788 TUTOR_DB=data/codex-test.sqlite TUTOR_UPLOADS=data/codex-test-uploads npm start",
     "start:codex:phone": "node --experimental-strip-types scripts/start-codex-phone.ts",
     "start:chatgpt": "TUTOR_CHATGPT_LOCAL=1 TUTOR_PORT=8789 TUTOR_ORIGIN=http://127.0.0.1:8789 TUTOR_DB=data/chatgpt-test.sqlite TUTOR_UPLOADS=data/chatgpt-test-uploads npm start",
-    "start:chatgpt:phone": "node --experimental-strip-types scripts/start-chatgpt-phone.ts"
+    "start:chatgpt:phone": "node --experimental-strip-types scripts/start-chatgpt-phone.ts",
+    "check:public-content": "node scripts/check-public-content.mjs",
+    "test:provenance-parity": "TUTOR_SCRYPT_N=16384 node --experimental-strip-types test/parity/postgres-provenance.ts --isolated-local"
   },
   "dependencies": {
     "@vercel/blob": "^2.8.0",

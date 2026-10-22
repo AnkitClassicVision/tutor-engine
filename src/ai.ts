@@ -69,13 +69,17 @@ async function askModelUntracked(
   if (ai.provider === "xai" || ai.provider === "openai" || ai.provider === "anthropic" || ai.provider === "openrouter" || ai.provider === "chatgpt") {
     return (await askApi(promptPath, schema, systemPrompt, timeoutMs, ai, options.maxTokens))
   }
-  return askGrok(promptPath, schema, systemPrompt, timeoutMs)
+  return askGrok(promptPath, schema, systemPrompt, timeoutMs, ai.model)
 }
 
-function askGrok(promptPath: string, schema: string, systemPrompt: string, timeoutMs: number) {
+// The Grok CLI defaults to its owner's reasoning effort (often the highest), which takes minutes per step;
+// tutor steps run at low effort unless TUTOR_GROK_REASONING says otherwise.
+function askGrok(promptPath: string, schema: string, systemPrompt: string, timeoutMs: number, model = "") {
+  const tuning = [...(model ? ["--model", model] : []), "--reasoning-effort", process.env.TUTOR_GROK_REASONING || "low"]
   return run(
     "grok",
     [
+      ...tuning,
       "--cwd",
       "/tmp",
       "--prompt-file",

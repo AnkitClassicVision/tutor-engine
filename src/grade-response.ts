@@ -27,7 +27,7 @@ export function parseRubricVerdict(raw: string): RubricVerdict | null {
   } catch { return null }
 }
 
-/** A grade counts only at this confidence or above. Below it the answer is grounded, then goes to a parent if still unsure. */
+/** Both initial judgments need this confidence and agreement; otherwise the answer goes to grounding. */
 export const CONFIDENT = 0.85
 /** A grounded grade, decided from the topic's material and the rubric, counts at this confidence. */
 export const GROUNDED_CONFIDENT = 0.8
@@ -77,7 +77,7 @@ export type GradeInput = { concept: string; bloomLevel: BloomLevel; prompt: stri
 export type GradeOutput = (RubricVerdict & { evidence?: Evidence; doubts?: string[] }) | { unresolved: true; confidence: number; doubts: string[] }
 
 export const GRADE_RESPONSE: Contract<GradeInput, GradeOutput> = {
-  id: "grade-response", version: 7, role: "verifier",
+  id: "grade-response", version: 9, role: "verifier",
   skills: ["assess-learning"],
   brief: () => GRADING_RULES.join("\n\n"),
   schema: {
@@ -114,7 +114,7 @@ export const GRADE_RESPONSE: Contract<GradeInput, GradeOutput> = {
 
 export type VerifyOutput = { correct: boolean; confidence: number; reason: string; evidence: Evidence }
 export const VERIFY_JUDGMENT: Contract<GradeInput, VerifyOutput> = {
-  id: "verify-judgment", version: 5, role: "verifier",
+  id: "verify-judgment", version: 7, role: "verifier",
   skills: ["verify-judgment", "assess-learning"],
   brief: () => [GRADING_RULES[4], GRADING_RULES[5]].join("\n\n"),
   schema: { type: "object", additionalProperties: false, required: ["rubricPoints", "reasoningSound", "correct", "confidence", "reason"], properties: { rubricPoints: EVIDENCE, reasoningSound: { type: "boolean" }, correct: { type: "boolean" }, confidence: { type: "number", minimum: 0, maximum: 1 }, reason: { type: "string", minLength: 1, maxLength: 600 } } },
@@ -134,7 +134,7 @@ export type GroundOutput = RubricVerdict & { evidence: Evidence; groundedOn: str
 const SOURCES = ["rubric", "idea", "example", "non-example", "success", "misconception", "own working"] as const
 
 export const GROUND_JUDGMENT: Contract<GroundInput, GroundOutput> = {
-  id: "ground-judgment", version: 4, role: "verifier",
+  id: "ground-judgment", version: 6, role: "verifier",
   skills: ["ground-judgment", "assess-learning"],
   brief: () => [GRADING_RULES[4], GRADING_RULES[5]].join("\n\n"),
   schema: {
@@ -175,7 +175,8 @@ const doubtText = (doubts: string[], fallback: string) => [...new Set(doubts.fil
 /**
  * First pass: a justified grade. Confident (≥ 0.85) grades get an independent second judgment; agreement counts.
  * Anything under 0.85, or a disagreement, gets a grounding pass that works the answer out from the topic's
- * material. If that is still under 0.85, the answer goes to a parent with the reason.
+ * material. A valid grounded verdict counts at 0.8; after at most two grounding attempts, unresolved answers
+ * go to a parent with the reason. Faulty questions are retired without scoring the child at any confidence.
  */
 export async function judgeAnswer(input: GradeInput, ai: AiConfig, options: { grounding?: Grounding; ask?: Ask; record?: (report: RunReport) => Promise<void>; verifyAi?: AiConfig; timeoutMs?: number } = {}): Promise<Judgment> {
   const record = async (report: RunReport) => { await options.record?.(report).catch(() => {}) }

@@ -9,6 +9,8 @@ import { coachingStage } from "./coaching.ts"
 import type { Contract, RunReport } from "./runbook/contract.ts"
 import { childSafe, issue } from "./runbook/gates.ts"
 import { runContract, type Ask } from "./runbook/run.ts"
+import type { ApprovedTeaching } from './engine/teaching.ts'
+import type { WorkedExample } from './engine/scaffolds.ts'
 
 export interface PlanTopic {
   title: string
@@ -35,6 +37,8 @@ export interface ScoreLine {
   prompt: string
   answer: string
   correct: boolean
+  teaching?: ApprovedTeaching
+  workedExample?: WorkedExample
 }
 
 const COURSES = new Set(["remedial", "grade", "prealgebra", "algebra"])
@@ -187,14 +191,19 @@ export function lessonOpening(results: ScoreLine[]): string {
   const misses = uniqueMisses(results)
   if (!results.length) return "This check has no scored items yet."
   if (!misses.length) return `You held all ${results.length}. Ask me to go one step harder on any of them.`
-  const lines = misses.slice(0, 4).map((miss) => miss.recall ? `${miss.title}: ${miss.recall}${miss.example ? ` Worked example: ${miss.example}` : ""}` : `${miss.title}: compare your steps with the key or rubric for that question: ${miss.answer}.`)
+  const lines = misses.slice(0, 4).map((miss) => miss.recall ? `${miss.title}: ${miss.recall}${workedExplanation(miss)}` : `${miss.title}: compare your steps with the key or rubric for that question: ${miss.answer}.`)
   return [`You held ${held} of ${results.length}.`, ...lines, "Ask about any line, out loud or in the box."].join("\n")
 }
 
 export function lessonFallback(results: ScoreLine[]): string {
   const miss = results.find((result) => !result.correct) ?? results[0]
   if (!miss) return "Ask me about one of the questions you just did."
-  return miss.recall ? `${miss.title}. ${miss.recall} ${miss.example ? `Worked example: ${miss.example}. ` : ""}Which step is still unclear?` : `${miss.title}. The key or rubric for that question is: ${miss.answer}. Tell me which step is still unclear.`
+  return miss.recall ? `${miss.title}. ${miss.recall}${workedExplanation(miss)} Which step is still unclear?` : `${miss.title}. The key or rubric for that question is: ${miss.answer}. Tell me which step is still unclear.`
+}
+
+function workedExplanation(result: ScoreLine) {
+  if (result.workedExample) return ` Worked example: ${result.workedExample.problem} ${result.workedExample.steps.map(s => `${s.work} — ${s.reason}`).join(' ')} Check: ${result.workedExample.check}`
+  return result.example ? ` Example: ${result.example}` : ''
 }
 
 export async function answerLesson(
@@ -208,7 +217,8 @@ export async function answerLesson(
   const stage = coachingStage(input.transcript, input.question)
   const move = stage === "ask" ? "Start Socratically: ask just one concrete guiding question about the relevant first step. Do not give the complete solution yet." : stage === "hint" ? "Give a useful hint or partially worked step, then one small choice. Change your approach rather than repeating a question the learner could not answer." : "Move forward now: explain the steps plainly with one worked example from the checked work, then offer a small fresh try or a break. Do not keep withholding help or ask the same question again."
   const breakdown = input.results
-    .map((result) => `- ${result.title} | ${result.correct ? "holds" : "miss"} | question: ${result.prompt} | solid answer: ${result.answer}${result.recall ? ` | idea: ${result.recall} | worked example: ${result.example ?? ""}` : ""}`)
+    .map((result) => JSON.stringify({ title: result.title, result: result.correct ? 'holds' : 'miss', question: result.prompt, solidAnswer: result.answer,
+      idea: result.recall, example: result.example, approvedTeaching: result.teaching, checkedWorkedExample: result.workedExample }))
     .join("\n")
   const prompt = [
     "The supplied responses have already been checked. Do not give an upcoming independent question’s answer. Let the student ask follow-ups.",
@@ -241,7 +251,7 @@ export const PLAN_TALK: Contract<string, TalkTurn> = {
 }
 
 export const LESSON_REPLY: Contract<string, { reply: string }> = {
-  id: "lesson-reply", version: 2, role: "coach",
+  id: "lesson-reply", version: 5, role: "coach",
   skills: ["assess-learning", "adapt-session", "coach-through-question"],
   brief: () => "You are the tutor after a check. Reply in JSON with one field, reply. Four sentences at most. Invite one next question. Do not use a student name.",
   schema: JSON.parse(LESSON_SCHEMA), selfCheck: [], repairs: 0,

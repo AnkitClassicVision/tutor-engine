@@ -31,8 +31,30 @@ test('with too little history every measure says so instead of showing a number'
   const f = await learner()
   try {
     const measures = await learningMeasures(f.db, f.student)
-    assert.deepEqual(measures.map((m) => m.key), ['time_to_first', 'self_correction', 'hint_before_answer', 'completion', 'retention', 'calibration'])
+    assert.deepEqual(measures.map((m) => m.key), ['time_to_first', 'submit_to_save', 'save_processing', 'checking_queue', 'checker_run', 'feedback_wait', 'foreground_work', 'self_correction', 'hint_before_answer', 'completion', 'retention', 'calibration'])
     for (const m of measures) { assert.equal(m.enough, false); assert.match(m.value, /^Not enough yet: 0 of \d+/); assert.ok(m.definition.length > 20) }
+  } finally { f.db.close() }
+})
+
+test('save, queue, checking, visible feedback and foreground work retain separate timing samples and missingness', async () => {
+  const f = await learner()
+  try {
+    for (let n = 1; n <= 6; n++) {
+      const id = await mission(f.db, f.student, 120 + n, 1, [{ correct: 1 }])
+      if (n === 6) continue // Historical answer has no timing observations.
+      await f.db.prepare(`UPDATE session_items SET submitted_at = '2026-10-01T12:00:00Z', answer_saved_at = '2026-10-01T12:00:01Z',
+        submit_to_save_ms = ?, active_work_ms = ?, grading_started_at = '2026-10-01T12:00:06Z',
+        grading_finished_at = '2026-10-01T12:00:16Z', graded_at = '2026-10-01T12:00:16Z', feedback_visible_at = '2026-10-01T12:01:16Z' WHERE session_id = ?`).run(n * 1000, n * 10000, id)
+    }
+    const byKey = Object.fromEntries((await learningMeasures(f.db, f.student)).map(m => [m.key, m]))
+    for (const [key, expected] of Object.entries({ submit_to_save: '3 seconds', save_processing: '1 seconds', checking_queue: '5 seconds', checker_run: '10 seconds', feedback_wait: '60 seconds', foreground_work: '30 seconds' })) {
+      assert.equal(byKey[key].value, expected, key); assert.equal(byKey[key].enough, true)
+      assert.match(byKey[key].detail, /5 of 6 submitted answers/); assert.match(byKey[key].detail, /1 are missing or do not apply/)
+    }
+    await f.db.prepare("UPDATE session_items SET grading_finished_at = NULL WHERE session_id = (SELECT id FROM tutor_sessions ORDER BY started_at LIMIT 1 OFFSET 1)").run()
+    const checking = (await learningMeasures(f.db, f.student)).find(m => m.key === 'checker_run')!
+    assert.equal(checking.enough, false); assert.match(checking.value, /4 of 5/)
+    assert.match(byKey.foreground_work.definition, /does not measure thinking/)
   } finally { f.db.close() }
 })
 

@@ -3,7 +3,8 @@
 // is a scale for a change between two proportions. Bloom's 2-sigma compares tutored and classroom students on
 // standardized scores, so the two numbers are not comparable; the parent view says so.
 
-import { independent } from "./mastery.ts"
+import { matchedSamples } from "./evidence.ts"
+import { independent, freshEvidence } from "./mastery.ts"
 import type { AttemptRecord } from "./types.ts"
 import { addDays } from "./dates.ts"
 
@@ -41,10 +42,12 @@ function window(rows: AttemptRecord[]): Window {
 export const fairCheck = (attempt: AttemptRecord) => attempt.evidenceCertainty !== "unresolved" && independent(attempt)
 
 export function gainOnFairChecks(attempts: AttemptRecord[]): Gain {
-  const rows = attempts.filter(fairCheck).sort((a, b) => (a.createdAt ?? a.day).localeCompare(b.createdAt ?? b.day))
+  const rows = freshEvidence(attempts).filter(fairCheck).sort((a, b) => (a.createdAt ?? a.day).localeCompare(b.createdAt ?? b.day))
   const empty: Gain = { enough: false, checks: rows.length, before: null, after: null, effect: null, size: null, demandChange: null, note: "" }
   if (rows.length < WINDOW * 2) return { ...empty, note: `Needs ${WINDOW * 2} fair checks; ${rows.length} so far.` }
-  const before = window(rows.slice(0, WINDOW)), after = window(rows.slice(-WINDOW))
+  const matched = matchedSamples(rows.slice(0, WINDOW), rows.slice(-WINDOW))
+  if (matched.before.length < WINDOW) return { ...empty, note: `Not enough comparable checks: ${matched.before.length} of ${WINDOW} matched by topic, demand, task role and response form. Unmatched task mixtures cannot establish a change.` }
+  const before = window(matched.before), after = window(matched.after)
   if (after.from < addDays(before.from, MIN_DAYS_APART)) return { ...empty, before, after, note: "Needs fair checks at least a week apart." }
   const effect = 2 * Math.asin(Math.sqrt(after.accuracy)) - 2 * Math.asin(Math.sqrt(before.accuracy))
   const magnitude = Math.abs(effect)

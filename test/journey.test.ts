@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { stampTask } from '../src/task-evidence.ts'
 import test from 'node:test'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -73,6 +74,7 @@ test('duplicate answers commit one attempt and assisted work does not establish 
   const id = (await startTutorSession(db, owner, student))
   const first = (await sessionItems(db, id))[0]
   await db.prepare('UPDATE session_items SET answer = ?, bloom_level = 1 WHERE id = ?').run('4', first.id as string)
+  await stampTask(db, String(first.id), 'builtin')
   await useHint(db, owner, id, String(first.id))
   const input = { itemId: String(first.id), answer: '4', timeMs: 1000 }
   await submitAnswer(db, owner, id, input); await submitAnswer(db, owner, id, input)

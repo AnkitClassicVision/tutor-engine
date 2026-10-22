@@ -1,3 +1,6 @@
+import type { MixedEvidence } from "./mixed.ts"
+import type { TaskEvidence, ConfidenceEvidence } from "./evidence.ts"
+import type { ApprovedTeaching } from './teaching.ts'
 export type BloomLevel = 0 | 1 | 2 | 3 | 4 | 5 | 6
 
 export const BLOOM_NAME = [
@@ -32,6 +35,9 @@ export interface ConceptNode {
   grade: number
   title: string
   prereqs: string[]
+  crossLinks?: string[]
+  mapVersion?: string
+  teaching?: ApprovedTeaching
   recall: string
   example: string
   nonExample: string
@@ -50,6 +56,13 @@ export interface LearnerConceptState {
   placementBloom?: BloomLevel
   placement?: "provisional" | "evidence"
   independentChecks?: number
+}
+
+export interface HistoricalEvidence {
+  state: LearnerConceptState
+  levels: BloomLevel[]
+  attemptIds: string[]
+  milestones?: import('./adventure.ts').LearningMilestone[]
 }
 
 export interface AttemptRecord {
@@ -72,12 +85,21 @@ export interface AttemptRecord {
   /** Access support used on the item (read aloud, spoken answer). Recorded apart from teaching help; not used in scoring. */
   accessSupport?: string[]
   /** "access" when read-aloud or voice entry supplied the skill the question measures (src/engine/access.ts). */
-  supportUsed?: "none" | "hint" | "homework" | "access"
+  supportUsed?: "none" | "hint" | "homework" | "access" | "outside"
+  paperConditions?: import('../paper-work.ts').PaperConditions
   decisionReason?: string
   /** "transfer" when the question was written to use the idea in an unfamiliar situation. */
   kind?: "practice" | "transfer"
   /** What the child said before answering, when they said anything. */
   confidence?: "sure" | "think" | "guess"
+  evidencePolicy?: 0 | 1 | "unversioned"
+  historical?: HistoricalEvidence
+  task?: TaskEvidence
+  mixed?: MixedEvidence
+  confidenceEvidence?: ConfidenceEvidence
+  lastExposureAt?: string
+  measurementStartedAt?: string
+  exposureComplete?: boolean
 }
 
 export interface Item {
@@ -87,6 +109,11 @@ export interface Item {
   prompt: string
   answer: string
   hintLadder: [string, string, string]
+  /** Response controls authored with the task, never inferred from a hint or a learner's answer. */
+  responseFormat?: 'steps' | 'choice'
+  choices?: string[]
+  rubric?: import('../rubric.ts').Rubric
+  evidenceKind?: 'practice' | 'transfer'
   surface: Mode
   interleaved: boolean
   partnerConceptId: string | null

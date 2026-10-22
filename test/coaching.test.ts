@@ -9,8 +9,9 @@ import {gradingBrief} from '../src/grade-response.ts'
 test('strategy probes explicitly request steps without a solved answer',()=>{
  const concept={conceptId:'math.5.nf.a.1',subject:'Math',grade:5,title:'Fraction addition',prereqs:[],recall:'Find a common denominator, then add the numerators.',example:'',nonExample:''}
  const item=generateItem(concept,1,10)
- assert.match(item.prompt,/the steps in order/)
- assert.match(item.prompt,/don’t need the answer yet/)
+ assert.match(item.prompt,/in order, the steps you would use/)
+ assert.match(item.prompt,/do not need to work out the final answer/)
+ assert.equal(item.responseFormat,'steps')
  assert.match(item.answer,/No calculation, final answer, exact wording/)
  assert.match(gradingBrief(),/cannot fairly reconcile the prompt and key/)
 })

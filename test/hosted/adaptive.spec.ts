@@ -40,14 +40,21 @@ test('a harder probe is answered from its local key, saved and resumed on the ac
   await page.getByRole('button', { name: 'Try a harder one', exact: true }).first().click()
   await expect(page.locator('form.answer')).toBeVisible()
   const session = new URL(page.url()).pathname.split('/').at(-1)!
-  const item = await withPostgres(db => db.prepare(`SELECT i.id, i.answer, i.bloom_level FROM session_items i JOIN tutor_sessions s ON s.id = i.session_id JOIN students t ON t.id = s.student_id WHERE s.id = ? AND t.id = ? AND t.owner_user_id = ? ORDER BY i.position LIMIT 1`).get(session, student, owner!), true)
+  const item = await withPostgres(db => db.prepare(`SELECT i.id, i.answer, i.bloom_level, i.revision_id FROM session_items i JOIN tutor_sessions s ON s.id = i.session_id JOIN students t ON t.id = s.student_id WHERE s.id = ? AND t.id = ? AND t.owner_user_id = ? ORDER BY i.position LIMIT 1`).get(session, student, owner!), true)
   if (!item || requiresJudgment(String(item.answer), Number(item.bloom_level))) throw new Error('Hosted verification requires an objective local key; no model calls are permitted.')
   await page.getByLabel('Answer', { exact: true }).fill(String(item.answer))
-  const submitted = page.waitForResponse(r => r.request().method() === 'POST' && new URL(r.url()).pathname.endsWith('/answer'))
-  await page.getByRole('button', { name: 'Check', exact: true }).click()
-  const response = await submitted
-  await page.waitForURL(new URL(response.headers().location, home).href)
+  const [response] = await Promise.all([
+    page.waitForResponse(r => r.request().method() === 'POST' && new URL(r.url()).pathname.endsWith('/answer')),
+    page.waitForNavigation({ waitUntil: 'domcontentloaded' }),
+    page.getByRole('button', { name: 'Check', exact: true }).click(),
+  ])
+  expect(response.status()).toBe(200)
+  await expect(page).toHaveURL(new URL(`/session/${session}`, home).href)
   await expect(page.locator('form.answer')).toBeVisible()
+  // The receipt-driven navigation must follow the committed answer for this revision.
+  const saved = await withPostgres(db => db.prepare('SELECT answer_saved_at, revision_id FROM session_items WHERE id = ? AND session_id = ? AND answered = 1').get(item.id, session), true)
+  expect(saved?.answer_saved_at).toEqual(expect.any(String))
+  expect(saved?.revision_id).toBe(item.revision_id)
   await page.getByRole('button', { name: 'Save & stop', exact: true }).click()
   // The saved mission waits on the home page, across a reload.
   await expect(page.getByText('Your unfinished mission is waiting.', { exact: false })).toBeVisible()

@@ -1,10 +1,12 @@
 export type FeedbackItem = { id?: unknown; answered?: unknown; correct?: unknown; hints_used?: unknown; concept_id?: unknown; prompt?: unknown; answer?: unknown; given_answer?: unknown; grading_reason?: unknown }
 
-export function feedbackState(mode: string, items: FeedbackItem[], cursor: number) {
+export function feedbackState(mode: string, items: FeedbackItem[], cursor: number, assessmentSubmitted = false) {
   const answered = items.filter(i => i.answered === 1)
   const current = items.some(i => i.answered === 0)
   const last = answered.at(-1)
-  if (!last || (mode === 'assessment' && current)) return { timing:'none' as const, checkpoint:false, entries:[], count:answered.length }
+  if (!last || (mode === 'assessment' && current && !assessmentSubmitted)) return { timing:'none' as const, checkpoint:false, entries:[], count:answered.length }
+  // A completed check reviews every submitted response, including those still waiting for a grade.
+  if (mode === 'assessment') return { timing:'batch' as const, checkpoint:false, entries:answered, count:answered.length }
   if (last.correct == null) return { timing:'pending' as const, checkpoint:false, entries:[last], count:answered.length }
   if (mode === 'homework') return { timing:'immediate' as const, checkpoint:false, entries:[last], count:answered.length }
   if (mode === 'session' && (last.correct === 0 || Number(last.hints_used) > 0 || answered.length <= 2)) {

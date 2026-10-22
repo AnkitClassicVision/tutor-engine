@@ -216,6 +216,7 @@ test('live test pages retain date and private photo when AI is unavailable, with
   await page.getByRole('link', { name: 'A test coming up?' }).click()
   await page.getByRole('link', { name: 'Add test pages' }).click()
   await expect(page.getByLabel('What is it?')).toHaveValue('practice_exam')
+  await page.waitForLoadState('load')
   await page.getByLabel('Give it a name').fill('Synthetic saved sample test')
   await page.locator('[data-pages]').setInputFiles({ name: 'synthetic-test.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAKklEQVR4nO3NQQkAAAgEsOtvODPYxBQ+hMH+S02fikAgEAgEAoFAIPgSLOeI7HlLIQSFAAAAAElFTkSuQmCC', 'base64') })
   await expect(page.getByRole('img', { name: 'Preview of page 1' })).toBeVisible()

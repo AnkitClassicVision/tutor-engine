@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { stampTask } from '../src/task-evidence.ts'
 import test from 'node:test'
 import { openDb } from '../src/db.ts'
 import { registerUser } from '../src/auth.ts'
@@ -58,13 +59,14 @@ test('early difficulty teaches and probes one prerequisite, preserves history, t
     const id = await startTutorSession(f.db, f.owner, f.student, now, { focusConceptId: concept })
     const original = await sessionItems(f.db, id)
     await f.db.prepare("UPDATE session_items SET prompt = 'Fresh addition check', answer = '4' WHERE id = ?").run(original[0].id)
+    await stampTask(f.db, String(original[0].id), 'builtin')
     await submitAnswer(f.db, f.owner, id, { itemId: String(original[0].id), answer: '5' }, now)
     const items = await sessionItems(f.db, id)
     assert.equal(items[0].given_answer, '5')
     assert.notEqual(items[1].concept_id, concept)
     assert.equal(items[2].concept_id, concept)
     const feedback = JSON.parse(String((await f.db.prepare('SELECT pending_feedback FROM tutor_sessions WHERE id = ?').get(id))!.pending_feedback))
-    assert.match(feedback.corrective.move, /Worked example/)
+    assert.match(feedback.corrective.move, /Example:/)
     assert.equal(feedback.errorType, null)
     await pauseSession(f.db, f.owner, id)
     assert.equal(await resumeSession(f.db, f.owner, id), id)
@@ -78,10 +80,12 @@ test('supported success, duplicate submissions and repeated wording do not infla
     const id = await startTutorSession(f.db, f.owner, f.student, now, { goal: 'harder_probe', focusConceptId: 'math.primary.3.multiply' })
     const items = await sessionItems(f.db, id)
     await f.db.prepare("UPDATE session_items SET prompt = 'Unique synthetic question', answer = '4', bloom_level = 3 WHERE id = ?").run(items[0].id)
+    await stampTask(f.db, String(items[0].id), 'builtin')
     await useHint(f.db, f.owner, id, String(items[0].id))
     await submitAnswer(f.db, f.owner, id, { itemId: String(items[0].id), answer: '4' }, now)
     await submitAnswer(f.db, f.owner, id, { itemId: String(items[0].id), answer: '4' }, now)
     await f.db.prepare("UPDATE session_items SET prompt = 'Unique synthetic question', answer = '4', bloom_level = 3 WHERE id = ?").run(items[1].id)
+    await stampTask(f.db, String(items[1].id), 'builtin')
     await submitAnswer(f.db, f.owner, id, { itemId: String(items[1].id), answer: '4' }, new Date(now.getTime() + 1000))
     assert.equal((await loadAttempts(f.db, f.student)).length, 2)
     assert.equal((await missionSummary(f.db, f.owner, id)).independent, 0)
@@ -100,6 +104,7 @@ test('pending grading remains unresolved; reviewed provenance is explicit and do
     const id = await startTutorSession(f.db, f.owner, f.student, now)
     const item = (await sessionItems(f.db, id))[0]
     await f.db.prepare("UPDATE session_items SET answer = 'Rubric: explain the method', bloom_level = 2 WHERE id = ?").run(item.id)
+    await stampTask(f.db, String(item.id), 'designed')
     await submitAnswer(f.db, f.owner, id, { itemId: String(item.id), answer: 'I explained it' }, now)
     assert.equal((await missionSummary(f.db, f.owner, id)).unresolved, 1)
     assert.equal((await loadAttempts(f.db, f.student)).length, 0)
@@ -118,7 +123,7 @@ test('paper scoring retains prompt provenance and is idempotent', async () => {
     const payload = JSON.parse(String((await f.db.prepare('SELECT spec_json FROM sheets WHERE id = ?').get(sheet))!.spec_json))
     const apply = payload.items.find((i: any) => i.bloomLevel === 3)
     const box = payload.spec.boxes.find((b: any) => b.itemId === apply.itemId)
-    await scoreSheet(f.db, f.owner, sheet, [{ boxIndex: box.boxIndex, answer: apply.answer }], now)
+    await scoreSheet(f.db, f.owner, sheet, [{ boxIndex: box.boxIndex, answer: apply.answer }], now, { version: 1, basis: 'self-reported', help: 'none', confirmed: true })
     const before = await loadAttempts(f.db, f.student)
     await scoreSheet(f.db, f.owner, sheet, [{ boxIndex: 0, answer: 'different' }], now)
     assert.deepEqual(await loadAttempts(f.db, f.student), before)
@@ -171,12 +176,12 @@ test('a harder success raises provisional working demand without awarding multi-
   } finally { f.db.close() }
 })
 
-test('unreadable paper stays unresolved and an empty typed reply is asked again, without affecting placement', async () => {
+test('unanswered paper is not graded and an empty typed reply is asked again, without affecting placement', async () => {
   const f = await fixture()
   try {
     const sheet = await createSheet(f.db, f.owner, f.student, now)
     const results = await scoreSheet(f.db, f.owner, sheet, [], now)
-    assert.ok(results.every(r => r.pendingReview))
+    assert.ok(results.every(r => r.unanswered && !r.pendingReview))
     assert.equal((await loadAttempts(f.db, f.student)).length, 0)
     const id = await startTutorSession(f.db, f.owner, f.student, now, { goal: 'harder_probe', focusConceptId: 'math.primary.3.multiply' })
     const item = (await sessionItems(f.db, id))[0]
